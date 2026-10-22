@@ -48,15 +48,26 @@ class MergeResult:
                 "files": self.files}
 
 
-def commit_worktree(repo, worktree: str | Path, message: str) -> tuple[bool, str]:
+def commit_worktree(repo, worktree: str | Path, message: str,
+                    paths: list | None = None) -> tuple[bool, str]:
     """Commit the worker's changes on the lease branch.
 
     The harness commits, never the worker.
+
+    Only the paths in *paths* (the task's declared write scope) are
+    staged.  ``git add -A`` would also stage the harness's own artefacts —
+    ``.pmwork/ORDER.md`` and the agent's session file — and two leases
+    would then conflict on the order file when their branches merge.  It
+    would also commit work that the scope check had already flagged as a
+    violation, which is exactly the work that must not be promoted.
     """
-    code, out, err = repo.git("add", "-A", cwd=Path(worktree))
-    if code != 0:
-        return False, err or out
-    code, status, err = repo.git("status", "--porcelain", cwd=Path(worktree))
+    if paths:
+        for path in paths:
+            repo.git("add", "--", path, cwd=Path(worktree))
+    else:
+        repo.git("add", "-A", cwd=Path(worktree))
+    code, status, err = repo.git("status", "--porcelain",
+                                 "--untracked-files=all", cwd=Path(worktree))
     if code != 0:
         return False, err or status
     if not status.strip():
@@ -71,11 +82,24 @@ def commit_worktree(repo, worktree: str | Path, message: str) -> tuple[bool, str
 def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
               gate_cmd: str = "", keep_worktree: bool = True) -> MergeResult:
     """Run one lease through the merge queue."""
+    from .harness import scope_check
+
     repo = kernel.repo
     result = MergeResult(task=task.id)
 
+    # A scope violation is a refusal to promote, not something to merge.
+    scope = scope_check(task, worktree, repo)
+    if not scope["ok"]:
+        result.message = (f"the worker changed {len(scope['violations'])} "
+                          f"file(s) outside its write scope: "
+                          + ", ".join(v["path"] for v in scope["violations"]))
+        kernel.record_event("ORACLE_RESULT", subject=task.id, fence=lease.fence,
+                            payload={"stage": "scope", "ok": False,
+                                     "violations": scope["violations"]})
+        return result
+
     message = f"feat({task.id}): {task.title}\n\nFence {lease.fence}.\n"
-    ok, detail = commit_worktree(repo, worktree, message)
+    ok, detail = commit_worktree(repo, worktree, message, task.write_scope)
     if not ok:
         result.message = f"could not commit the worktree: {detail}"
         return result
@@ -134,12 +158,22 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
                                              "exit": result.gate_exit})
                 return result
 
-        # Green: fast-forward main to the merge commit.
+        # Green: fast-forward the main branch **and** the main working
+        # tree.  Moving the ref with `update-ref` is not enough: git does
+        # not touch the index or the working tree, so the merged files
+        # would never appear on disk and the close-check would not see
+        # them.  `merge --ff-only` does both, and it refuses rather than
+        # overwriting local changes in the main tree.
         _, merge_commit, _ = repo.git("rev-parse", "HEAD", cwd=target)
         merge_commit = merge_commit.strip()
-        code, out, err = repo.git("update-ref", "refs/heads/main", merge_commit)
+        code, out, err = repo.git("merge", "--ff-only", merge_commit)
         if code != 0:
-            result.message = f"could not fast-forward main: {err or out}"
+            result.message = (f"could not fast-forward the main tree: "
+                              f"{err or out}").strip()
+            kernel.record_event("ORACLE_RESULT", subject=task.id,
+                                fence=lease.fence,
+                                payload={"stage": "fast-forward", "ok": False,
+                                         "message": result.message})
             return result
 
         result.ok = True

@@ -65,10 +65,61 @@ pilot v1's M0–M5 refer to exactly these. v1.1's M6–M8 (catalog, dashboard,
 hardening) are out of pilot scope. | Treating pilot v1's M-numbers as a
 different scheme. | QuotaGate M6–M8 stay unbuilt, as pilot v1 §3.2 intends.
 
+D-09 | 2026-10-22 | OpenCode (measured) | **The Fleet resolves npm `.cmd`
+shims to their real target and launches that with an argv list.** It never
+launches a `.cmd` through `cmd.exe` except as a reported-degraded
+fallback. | Launching `.cmd` shims through `cmd.exe /c`, which fleet
+amendment §7.2 permits "only after S-A1 shows the arguments survive". |
+Nothing — S-A1 showed they **do not** survive. `cmd.exe` expanded `%PATH%`
+to the entire PATH and doubled `^`. The amendment's conditional should
+become a prohibition; recorded as an amendment in the pilot report.
+
+D-10 | 2026-10-22 | OpenCode (measured) | **Every file a human might have
+written is read with `utf-8-sig`.** Windows PowerShell 5.1's
+`Set-Content -Encoding utf8` writes a UTF-8 BOM, which breaks JSON, TOML
+and classifier patterns alike. | Reading with plain `utf-8`. | Nothing.
+The BOM broke every classifier pattern silently, because the pattern
+became `\ufeffSYNTHETIC-FAILURE-QUOTA` and matched only at the very start
+of a string.
+
+D-11 | 2026-10-22 | OpenCode (found by the one-click demo) | **The scope
+check runs `git status --porcelain --untracked-files=all`, and the merge
+queue stages only the task's declared write scope.** | `git add -A` and a
+default `git status`. | Nothing — but without this, a worker that created
+a new directory would have had its entire output invisible to the scope
+check and the evidence bundle, and the Kernel would have promoted work it
+never inspected. Both are now regression-tested.
+
+D-12 | 2026-10-22 | OpenCode (found by the one-click demo) | **The merge
+queue fast-forwards with `git merge --ff-only`, not `git update-ref`.** |
+Moving the branch ref directly. | Nothing — `update-ref` moves the branch
+but never updates the index or the working tree, so merged files never
+appeared on disk and the close-check could not see them. A finished
+project looked unfinished.
+
+D-13 | 2026-10-22 | OpenCode | **Caliber stays disabled under pilot v1's
+G1 fallback; H2 is "not tested"; WP8 is reduced to its spec's reduced
+scope** (constitution injection, I17 hashing, lint, drift check). The
+constitution stub is CIP Appendix A.1 verbatim, and I17 is enforced: the
+Kernel refuses a bundle with no `constitution_hash`. | Installing
+`@rely-ai/caliber` without asking, which pilot v1 rule 6 forbids. | WP1's
+S1–S5 and the live context sync are untested. Installing Caliber and
+running S1–S5 is the first thing in the pilot report's recommended next
+steps.
+
+D-14 | 2026-10-22 | OpenCode | **The gate posture is a standing line in
+STATE.md, and the default is hold.** | Asking at each gate. | Nothing yet,
+because no gate has been crossed. The rule the operator would give is
+still wanted; until it arrives, no gate is crossed silently.
+
 ---
 
 ## Pending
 
 - **Gate rule** — the operator was asked whether the implementing agent must
-  stop at G0–G3 and replied "I will provide these". Until the rule arrives,
-  the pilot v1 §12.1 default applies: **hold**. No gate is crossed silently.
+  stop at G0–G3 and replied "I will provide these". Until the rule
+  arrives, the pilot v1 §12.1 default applies: **hold**. No gate has been
+  crossed.
+- **Caliber install approval** — `npm i -g @rely-ai/caliber`, pinned.
+- **QuotaGate provider keys**, for M1's live capture.
+- **Live S-A1 approval** — one trivial one-shot prompt per CLI.

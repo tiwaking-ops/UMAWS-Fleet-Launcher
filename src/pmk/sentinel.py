@@ -144,6 +144,11 @@ def check(kernel) -> dict:
     report.checked.append("I8'")
     pins = check_pins(kernel.repo)
     if not pins["ok"]:
+        if pins.get("reason") == "pins file missing":
+            # A missing pins file is a breach, not an absence of one.
+            report.findings.append(Finding(
+                "I8'", "the pins file is missing, so nothing is pinned",
+                stops=True, subject=".pm/pins.sha256"))
         for mismatch in pins["mismatches"]:
             report.findings.append(Finding(
                 "I8'", f"pinned file {mismatch['file']} does not match "

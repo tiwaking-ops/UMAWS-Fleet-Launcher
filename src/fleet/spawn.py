@@ -137,8 +137,30 @@ def remove_worktree(repo, path: str | Path) -> bool:
 
 
 def worktree_status(repo, worktree: str | Path) -> str:
-    code, out, err = repo.git("status", "--porcelain", cwd=Path(worktree))
+    """``git status --porcelain`` listing **every** changed file.
+
+    ``--untracked-files=all`` is essential.  Without it git collapses a
+    whole untracked *directory* into a single ``dir/`` entry, so a worker
+    that created a new module in a new directory would have had its work
+    invisible to the scope check, and the evidence bundle would have
+    recorded no output files at all.  That was measured, not assumed
+    (pilot demo, 2026-10-22).
+    """
+    code, out, err = repo.git("status", "--porcelain", "--untracked-files=all",
+                              cwd=Path(worktree))
     return out if code == 0 else ""
+
+
+def worktree_status_detail(repo, worktree: str | Path) -> dict:
+    """``git status --porcelain`` with the exit code and stderr.
+
+    A scope check that reports "no changes" when a worker clearly wrote
+    something is a silent failure, so the evidence bundle keeps the git
+    exit code and stderr alongside the file list.
+    """
+    code, out, err = repo.git("status", "--porcelain", "--untracked-files=all",
+                              cwd=Path(worktree))
+    return {"code": code, "out": out, "err": err}
 
 
 def worktree_diff_stat(repo, worktree: str | Path) -> str:

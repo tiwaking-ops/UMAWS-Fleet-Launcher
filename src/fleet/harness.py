@@ -148,8 +148,10 @@ def scope_check(task, worktree: str | Path, repo) -> dict:
     """Compare the worktree's changes with the declared write scope."""
     from pmk.models import scope_overlaps
 
+    detail = spawn_mod.worktree_status_detail(repo, worktree)
+    status = detail["out"] if detail["code"] == 0 else ""
+
     changed = []
-    status = spawn_mod.worktree_status(repo, worktree)
     for line in status.splitlines():
         if not line.strip():
             continue
@@ -165,7 +167,9 @@ def scope_check(task, worktree: str | Path, repo) -> dict:
             continue
         if not scope_overlaps([path], write_scope):
             violations.append({"path": path, "reason": "outside the write scope"})
-    return {"changed": changed, "violations": violations, "ok": not violations}
+    return {"changed": changed, "violations": violations,
+            "ok": not violations,
+            "git_code": detail["code"], "git_err": detail["err"][:400]}
 
 
 class Harness:

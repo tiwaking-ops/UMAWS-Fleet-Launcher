@@ -44,6 +44,11 @@ class Console:
     def __init__(self, root: str | Path | None = None, port: int = DEFAULT_PORT):
         self.kernel = Kernel(root=root)
         self.repo = self.kernel.repo
+        # Make sure the repository exists and is pinned before anything
+        # else touches it.  Without this the Console would start on an
+        # unpinned repository, and the sentinel's I8' check would have
+        # nothing to check.
+        self.kernel.init()
         self.fleet_state = FleetState.load()
         self.fixture_root = self.repo.root / "tests" / "fleet" / "fixtures"
         self.dispatcher = Dispatcher(self.kernel, self.fleet_state,
