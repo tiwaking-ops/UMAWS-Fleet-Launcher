@@ -17,7 +17,7 @@
   | G1 | sync sending repo content to providers | **authorisation** | **authorised** — terms accepted, D-23 |
   | G2 | metadata capture | checkpoint | logged (`cli-matrix.md`) |
   | G2 | live S-A1 provider calls | **authorisation** | **authorised with terms** — D-24 |
-  | G3 | real CLI through a lease; restart from the briefing alone | **authorisation** | **real-CLI half PASSES** (D-39); handover measured on kilo (D-36); **OpenCode half parked** (D-37) |
+  | G3 | real CLI through a lease; restart from the briefing alone | **authorisation** | **CLOSED** by the operator, 2026-10-23 (D-40); real-CLI half passes (D-39); OpenCode half parked (D-37) |
   | G4 | Caliber auto-sync on | **authorisation** | **HELD** — `mode = "dry-run"` |
   | G5 | live capacity run | **authorisation** | **HELD** |
 
@@ -89,8 +89,9 @@
      `max_total_agents = 20` guess.
 - **Blocked / awaiting human**:
   1. **G3's OpenCode half** — quota `UNKNOWN` by instruction (D-37); the test
-     is to be run **together later**.  Whether D-39 closes G3 is the
-     operator's call.
+     is to be run **together later**.  G3 itself is **closed** (D-40); this
+     condition is still owed, and a closed gate is not a satisfied
+     condition.
   2. **Verifying the five cline models** — needs an authorisation for live
      calls.
   3. **G4/G5** — held.
@@ -126,7 +127,7 @@
   the gate amendment in force (class K item Q-003); **D-35** the cline
   repoint; **D-36** the H6 result; **D-37** the OpenCode quota parked as
   `UNKNOWN`; **D-38** the M1 upstream measurement; **D-39** the real-CLI
-  through a real lease, which passes.
+  through a real lease, which passes; **D-40** the operator closing G3.
 - **Last green test run**: `pytest -q` → see the commit; `pmk sentinel`
   clean and `pmk context drift` clean on 2026-10-23.
 

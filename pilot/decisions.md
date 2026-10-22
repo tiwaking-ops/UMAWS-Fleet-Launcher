@@ -531,7 +531,16 @@ cannot see this CLI's token use (`L-F2`).
 
 ---
 
----
+D-40 | 2026-10-23 | operator | **G3 is CLOSED.**  Decision input: the
+operator's own words, "G3 closed. APPROVED", given after D-39 (the real-CLI
+half passes: a real CLI took work through a real lease and the Kernel accepted
+it) and after D-37 (the OpenCode half parked as `UNKNOWN`, to be run together
+later).  The gate is closed **by the operator**, not by the implementer -
+closing a gate is not something the implementer can do for itself. | Letting
+the gate quietly lapse because its hard half passed, without the record
+showing who closed it and on what basis. | The OpenCode half remains parked
+(D-37) and is **still owed**: a closed gate is not the same as a satisfied
+condition.  It is recorded here as outstanding work, not as debt written off.
 
 ---
 
