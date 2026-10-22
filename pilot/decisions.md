@@ -346,6 +346,38 @@ A two-key mechanism whose first key has no interface is a mechanism that
 depends on someone writing Python. | Raising class K items by hand-editing
 this file, which is not an event and has no hash chain. | Nothing.
 
+D-32 | 2026-10-23 | OpenCode | **The decision queue issued duplicate
+ids.**  `queue_add` numbered items by counting *open* ones, so deciding
+Q-001 and then raising another question produced a **second Q-001**.  Found
+while raising the amendment's ratification item — the first attempt at
+that item was recorded as Q-001 and had to be voided.  Fixed: the id is now
+derived from the highest existing id, and a duplicate raises
+`duplicate_queue_id` instead of being written. | Leaving it: two different
+class K questions sharing one id in the log that records their
+ratification, which is ambiguous exactly where the record has to be
+unambiguous. | Nothing.  The fix is covered by a regression test
+(`test_queue_ids_do_not_collide_after_a_decision`).  **The duplicate Q-001
+is voided in the queue, not deleted** — the event log is append-only, and
+pretending an id was never issued would be the same kind of dishonest
+tidying the pilot is trying to avoid.
+
+D-33 | 2026-10-23 | OpenCode | **A duplicate queue id let one decision
+overwrite another — including a class K ratification.**  Voiding the
+duplicate Q-001 (D-32) rewrote the *original* Q-001's recorded choice from
+`ratify` to `VOID` in the queue view, because the `QUEUE_DECIDED`
+projection applied the choice to **every** item matching the id.  Found by
+reading the queue list after the void, not by a test.  Fixed at both ends:
+the projection now resolves exactly one item (the earliest still-open match,
+then stops), and `queue_decide` refuses with `ambiguous_queue_id` when more
+than one open item shares an id.  Replaying the log now restores Q-001 to
+`ratify` and leaves the duplicate as `VOID`. | Leaving it: the queue — the
+record of what the operator actually approved — could show a decision the
+operator never made, and would do so silently. | **The authoritative record
+was never actually lost**: the event log is append-only and `QUEUE_DECIDED
+Q-001 ratify` is still at seq 31.  What was corrupted was the *view*.  That
+distinction is the whole argument for an append-only log, and it is worth
+stating plainly that the log held while the projection failed.
+
 ---
 
 ## Pending

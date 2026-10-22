@@ -252,11 +252,18 @@ def rebuild(events: list[Event]) -> State:
 
         elif etype == "QUEUE_DECIDED":
             item_id = str(payload.get("id", ""))
+            # A decision resolves ONE item instance: the earliest item with
+            # that id that is still open.  Applying the decision to every
+            # match let a decision on a duplicated id overwrite an earlier
+            # and more important decision; that is how a class K
+            # ratification was silently replaced by a "void" on the
+            # duplicate id (D-33).
             for item in state.queue:
-                if item["id"] == item_id:
+                if item["id"] == item_id and item["state"] == "open":
                     item["state"] = "decided"
                     item["choice"] = str(payload.get("choice", ""))
                     item["decided_at"] = event.ts
+                    break
 
         elif etype == "INCIDENT":
             state.incidents.append({

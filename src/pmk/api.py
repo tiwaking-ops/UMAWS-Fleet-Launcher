@@ -525,10 +525,25 @@ class Kernel:
                   recommended: str = "", safe_default: str = "",
                   class_k: bool = False, details: str = "",
                   actor: Actor | None = None) -> str:
-        """Put a question to the human (pilot v1 section 23.2 fields)."""
+        """Put a question to the human (pilot v1 section 23.2 fields).
+
+        The id is derived from the highest id currently in the queue, not
+        from the number of *open* items.  Counting open items re-issues an
+        id as soon as the previous item is decided, so deciding Q-001 and
+        then adding another item produced a second Q-001 — which makes the
+        decision log ambiguous at exactly the point where it is the record
+        of a class K ratification.
+        """
         with self._locked():
-            items = [q for q in self.state().queue if q["state"] == "open"]
-            item_id = f"Q-{len(items) + 1:03d}"
+            highest = 0
+            for item in self.state().queue:
+                try:
+                    highest = max(highest, int(str(item["id"]).split("-")[-1]))
+                except (KeyError, ValueError):
+                    continue
+            item_id = f"Q-{highest + 1:03d}"
+            if any(q["id"] == item_id for q in self.state().queue):
+                raise KernelError("duplicate_queue_id", id=item_id)
             self._append("QUEUE_ITEM", actor=actor, subject=item_id,
                          payload={"id": item_id, "topic": topic,
                                   "options": list(options),
@@ -547,6 +562,12 @@ class Kernel:
                           if q["state"] == "open" and q["id"] == item_id]
             if not open_items:
                 raise KernelError("unknown_queue_item", item=item_id)
+            if len(open_items) > 1:
+                # Two open items sharing an id: deciding either would be
+                # ambiguous, and silently picking one is how a class K
+                # ratification got overwritten.  Refuse and say so.
+                raise KernelError("ambiguous_queue_id", item=item_id,
+                                  count=len(open_items))
             self._append("QUEUE_DECIDED", actor=actor, subject=item_id,
                          payload={"id": item_id, "choice": choice})
             return {"ok": True, "item": item_id, "choice": choice}

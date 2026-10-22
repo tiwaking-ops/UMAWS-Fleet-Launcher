@@ -279,6 +279,51 @@ def test_queue_can_be_raised_and_decided_from_the_cli(tmp_path):
     assert decided["choice"] == "ratify"
 
 
+def test_queue_ids_do_not_collide_after_a_decision(kernel):
+    """A decided item must not free its id for reuse.
+
+    The first implementation numbered items by counting the *open* ones, so
+    deciding Q-001 and then raising another question produced a second
+    Q-001 — two different class K questions sharing one id in the log that
+    records their ratification.
+    """
+    first = kernel.queue_add(topic="first", options=["a"])
+    kernel.queue_decide(first, "a")
+    second = kernel.queue_add(topic="second", options=["b"])
+
+    assert first != second
+    ids = [item["id"] for item in kernel.queue_list()]
+    assert len(ids) == len(set(ids)), f"duplicate queue ids: {ids}"
+    assert second == "Q-002"
+
+
+def test_a_duplicate_id_cannot_overwrite_an_earlier_decision(kernel):
+    """A decision resolves ONE item, never every item sharing an id.
+
+    A legacy log can contain a duplicate queue id (D-32).  When the
+    projection applied a decision to *every* match, deciding the duplicate
+    replaced an earlier and more important decision — which is how a class K
+    ratification was silently rewritten from "ratify" to "void" (D-33).
+    """
+    first = kernel.queue_add(topic="class K ratification",
+                             options=["ratify", "revert"], class_k=True)
+    kernel.queue_decide(first, "ratify")
+
+    # Reproduce the legacy duplicate.
+    kernel.record_event("QUEUE_ITEM", subject=first,
+                        payload={"id": first, "topic": "duplicate",
+                                 "options": ["void"], "recommended": "",
+                                 "safe_default": "", "class_k": True,
+                                 "details": ""})
+
+    kernel.queue_decide(first, "VOID")
+
+    items = [q for q in kernel.queue_list() if q["id"] == first]
+    assert len(items) == 2
+    assert items[0]["choice"] == "ratify", "the ratification must survive"
+    assert items[1]["choice"] == "VOID"
+
+
 def test_incident_is_recorded(kernel):
     kernel.incident("T-0001", "something broke", severity="error")
     assert any(i["message"] == "something broke"
