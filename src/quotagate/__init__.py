@@ -10,4 +10,6 @@ profile with ``via_gateway = true`` uses it; a direct-CLI profile does not.
 
 from __future__ import annotations
 
-__all__ = ["config", "engine", "errors", "routing"]
+__all__ = ["config", "engine", "errors", "routing", "main"]
+
+from . import config, engine, errors, main, routing

@@ -15,6 +15,7 @@ dev = ["pytest"]
 
 [project.scripts]
 pmk = "pmk.cli:main"
+quotagate = "quotagate.__main__:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
