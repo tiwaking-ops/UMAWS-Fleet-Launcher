@@ -20,7 +20,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from pmk.plat import read_text
+from pmk.plat import read_text as plat_read_text
 
 # The failure classes (fleet amendment section 7.5).
 OK = "OK"
@@ -64,32 +64,67 @@ class PatternBook:
 
 
 def load_book(adapter: str, fixture_root: str | Path | None = None) -> PatternBook:
-    """Load the fixture patterns for *adapter*."""
+    """Load the classifier patterns for *adapter*.
+
+    A pattern lives in ``patterns.toml`` beside the evidence, and each
+    pattern names the captured file it was derived from::
+
+        [quota]
+        pattern = "Rate limit exceeded"
+        source  = "quota.txt"
+
+    **A pattern is only loaded if it actually matches its source file.**
+    That is the mechanical form of fleet rule 15 — *"a classifier pattern
+    may only be added from a captured fixture"* — and it means a pattern
+    cannot exist without evidence that supports it.  A pattern that
+    matches nothing is not loaded, and the adapter falls back to
+    ``UNKNOWN``, which is the safe class.
+
+    The captured files themselves are evidence and are never parsed as
+    regular expressions.
+    """
     book = PatternBook(adapter=adapter)
     if fixture_root is None:
-        book.patterns = {}
         return book
     root = Path(fixture_root) / adapter
     book.fixture_root = root
-    if not root.is_dir():
+    patterns_file = root / "patterns.toml"
+    if not patterns_file.is_file():
         return book
-    for path in sorted(root.glob("*.txt")):
-        # "model-gone.txt" names the MODEL_GONE class.
-        failure_class = path.stem.upper().replace("-", "_")
-        if failure_class not in FAILURE_CLASSES:
+
+    try:
+        import tomllib
+        data = tomllib.loads(plat_read_text(patterns_file))
+    except (OSError, ValueError):
+        return book
+
+    for failure_class, entry in (data or {}).items():
+        if not isinstance(entry, dict):
             continue
-        compiled = []
-        for line in read_text(path).splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            try:
-                compiled.append(re.compile(line, re.IGNORECASE))
-            except re.error:
-                # A broken pattern is ignored rather than crashing a worker.
-                continue
-        if compiled:
-            book.patterns[failure_class] = compiled
+        name = str(failure_class).upper().replace("-", "_")
+        if name not in FAILURE_CLASSES:
+            continue
+        pattern_text = str(entry.get("pattern", "")).strip()
+        source = str(entry.get("source", "")).strip()
+        if not pattern_text or not source:
+            continue
+        source_path = root / source
+        if not source_path.is_file():
+            # A pattern with no evidence is not loaded.
+            continue
+        try:
+            compiled = re.compile(pattern_text, re.IGNORECASE)
+        except re.error:
+            continue
+        try:
+            evidence = plat_read_text(source_path)
+        except OSError:
+            continue
+        if not compiled.search(evidence):
+            # The pattern does not match the capture it claims to come
+            # from.  It is not loaded.
+            continue
+        book.patterns[name] = [compiled]
     return book
 
 

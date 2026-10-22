@@ -36,35 +36,41 @@
   - **The G1 baseline is installed**: 10 generated context files, sanitised,
     linted, hashed and committed; the pins re-recorded; the sentinel clean.
   - **T4 and T4b complete** — see `pilot/spikes/t4-canary.md`.
-  - **205 tests passing.** `pmk sentinel` clean on the live repository.
+  - **S-A1 run LIVE** (operator approved, D-24) — see
+    `pilot/spikes/cli-matrix.md`.  All five CLIs run **headless**; hermes,
+    kilo, pi and opencode **resume**; pi resumes on a **different model**;
+    cline's MODEL_GONE and opencode's QUOTA are captured as fixtures.
+  - **209 tests passing.** `pmk sentinel` clean on the live repository.
   - `pilot/demo_one_click.py` runs the full lifecycle green: brief → PDD →
     tasks → claim → worktree → order → spawn → harness-run oracles →
     evidence bundle → merge queue → close-check → **DONE**.
+  - Every Phase 1 commit is tagged `bootstrap/0` … `bootstrap/16`.
 - **In progress**: nothing.
 - **Next**:
-  1. **CIP Q1** — the provider data terms for the context-sync lane.  The
-     spike used the operator's own local OmniRoute router, which fronts
-     free-tier providers.
-  2. Spike **S-A1 live** (needs the operator's approval: one trivial
-     one-shot prompt per CLI) and **S-O1**.
-  3. Run **S-W1** and test **F7** (100 fake workers) to replace the
+  1. **G3** — the operator's spot-read (`pilot/g3-spot-read.md`) and the
+     ratification or reversal of D-19/D-20
+     (`pilot/class-k-ratification.md`).  **G3 is held.**
+  2. **The handover test (H6)** with a real OpenCode session, and a real
+     CLI driven end to end through a lease.
+  3. **Fill in the `models` lists** for hermes, kilo, cline and opencode
+     from the operator's `prompts.json`, so the ladder's L1 step (resume on
+     a different model) is available for all of them and not only pi.
+  4. Run **S-W1** and test **F7** (100 fake workers) to replace the
      `max_total_agents = 20` guess.
-  4. Build QuotaGate **M1** (the passthrough proxy) so that the gateway
-     can serve the `context-sync` lane as CIP §7.3 describes.
+  5. Build QuotaGate **M1** (the passthrough proxy) so that the gateway
+     can serve the `context-sync` lane as CIP §7.3 describes, and so the
+     provider allowlist becomes the destination.
 - **Blocked / awaiting human**:
-  1. **The gate rule.** See "Gate posture" above. Default on silence: hold.
-  2. **CIP Q1** — the provider data terms.
-  3. **QuotaGate provider keys**, for M1's live capture and for the
-     gateway-routed profiles.
-  4. **Live S-A1 approval** — one trivial one-shot prompt per CLI.
+  1. **G3** — the spot-read and the two-key ratification.
+  2. **QuotaGate provider keys**, for M1's live capture.
+  3. **G4/G5** — held.
 - **Open [VERIFY] items**:
-  - `V-01` every real CLI's headless/resume/session-id/exit-code/failure
-    text. Operator chose **metadata-only** probing, so all of it is
-    UNVERIFIED; the code degrades safely (caps default to `False`, every
-    non-zero exit is `UNKNOWN`).
-  - `V-02` **closed**: Caliber's overwrite semantics (S3: edits are
-    preserved) and determinism (S5: the instruction files are stable) are
-    now measured.
+  - `V-01` **mostly closed**: headless, resume and (for pi) model-switch
+    are measured.  **Still open**: hermes, kilo and pi have no captured
+    failure text, so their failures are `UNKNOWN`; the exit codes are only
+    0 and 1; and no real CLI has been driven end to end through a lease.
+  - `V-02` **closed**: Caliber's overwrite semantics (S3) and determinism
+    (S5) are measured.
   - `V-07` **new**: the generator has **not** been shown to be safe
     against injection.  T4's premise did not reproduce — three planted
     injections were not copied into the context files — so the generator
@@ -72,12 +78,16 @@
   - `V-08` **new**: the lint's coverage limit is measured and pinned
     (D-21).  The residual protection is the combination of lint, score
     gate, blind V2 review and audit.
+  - `V-09` **new**: the operator's `cline-mimo` profile names a model
+    whose free promotion has **ended** (measured).  The Fleet's MODEL_GONE
+    handler disables it; repointing it is class K, so it is the operator's
+    call.
   - `V-03` QuotaGate provider limits, 429 body shapes, quota headers.
   - `V-04` `max_total_agents` — needs S-W1; 20 is a placeholder.
   - `V-05` the Overseer's ordered profile list (G-F13).
-  - `V-06` OpenCode headless (S-O1).
-- **Decisions since last update**: `pilot/decisions.md` D-01 … D-22.
-- **Last green test run**: `pytest -q` → **205 passed**, 2026-10-22.
+  - `V-06` OpenCode headless (S-O1) — partly measured.
+- **Decisions since last update**: `pilot/decisions.md` D-01 … D-25.
+- **Last green test run**: `pytest -q` → **209 passed**, 2026-10-23.
 
 ## Cuts / risks carried
 

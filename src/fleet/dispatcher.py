@@ -297,7 +297,17 @@ class Dispatcher:
 
             report.notes.append(
                 f"{run.task.id}: {step} onto {next_profile.id}")
-            self._restart_on(run, next_profile, report)
+            # L1 resumes the session on the next profile; L2 starts a fresh
+            # session with a handoff note.  The model's swap is only
+            # possible when the profile lists interchangeable models.
+            model = ""
+            if step == recover.L1:
+                model = next_profile.alternative_model(
+                    exclude={run.profile.model} if run.profile.model else set())
+                if model:
+                    report.notes.append(
+                        f"{run.task.id}: resuming on model {model}")
+            self._restart_on(run, next_profile, report, model=model)
             return
 
         # L3 / L4: the harness already revoked the lease and quarantined the
@@ -348,18 +358,32 @@ class Dispatcher:
                          name=f"pmk-retry-{run.task.id}").start()
 
     def _restart_on(self, run: LeaseRun, profile: Profile,
-                    report: DispatchReport) -> None:
-        """Start the lease again on another profile."""
+                    report: DispatchReport, model: str = "") -> None:
+        """Start the lease again on another profile.
+
+        When the profile has a known interchangeable model, the session is
+        **resumed** on that model — the ladder's L1 step, and the one the
+        operator's requirement FR3 asks for.  The model list is what makes
+        it possible: it was measured (spike S-A1, live) and only **pi** has
+        one today.
+        """
         adapter = self.harness._adapter(profile)
         run.profile = profile
         run.adapter = adapter
+
+        raw = dict(profile.raw or profile.to_dict())
+        if model:
+            raw["model"] = model
+        resume = bool(profile.supports_resume() and run.session)
+        mode = "resume" if resume else "new"
         try:
             new_slot = spawn_mod.spawn_slot(
                 self.repo, task_id=run.task.id, profile_id=profile.id,
-                adapter=adapter, profile=profile.raw or profile.to_dict(),
+                adapter=adapter, profile=raw,
                 prompt=order_mod.FIXED_PROMPT, worktree=run.worktree,
                 fence=run.lease.fence, index=8,
-                env=self.harness._env(profile))
+                env=self.harness._env(profile),
+                mode=mode, session=run.session or None)
         except (OSError, ValueError) as exc:
             report.notes.append(f"{run.task.id}: restart failed: {exc}")
             return
@@ -368,7 +392,8 @@ class Dispatcher:
         self.runs[run.task.id] = run
         self.kernel.record_event(
             "AGENT_RESUMED", subject=run.task.id, fence=run.lease.fence,
-            payload={"profile": profile.id, "mode": "fresh",
+            payload={"profile": profile.id, "mode": mode,
+                     "model": model or profile.model,
                      "previous_profile": run.lease.holder})
 
     def _return_to_ready(self, run: LeaseRun, result: LeaseResult) -> None:

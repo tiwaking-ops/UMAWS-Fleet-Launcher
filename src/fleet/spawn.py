@@ -180,12 +180,16 @@ def log_path(repo, task_id: str, fence: int, index: int) -> Path:
 def spawn_slot(repo, *, task_id: str, profile_id: str, adapter,
                profile: dict, prompt: str, worktree: str | Path,
                fence: int, index: int = 0,
-               env: dict | None = None) -> Slot:
+               env: dict | None = None,
+               mode: str = "new", session: str | None = None) -> Slot:
     """Spawn one worker.
 
     A headless adapter runs without a console.  An adapter whose
     ``caps.headless`` is False (every unobserved real CLI) gets a console
     window and is marked ``degraded``: its output capture is best-effort.
+
+    *mode* is ``"new"`` or ``"resume"``.  In resume mode the adapter uses
+    the profile's ``argv_resume`` template and is given the session id.
     """
     import time
 
@@ -193,7 +197,7 @@ def spawn_slot(repo, *, task_id: str, profile_id: str, adapter,
     log_file = log_path(repo, task_id, fence, index)
     log_file.parent.mkdir(parents=True, exist_ok=True)
 
-    argv = adapter.build_argv(profile, "new", prompt, str(target), None)
+    argv = adapter.build_argv(profile, mode, prompt, str(target), session)
 
     resolved = plat.resolve_executable(argv[0])
     if resolved is not None:

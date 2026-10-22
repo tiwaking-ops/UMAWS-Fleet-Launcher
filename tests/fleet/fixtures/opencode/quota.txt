@@ -1,0 +1,19 @@
+# Captured from opencode on 2026-10-22T10:58:38Z.
+# CLI: opencode opencode v2.1.0
+# Invocation: C:\Users\Tiwa Pene\AppData\Roaming\npm\node_modules\@opencode\cli\bin\opencode.exe run print the word ok and exit
+# Exit code: 1
+#
+# This is a real captured body.  The classifier pattern below is the
+# only thing that may be loaded by this adapter's classifier.
+[0m
+> build · recursive/flint-v1.0:free
+> build · recursive/flint-v1.0:free
+> build · recursive/flint-v1.0:free
+> build · recursive/flint-v1.0:free
+> build · recursive/flint-v1.0:free
+> build · recursive/flint-v1.0:free
+> build · recursive/flint-v1.0:free
+> build · recursive/flint-v1.0:free
+> build · recursive/flint-v1.0:free
+> build · recursive/flint-v1.0:free
+[91m[1mError: [0mRate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day

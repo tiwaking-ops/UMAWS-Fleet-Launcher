@@ -198,17 +198,133 @@ on one repository.
 
 ---
 
+## The gate rule (operator, 2026-10-22)
+
+**The rule, as given:**
+
+> G0–G2: proceed, log each crossing in `pilot/decisions.md` with evidence
+> and mark it "self-crossed, pending review". G3: HOLD until I've
+> spot-read `fleet/` spawn/kill code and ratified or reverted D-19.
+> Class-K changes need two-key regardless of any earlier approval.
+> G4/G5: hold.
+
+**Standing posture** (the structural fix the pilot report asked for in §6):
+**G0–G2 are self-crossed and pending review.  G3, G4 and G5 hold.  Class K
+is always two-key.**
+
+### Gate crossings
+
+| Gate | Status | Evidence |
+|---|---|---|
+| **G0** — environment, platform decision | **self-crossed, pending review** | `pilot/spikes/s-p1-platform.md`; D-02; no `sudo` was needed or used; the environment checks are recorded in §3 of that spike |
+| **G1** — Caliber go/fallback | **self-crossed in part, pending review** | `pilot/spikes/caliber-s1-s5.md` (S1–S5, all `works`); the baseline diff is the 10 sanitised class C files; the score moved 17/100 (F) → 87/100 (A).  The provider-terms element is now answered — D-23 |
+| **G2** — live capture | **self-crossed in part, pending review** | the metadata capture (five `--help`s, five versions, the `.cmd`-shim measurement) is in `pilot/spikes/cli-matrix.md` and `pilot/spikes/caliber-help/`; the fixtures are in `tests/fleet/fixtures/`.  The **live provider-failure capture is deferred** to the operator's own decision — D-24 |
+| **G3** — handover | **HELD** | the operator's spot-read is outstanding; the read list is `pilot/g3-spot-read.md` |
+| **G4** — Caliber auto-sync | **HELD** | the policy stays `mode = "dry-run"` |
+| **G5** — live capacity | **HELD** | no live capacity run has been made |
+
+**G0 evidence, in short.**  Python 3.12.10, Git 2.55.0, Node 26.7.0,
+`LongPathsEnabled=1`, WSL present but with `docker-desktop` as its default
+distribution, `pwsh` absent.  The lock test and the npm-shim measurement
+are in the spike record.  The platform decision is native Windows (D-02).
+
+**G1 evidence, in short.**  Caliber 1.55.2 installed and pinned; S1 (it can
+be pointed at an OpenAI-compatible endpoint, and it needs *two* environment
+settings), S2 (which files it writes — the `managed_paths` list was wrong),
+S3 (`refresh` preserves human edits), S4 (the hook hazard, measured), S5
+(the instruction files are deterministic).  The baseline was installed
+through the Kernel's own diff/lint/sanitise/merge machinery, and the lint
+rejects Caliber's raw output — which is why the baseline is the *sanitised*
+content.
+
+**G2 evidence, in short.**  The metadata capture is complete.  What is
+still `UNVERIFIED` is the *failure text* of the real CLIs, so **no
+classifier pattern is loaded for any real adapter** and every non-zero exit
+is `UNKNOWN`.  That is the safe state, and the operator's S-A1 approval
+(D-24) is what will change it.
+
+---
+
+D-23 | 2026-10-22 | operator | **CIP Q1 is answered: the context-sync
+lane uses OmniRoute, and the operator accepts the terms.**  QuotaGate's
+provider allowlist is the *later* destination, not the current one.
+| Leaving the lane disabled; using a local model only (Ollama is running
+but has no model pulled). | Nothing for the terms.  But the repository's
+content reaches third-party free providers, so the pilot's data-egress
+exposure is real and is recorded here rather than buried.  **The
+`context-sync` lane stays `providers_allow = []` and `mode = "dry-run"`
+until G4**, so nothing egresses on its own.
+
+D-24 | 2026-10-22 | operator | **Live S-A1 is approved, with terms:** a
+throwaway repository per CLI, the prompt *"print the word ok and exit"*,
+and three modes per CLI — new, resume (same model), resume (different
+model).  If a profile is **already** rate-limited, send **one** request to
+capture a QUOTA fixture; do not otherwise provoke failures. | Continuing
+with metadata-only probing, which leaves every real adapter with
+`headless = False`, `can_resume = False` and no classifier patterns at
+all. | Nothing — the terms are the ones the pilot already follows (capture,
+don't guess; never invent flags; never provoke a failure).
+
+D-25 | 2026-10-22 | operator | **The pilot's supervision model is
+ambiguous, and the operator will write a clarifying amendment.**  Pilot v1
+rule 14 ("ask only when blocked, state your default") conflicts with §12.1
+("the default on silence is hold").  The operator's gate rule resolves it
+for this pilot: *G0–G2 proceed and are logged for later review; G3, G4 and
+G5 hold; class K is always two-key.* | Leaving the contradiction in the
+proposal. | Nothing — but the ambiguity is a defect in the proposal, and it
+is now recorded in the pilot report as a finding rather than being quietly
+worked around.
+
+D-26 | 2026-10-23 | OpenCode (spike S-A1, live) | **The real adapters'
+capabilities are now measured, and they are mostly positive.**  All five
+CLIs run **headless**; hermes, kilo, pi and opencode **resume**; pi resumes
+on a **different model**; hermes **prints its session id**.  The measured
+values replace the all-`False` defaults in `src/fleet/adapters/generic.py`,
+and the resume syntax and the interchangeable-model lists are now in
+`agents.toml`. | Leaving the defaults, which would have kept the Fleet on
+the console-window path, kept the L1 ladder step unreachable, and kept
+every failure classified `UNKNOWN`. | **hermes, kilo and pi still have no
+captured failure text**, so their failures remain `UNKNOWN` — no failure
+was provoked, per the operator's terms and pilot v1 rule 20.  And the
+model swap is available **only for pi**, because only pi has a second model
+string known to be servable; the others need the operator's `prompts.json`
+lists.
+
+D-27 | 2026-10-23 | OpenCode | **A classifier pattern is only loaded if it
+matches the capture it was derived from.**  The loader reads
+`patterns.toml` beside the evidence and refuses a pattern whose source
+file it does not match. | Loading a pattern from a hand-written list,
+which is what the first implementation did. | Nothing.  This is the
+mechanical form of fleet rule 15, and it means a classifier cannot grow
+without evidence behind it.
+
+D-28 | 2026-10-23 | OpenCode | **The operator's `cline-mimo` profile names
+a model whose free promotion has ended** (measured: "The free promotion
+for this model has ended and it is no longer available").  The profile is
+left as it is, and the Fleet's `MODEL_GONE` handler disables it when it
+sees that failure. | Disabling or repointing the profile by hand. |
+Nothing — but repointing it is a **class K** change (the profile schema),
+so it is the operator's call, and the profile's `models` list already
+names three alternatives.
+
+---
+
 ## Pending
 
-- **Gate rule** — the operator was asked whether the implementing agent must
-  stop at G0–G3 and replied "I will provide these". Until the rule
-  arrives, the pilot v1 §12.1 default applies: **hold**. No gate has been
-  crossed.
-- **CIP Q1** — the provider data terms for the context-sync lane.  The
-  spike used the operator's own local OmniRoute router, which fronts
-  free-tier providers, so the repository's content still reaches a
-  provider.
-- **Caliber install approval** — **granted**; Caliber 1.55.2 is installed
-  and pinned, and the G1 baseline is installed (D-20).
+- **G3** — the operator's spot-read of the Fleet's spawn/kill code, and the
+  ratification or reversal of D-19 and D-20.  The read list is
+  `pilot/g3-spot-read.md`; the ratification request is
+  `pilot/class-k-ratification.md`.
+- **The `models` lists** for hermes, kilo, cline and opencode, so the
+  ladder's L1 step is available for all of them.
 - **QuotaGate provider keys**, for M1's live capture.
-- **Live S-A1 approval** — one trivial one-shot prompt per CLI.
+- **G4/G5** — held.
+
+## Resolved since the last update
+
+- **CIP Q1** — answered: OmniRoute, terms accepted (D-23).
+- **Caliber install** — approved and done; the G1 baseline is installed.
+- **Live S-A1** — approved with terms (D-24) and **run**; 13 requests, no
+  failure provoked (D-26).
+- **The gate rule** — given, and recorded as a standing posture above
+  (D-25).

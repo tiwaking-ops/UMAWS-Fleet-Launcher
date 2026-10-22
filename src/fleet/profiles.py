@@ -15,6 +15,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Iterable
 
 from pmk.plat import read_text
 
@@ -88,6 +89,15 @@ class Profile:
     argv_new: list = field(default_factory=list)
     argv_resume: list = field(default_factory=list)
     model: str = ""
+    #: The models this profile may be swapped to when the recovery ladder
+    #: takes its L1 step (resume the session on a *different* model).
+    #:
+    #: This list is what makes L1 possible at all.  It was measured: only
+    #: **pi** has a verified swap (spike S-A1, live, 2026-10-22), because
+    #: only pi has a second model string that is known to be servable.  An
+    #: empty list means the swap is not available, which is the honest state
+    #: and which sends the ladder to L2 instead.
+    models: list = field(default_factory=list)
     enabled: bool = True
     raw: dict = field(default_factory=dict)
 
@@ -98,6 +108,9 @@ class Profile:
         model = str(obj.get("model", ""))
         if not model:
             model = _model_from_argv(argv_new)
+        models = [str(m) for m in (obj.get("models") or [])]
+        if model and model not in models:
+            models = [model] + models
         return cls(
             id=str(obj.get("id", "")),
             adapter=str(obj.get("adapter", "generic")),
@@ -109,6 +122,7 @@ class Profile:
             argv_new=argv_new,
             argv_resume=argv_resume,
             model=model,
+            models=models,
             enabled=bool(obj.get("enabled", True)),
             raw=dict(obj),
         )
@@ -125,6 +139,7 @@ class Profile:
             "argv_new": self.argv_new,
             "argv_resume": self.argv_resume,
             "model": self.model,
+            "models": self.models,
             "enabled": self.enabled,
         }
 
@@ -140,6 +155,24 @@ class Profile:
 
     def supports_resume(self) -> bool:
         return bool(self.argv_resume)
+
+    def alternative_model(self, exclude: Iterable[str] = ()) -> str | None:
+        """The next model to try, for the ladder's L1 step.
+
+        Returns ``None`` when the profile has no known interchangeable
+        model — which is the case for every profile except pi's, and which
+        correctly sends the ladder to L2 (a fresh session) instead.
+        """
+        used = {m for m in exclude if m}
+        for candidate in self.models:
+            if candidate not in used and candidate != self.model:
+                return candidate
+        # Every alternative has been tried; fall back to the first one that
+        # is not the model that just failed.
+        for candidate in self.models:
+            if candidate not in used:
+                return candidate
+        return None
 
 
 def _model_from_argv(argv: list[str]) -> str:

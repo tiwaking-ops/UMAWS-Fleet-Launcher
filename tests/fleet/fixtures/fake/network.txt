@@ -1,1 +1,3 @@
-﻿SYNTHETIC-FAILURE-NETWORK
+﻿# Synthetic evidence.  The fake CLI prints this exact text.
+
+SYNTHETIC-FAILURE-NETWORK: connection to the fake provider failed (fake CLI; not a real provider)

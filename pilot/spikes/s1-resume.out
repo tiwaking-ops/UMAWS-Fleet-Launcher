@@ -1,0 +1,21 @@
+=== hermes ===
+  resume (same model) -> exit=0 in 60.6s
+  resume (different model) -> UNVERIFIED (no known second model string)
+=== kilo ===
+  resume (same model) -> exit=0 in 86.9s
+  resume (different model) -> UNVERIFIED (no known second model string)
+=== pi ===
+  resume (same model) -> exit=0 in 7.2s
+  resume (different model) -> exit=0 in 10.6s
+=== cline ===
+  no session id available
+=== opencode ===
+  resume (same model) -> exit=1 in 99.9s
+  resume (different model) -> UNVERIFIED (no known second model string)
+
+written to C:\temp\projects\testproject1\pilot\spikes\s1-live-resume.json
+  hermes     same=True  different=no second model string is known for this tool, and inventing one would be a guess rather than a measurement
+  kilo       same=True  different=no second model string is known for this tool, and inventing one would be a guess rather than a measurement
+  pi         same=True  different=True
+  cline      same=the tool needs a session id and none could be obtained from the earlier run  different=None
+  opencode   same=False  different=no second model string is known for this tool, and inventing one would be a guess rather than a measurement

@@ -1,0 +1,20 @@
+﻿# The fake CLI's classifier patterns.
+#
+# Each pattern names the synthetic capture it was derived from, and the
+# loader refuses to load a pattern that does not match its source file.
+
+[quota]
+pattern = "SYNTHETIC-FAILURE-QUOTA"
+source  = "quota.txt"
+
+[auth]
+pattern = "SYNTHETIC-FAILURE-AUTH"
+source  = "auth.txt"
+
+[network]
+pattern = "SYNTHETIC-FAILURE-NETWORK"
+source  = "network.txt"
+
+[model_gone]
+pattern = "SYNTHETIC-FAILURE-MODEL-GONE"
+source  = "model-gone.txt"

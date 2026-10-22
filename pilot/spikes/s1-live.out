@@ -1,0 +1,28 @@
+probing 5 CLI(s): hermes, kilo, pi, cline, opencode
+
+=== hermes ===
+  hermes: new -> exit=0 in 40.6s
+  hermes: session id -> 'with:'
+  hermes: resume (same model) -> exit=2
+=== kilo ===
+  kilo: new -> exit=0 in 75.7s
+  kilo: session id -> None
+  kilo: resume -> no session id was printed
+=== pi ===
+  pi: new -> exit=0 in 10.9s
+  pi: session id -> None
+  pi: resume -> no session id was printed
+=== cline ===
+  cline: new -> exit=1 in 17.6s
+  cline: session id -> None
+  cline: resume -> no session id was printed
+=== opencode ===
+  opencode: new -> exit=1 in 96.4s
+  opencode: already rate-limited; capturing the QUOTA fixture
+
+results written to C:\temp\projects\testproject1\pilot\spikes\s1-live-results.json
+  hermes     session_id=True resume=False quota_fixture=False
+  kilo       session_id=False resume=? quota_fixture=False
+  pi         session_id=False resume=? quota_fixture=False
+  cline      session_id=False resume=? quota_fixture=False
+  opencode   session_id=None resume=? quota_fixture=True

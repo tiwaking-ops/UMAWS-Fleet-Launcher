@@ -1,0 +1,15 @@
+# Captured from cline on 2026-10-22T10:58:13Z.
+# CLI: cline 3.0.73
+# Invocation: node C:\Users\Tiwa Pene\AppData\Roaming\npm\node_modules\cline\bin\cline --provider cline --model cline-free/mimo-v2.6-flash print the word ok and exit
+# Exit code: 1
+#
+# This is a real captured body.  The classifier pattern below is the
+# only thing that may be loaded by this adapter's classifier.
+#
+# The profile cline-mimo uses cline-free/mimo-v2.6-flash; the free
+# promotion for that model has ended.
+
+[31merror:[0m Free model promotion ended
+The free promotion for this model has ended and it is no longer available.
+Select another model to continue.
+Open the model selector with /model.

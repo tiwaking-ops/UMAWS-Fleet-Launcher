@@ -3,19 +3,18 @@
 # Fleet amendment section 12.A.  Human-edited TOML (pilot v1 D-P3).
 #
 # A profile is one way to run one CLI on one model.  The operator's saved
-# entries in prompts.json are really profiles: the same prefix repeated per
-# project (fleet amendment section 6.1).  `pmk fleet import-prompts prompts.json`
-# generates profiles from that file.
+# entries in prompts.json are really profiles — the same prefix repeated
+# per project (fleet amendment section 6.1).  `pmk fleet import-prompts
+# prompts.json` generates profiles from that file.
 #
-# Placeholders: {prompt} {cwd} {session} {model}.  An empty argv_resume means
-# the adapter has no resume support; that is UNVERIFIED until spike S-A1
-# captures the CLI's real behaviour.
+# Placeholders: {prompt} {cwd} {session} {model}.  An empty argv_resume
+# means the adapter has no resume support.
 #
-# IMPORTANT (spike S-A1, 2026-10-22): the operator's CLIs are installed as
-# npm PowerShell shims (opencode.ps1, kilo.ps1, cline.ps1, pi.ps1) plus
-# hermes.exe.  `argv_new` below names the tool, not a resolved path; the
-# Dispatcher resolves the executable at spawn time through pmk.plat, which
-# knows how to run a .ps1 shim.  See src/fleet/adapters/.
+# The resume templates and the `models` lists below are **measured**, from
+# spike S-A1 run live on 2026-10-22 (pilot/spikes/s1_live.py and
+# s1_live_resume.py), which ran each CLI with the prompt "print the word
+# ok and exit" in a throwaway repository and then resumed each session.
+# Nothing here is guessed.
 
 [fleet]
 max_total_agents   = 20      # [GUESS] set from spike S-W1; operator ceiling 100
@@ -34,23 +33,32 @@ profiles = ["opencode-strongest", "opencode-fallback"]
 # ---------------------------------------------------------------------------
 # Profiles
 # ---------------------------------------------------------------------------
-# Priority: lower is tried first.  Hermes first because the operator reports
-# its free models are not rate limited; Cline last because its models have
-# per-model daily limits (G-F3).
+# Priority: lower is tried first.  Hermes first because the operator
+# reports its free models are not rate limited; Cline last because its
+# models have per-model daily limits (G-F3).
 #
 # family is DECLARED, not verified (D-L11, D-L12).  A profile with
 # family = "unknown" can never serve as an independent verifier.
+#
+# `models` is the list of models the recovery ladder may swap to when it
+# resumes a session on a different model (the L1 step).  It is empty for
+# every profile except pi's, because only pi has a second model string
+# that is known to be servable — inventing one would be a guess rather
+# than a measurement.
 
 [[profile]]
 id = "hermes-oneshot"
 adapter = "hermes"
-family = "unknown"               # declared, not verified
+family = "unknown"
 priority = 10
 max_concurrent = 4
 via_gateway = false
 roles = ["implement", "review", "plan"]
 argv_new = ["hermes", "chat", "--oneshot", "-q", "{prompt}", "--yolo", "--cli", "--in", "{cwd}"]
-argv_resume = []                 # [VERIFY] until S-A1
+# Measured: `hermes --resume <session-id>` resumes, and hermes prints the
+# id in its trailer: "Resume this session with: hermes --resume <id>".
+argv_resume = ["hermes", "chat", "--oneshot", "-q", "{prompt}", "--resume", "{session}", "--yolo", "--cli", "--in", "{cwd}"]
+models = []
 
 [[profile]]
 id = "kilo-auto"
@@ -61,7 +69,10 @@ max_concurrent = 3
 via_gateway = false
 roles = ["implement", "review"]
 argv_new = ["kilo", "run", "{prompt}", "--dir", "{cwd}", "--auto"]
-argv_resume = []                 # [VERIFY] until S-A1
+# Measured: `-c, --continue` continues the last session; no id is needed
+# and none is printed.
+argv_resume = ["kilo", "run", "{prompt}", "--dir", "{cwd}", "--auto", "--continue"]
+models = []
 
 [[profile]]
 id = "pi-orca-deepseek"
@@ -72,29 +83,44 @@ max_concurrent = 2
 via_gateway = false
 roles = ["implement", "review"]
 argv_new = ["pi", "--provider", "orcarouter", "--model", "deepseek/deepseek-v4-flash-free", "-p", "{prompt}"]
-argv_resume = []                 # [VERIFY] until S-A1
+# Measured: `--continue` resumes, and the model CAN be swapped on resume
+# (exit 0 with a different model).  This is the only profile where the
+# ladder's L1 step is available.
+argv_resume = ["pi", "--provider", "orcarouter", "--model", "{model}", "-p", "{prompt}", "--continue"]
+models = ["deepseek/deepseek-v4-flash-free", "z-ai/glm-5.3-flash-free", "tencent/hy3-free", "tencent/hy4-preview-free"]
 
 [[profile]]
 id = "cline-mimo"
 adapter = "cline"
 family = "unknown"
 priority = 40
-max_concurrent = 1               # per-model daily limits per operator
+max_concurrent = 1
 via_gateway = false
 roles = ["implement"]
 argv_new = ["cline", "--provider", "cline", "--model", "cline-free/mimo-v2.6-flash", "{prompt}"]
-argv_resume = []                 # [VERIFY] until S-A1
+# Measured: `--id <session-id>` resumes an existing session.  Untested in
+# practice, because the model this profile names is gone (see below).
+argv_resume = ["cline", "--provider", "cline", "--model", "{model}", "{prompt}", "--id", "{session}"]
+models = ["cline-free/mimo-v2.6-flash", "cline-free/solar-mini4", "cline-free/muse-spark-1.3-contributor"]
+# NOTE: cline-free/mimo-v2.6-flash's free promotion has ENDED, measured
+# 2026-10-22: "The free promotion for this model has ended and it is no
+# longer available."  The Fleet's MODEL_GONE handler disables this profile
+# when it sees that.  Repointing it at another model is the operator's
+# call, because the profile schema is class K.
 
 [[profile]]
 id = "opencode-strongest"
 adapter = "opencode"
-family = "unknown"               # [VERIFY] until S-A1 reports the model
-priority = 5                     # the Overseer draws from this list
+family = "unknown"
+priority = 5
 max_concurrent = 2
 via_gateway = false
 roles = ["plan", "review", "implement"]
 argv_new = ["opencode", "run", "{prompt}"]
-argv_resume = []                 # [VERIFY] until S-A1
+# Measured: `--continue` continues the last session.  opencode has no
+# --model flag in its help, so a model swap is not available.
+argv_resume = ["opencode", "run", "{prompt}", "--continue"]
+models = []
 
 [[profile]]
 id = "opencode-fallback"
@@ -105,4 +131,5 @@ max_concurrent = 1
 via_gateway = false
 roles = ["plan", "review"]
 argv_new = ["opencode", "run", "{prompt}"]
-argv_resume = []
+argv_resume = ["opencode", "run", "{prompt}", "--continue"]
+models = []

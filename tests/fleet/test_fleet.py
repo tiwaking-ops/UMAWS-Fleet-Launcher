@@ -1,4 +1,4 @@
-"""Fleet tests: selection, the harness, the recovery ladder, reconciliation.
+﻿"""Fleet tests: selection, the harness, the recovery ladder, reconciliation.
 
 These map onto the fleet amendment's acceptance tests F2, F3, F5, F6, F8,
 F10, F11, F12 and F13.  Everything runs against the fake CLI.
@@ -167,14 +167,104 @@ def test_exit_zero_is_ok(fake_kernel):
     assert adapter.classify(0, "") == classes.OK
 
 
-def test_real_adapter_capabilities_default_to_false(fake_kernel):
-    """Unknown means no (fleet section 12.B, risk R-F1)."""
-    adapter = get_adapter("opencode", FIXTURE_ROOT)
+def test_the_measured_capabilities_are_what_the_live_spike_found():
+    """The capabilities come from spike S-A1, run live on 2026-10-22.
+
+    Before the live spike every real adapter's capabilities were ``False``
+    and the consequences were severe: a console window per worker, no
+    resume, and every failure classified ``UNKNOWN``.
+    """
+    hermes = get_adapter("hermes", FIXTURE_ROOT)
+    assert hermes.caps.headless              # it ran and exited 0
+    assert hermes.caps.can_resume            # --resume <id> exited 0
+    assert hermes.caps.reports_session_id    # it prints "Resume this session with: ..."
+    assert not hermes.caps.can_swap_model_on_resume   # no second model string is known
+
+    pi = get_adapter("pi", FIXTURE_ROOT)
+    assert pi.caps.headless
+    assert pi.caps.can_resume
+    assert pi.caps.can_swap_model_on_resume  # measured: exit 0 with another model
+
+    kilo = get_adapter("kilo", FIXTURE_ROOT)
+    assert kilo.caps.headless
+    assert kilo.caps.can_resume              # --continue exited 0
+    assert not kilo.caps.reports_session_id   # it continues without an id
+
+    opencode = get_adapter("opencode", FIXTURE_ROOT)
+    assert opencode.caps.headless             # it ran and produced a rate limit
+    assert opencode.caps.can_resume
+
+    cline = get_adapter("cline", FIXTURE_ROOT)
+    assert cline.caps.headless               # it ran and produced a clean error
+    assert not cline.caps.can_resume          # untested: no session was obtained
+
+
+def test_an_unmeasured_adapter_still_defaults_to_false():
+    """Unknown means no (fleet section 12.B, risk R-F1).
+
+    The defaults are only lifted for a CLI the live spike has actually
+    measured.
+    """
+    adapter = get_adapter("some-unmeasured-cli", FIXTURE_ROOT)
     caps = adapter.caps
     assert not caps.headless
     assert not caps.can_resume
     assert not caps.can_swap_model_on_resume
     assert not caps.reports_session_id
+    assert not adapter.verified()
+
+
+def test_a_real_adapter_classifies_its_own_captured_failures():
+    """The classifier patterns come from real captures."""
+    opencode = get_adapter("opencode", FIXTURE_ROOT)
+    assert opencode.classify(1, "Error: Rate limit exceeded: free-models-pe") \
+        == classes.QUOTA
+
+    cline = get_adapter("cline", FIXTURE_ROOT)
+    captured = (FIXTURE_ROOT / "cline" / "model_gone.txt").read_text(
+        encoding="utf-8")
+    assert cline.classify(1, captured) == classes.MODEL_GONE
+
+
+def test_a_pattern_without_matching_evidence_is_not_loaded(tmp_path):
+    """Fleet rule 15, mechanically: a pattern needs a capture it matches.
+
+    A pattern that does not match the capture it claims to come from is
+    not loaded, so the adapter falls back to ``UNKNOWN`` â€” the safe class.
+    """
+    from fleet.classify import classify, load_book
+
+    directory = tmp_path / "sometool"
+    directory.mkdir()
+    (directory / "quota.txt").write_text(
+        "the provider said no, you are out of quota\n", encoding="utf-8")
+    (directory / "patterns.toml").write_text(
+        '[quota]\npattern = "rate limit exceeded"\nsource = "quota.txt"\n',
+        encoding="utf-8")
+
+    book = load_book("sometool", tmp_path)
+    # The pattern does not match the capture, so it is not loaded.
+    assert book.patterns == {}
+    assert not book.verified
+    assert classify(1, "the provider said no, you are out of quota", book) \
+        == classes.UNKNOWN
+
+
+def test_a_pattern_with_matching_evidence_is_loaded(tmp_path):
+    from fleet.classify import classify, load_book
+
+    directory = tmp_path / "sometool"
+    directory.mkdir()
+    (directory / "quota.txt").write_text(
+        "Error: Rate limit exceeded: free-models-per-day\n", encoding="utf-8")
+    (directory / "patterns.toml").write_text(
+        '[quota]\npattern = "Rate limit exceeded"\nsource = "quota.txt"\n',
+        encoding="utf-8")
+
+    book = load_book("sometool", tmp_path)
+    assert book.verified
+    assert classify(1, "Error: Rate limit exceeded: free-models-per-day",
+                    book) == classes.QUOTA
 
 
 # ---------------------------------------------------------------------------
@@ -409,7 +499,7 @@ def test_hooks_are_disabled_in_the_worktree(fake_kernel):
 
 def test_a_hostile_order_reaches_the_worker_intact(fake_kernel):
     """F11: quotes, %, &, ^ and non-ASCII survive, because the order is a file."""
-    hostile = ('Read "ORDER.md" & do 100% of it ^ carefully — ünïcödé 中文')
+    hostile = ('Read "ORDER.md" & do 100% of it ^ carefully â€” Ã¼nÃ¯cÃ¶dÃ© ä¸­æ–‡')
     task = make_task(fake_kernel,
                      title=f"Handle {hostile}",
                      oracles=["python -c \"print('ok')\""])

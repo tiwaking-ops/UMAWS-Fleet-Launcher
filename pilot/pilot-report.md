@@ -154,7 +154,51 @@ updates both and refuses rather than overwriting local changes.
 | The sentinel passed a repository with no pins file | The I8' check only turned *mismatches* into findings, and a missing file has no mismatches. | A missing pins file is now an I8' breach. |
 | The merge queue conflicted on the order file | See defect 2 above. | Only the declared scope is staged. |
 
-### 4.3 Windows findings that shaped the design
+### 4.4 A defect in the pilot's own supervision model
+
+**The pilot's rules contradict each other, and the contradiction is
+operational, not editorial.**
+
+* **Rule 14** (section 13): *"Ask only when blocked. State your default
+  and what you will do on silence."*
+* **Section 12.1**: *"The default on silence is hold: the LLM continues
+  unblocked work and does not cross the gate."*
+
+These are not reconcilable as written.  "State your default and do it" and
+"do not cross the gate" give opposite instructions for the same situation:
+an agent that is neither blocked nor at a gate, with no human answer
+pending, is told to proceed by one rule and to stop by the other.
+
+**The cost is visible in this pilot's own records.**  The implementer asked
+the operator once for the gate rule and was told *"I will provide these"*;
+the rule never arrived in that form, and the agent continued under the
+section 12.1 default (hold) while building the entire system.  That was
+survivable, but it was luck: the agent's own reading of a contradictory
+specification decided how a governance boundary behaved.  A different
+reading — proceeding — would have been equally consistent with rule 14 and
+would have silently changed what the gates *meant*.
+
+**A gate that nobody can apply is not a gate.**  Two rules, and a
+tension between them, is not a supervision model; it is a supervision
+model with an ambiguous boundary.
+
+**The resolution actually used** (operator, 2026-10-22) is worth
+recording, because it is a better rule than either the proposal's:
+
+> G0–G2 proceed and are logged for later review.  G3, G4 and G5 hold.
+> Class K is two-key regardless of any earlier approval.
+
+That rule is coherent where the proposal is not: it separates the gates
+that are **evidence** gates (whose artefacts can be reviewed
+asynchronously) from the gates that are **authorisation** gates (which
+change the system's behaviour or spend money, and therefore need the
+human at the moment).  And it makes the class K rule absolute, which the
+proposal's "ask only when blocked" does not.
+
+**This is a finding against the proposal, and the operator has offered to
+write a clarifying amendment.**  The suggested text is in section 8.
+
+### 4.5 Windows findings that shaped the design
 
 | Finding | Consequence |
 |---|---|
@@ -467,24 +511,28 @@ this report does not claim it is.
 * The full one-click lifecycle, with the sentinel clean and the chain
   verifying.
 
-### Still open â€” and what is *not* claimed
+### Still open - and what is *not* claimed
 
 | Item | State | Consequence in the code |
 |---|---|---|
-| Real CLIs' headless behaviour | **UNVERIFIED** | every real adapter's `caps.headless` is `False`, so the Fleet uses the console fallback and marks it `degraded` |
-| Real CLIs' resume and model-switch | **UNVERIFIED** | `can_resume = False`, so the ladder falls from L1 to L2 (a fresh session with a handoff note) and then L3 |
-| Real CLIs' session ids | **UNVERIFIED** | `reports_session_id = False`; no session is extracted |
-| Real CLIs' failure text | **UNVERIFIED** | **no classifier pattern is loaded for any real adapter**, so every non-zero exit is `UNKNOWN` |
+| Real CLIs' headless behaviour | **MEASURED** (S-A1 live, 2026-10-23) | all five run headless; `caps.headless = True` |
+| Real CLIs' resume | **MEASURED** | hermes, kilo, pi and opencode resume; the ladder can take its L1 step |
+| Real CLIs' model-switch on resume | **MEASURED for `pi` only** | `pi`'s profile carries a `models` list; the others fall to L2 |
+| Real CLIs' session ids | **MEASURED for hermes** | hermes prints "Resume this session with: `hermes --resume <id>`"; the others continue without one |
+| Real CLIs' failure text | **PARTLY measured** | cline's MODEL_GONE and opencode's QUOTA are captured, with the evidence; **hermes, kilo and pi still have no patterns**, so their failures are `UNKNOWN` |
+| Real CLIs' exit codes | **PARTLY measured** | only 0 and 1 were observed; nothing distinguishes a crash from a refusal |
 | QuotaGate provider limits and 429 shapes | **UNVERIFIED** | the classifier is conservative: an unrecognised body is `unknown_429` with a 60-second cooldown |
-| OpenCode headless (spike S-O1) | **not run** | the Overseer runner starts a session through the same unverified path and reports that it is degraded |
+| OpenCode headless (spike S-O1) | **partly measured** | opencode ran headless, but the Overseer session-resume path is untested |
 | `max_total_agents` | **placeholder (20)** | needs spike S-W1; the scale drill F7 was not run |
 | The Overseer's profile list (G-F13) | **placeholder** | needs the operator's input |
+| A real CLI end to end through the harness | **not run** | the Fleet's own path is exercised by the fake CLI and the demo; a real CLI has not been driven through a lease yet.  That is the **G3 handover test** |
 
-**The safety property this creates:** with no fixtures, every failure is
-`UNKNOWN`, and the `UNKNOWN` path (retry once, cool after two within ten
-minutes) is the only path that has to be safe â€” and it is tested
-(F12).
-
+**The safety property this still creates:** an adapter with no captured
+failure text classifies every non-zero exit as `UNKNOWN`, and the `UNKNOWN`
+path (retry once, cool after two within ten minutes) is the only path that
+has to be safe - and it is tested (F12).  A pattern is only loaded if it
+matches the capture it was derived from, so a classifier cannot grow
+without evidence behind it.
 ---
 
 ## 8. Proposed amendments
@@ -501,16 +549,40 @@ To **pilot v1**:
    means `pmk` is not on PATH until `pip install -e .` runs.  Pilot v1's
    Â§7.5 does not mention it.
 
+4. **NEW - rule 14 and section 12.1 must be reconciled** (section 4.4).
+   The operator has offered to write a clarifying amendment.  The suggested
+   text:
+
+   > **Gates are of two kinds.**  An *evidence gate* (G0-G2) is one whose
+   > artefacts can be reviewed after the fact: the implementer proceeds and
+   > records the crossing, its evidence and its reasoning in the decision
+   > log, and the artefacts are reviewed asynchronously.  An
+   > *authorisation gate* (G3-G6) is one that changes the system's
+   > behaviour, hands work to real agents, spends a provider's quota, or
+   > turns on a mechanism that can write instructions to agents: the
+   > implementer stops and waits for the human.
+   >
+   > **Class K is always two-key**, regardless of any earlier approval: an
+   > approval of one thing is never authority for a different class K
+   > change.
+   >
+   > Rule 14's "state your default" applies to *unblocked work between
+   > gates*, not to the gates themselves.
+
+   This keeps rule 14 (do not pester the human) and adds the one thing the
+   proposal was missing: a definition of what a gate *is*, in terms of what
+   the human is actually being asked to decide.
+
 To **the Fleet amendment A1**:
 
-4. **The `.cmd` shim rule should be normative, not conditional.** Section 7.2
+5. **The `.cmd` shim rule should be normative, not conditional.** Section 7.2
    says a `.cmd` shim "is launched through `cmd.exe /c` only after S-A1
    shows the arguments survive".  S-A1 showed they do **not** survive, so
    the amendment should say: resolve npm shims to their real target and
    launch that with an argv list.
-5. **The scope check needs `--untracked-files=all`.** This was not in the
+6. **The scope check needs `--untracked-files=all`.** This was not in the
    amendment, and its absence is a silent-failure hazard.
-6. **The merge queue must update the working tree, not just the ref.** Also
+7. **The merge queue must update the working tree, not just the ref.** Also
    not in the amendment.
 
 ---
@@ -528,9 +600,9 @@ To **the Fleet amendment A1**:
    costs a little free quota and is worth it.
 3. **Install Caliber** (pinned) and run S1â€“S5, so G1 can be decided on
    evidence rather than on the fallback.
-4. **Run F7** (the scale drill) with the fake CLI at 100 workers, and S-W1
+5. **Run F7** (the scale drill) with the fake CLI at 100 workers, and S-W1
    (worktree cost), so `max_total_agents` stops being a guess.
-5. **Build QuotaGate M1/M3/M5** â€” the proxy, the failover, and the Kernel
+6. **Build QuotaGate M1/M3/M5** â€” the proxy, the failover, and the Kernel
    contract â€” which needs provider keys and therefore a gate.
 
 ---

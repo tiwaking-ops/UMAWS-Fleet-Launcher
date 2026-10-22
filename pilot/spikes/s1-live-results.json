@@ -1,0 +1,224 @@
+[
+  {
+    "cli": "hermes",
+    "version": "Hermes Agent v0.22.2 (2026.9.24) · stable · local d923a5eb487a",
+    "date": "2026-10-22T10:55:21Z",
+    "adapter": "hermes",
+    "profile": "hermes-oneshot",
+    "help_bytes": 13974,
+    "resume_flag_in_help": "--pass-session-id",
+    "model_flag_in_help": null,
+    "argv_new": [
+      "hermes",
+      "chat",
+      "--oneshot",
+      "-q",
+      "{prompt}",
+      "--yolo",
+      "--cli",
+      "--in",
+      "{cwd}"
+    ],
+    "new": {
+      "exit": 0,
+      "stdout": "Query: print the word ok and exit\n\u001b[2;3mInitializing agent...\u001b[0m\n\u001b[38;2;255;191;0m────────────────────────────────────────\u001b[0m\n\n\n\u001b[1;38;2;255;215;0m╭─ ☤ Hermes ───────────────────────────────────────────────────────────────────╮\u001b[0m\n\u001b[38;2;255;248;220mok\u001b[0m\n\u001b[1;38;2;255;215;0m╰──────────────────────────────────────────────────────────────────────────────╯\u001b[0m\n\nResume this session with:\n  hermes --resume 20261022_235546_f8f570\n  hermes -c \"Print ok and exit\"\n\nSession:        20261022_235546_f8f570\nTitle:          Print ok and exit\nDuration:       20s\nMessages:       2 (1 user, 0 tool calls)\n",
+      "stderr": "",
+      "seconds": 40.6,
+      "timed_out": false,
+      "argv": [
+        "C:\\Users\\Tiwa Pene\\AppData\\Local\\hermes\\bin\\hermes.EXE",
+        "chat",
+        "--oneshot",
+        "-q",
+        "print the word ok and exit",
+        "--yolo",
+        "--cli",
+        "--in",
+        "C:\\Users\\TIWAPE~1\\AppData\\Local\\Temp\\s1-live-hermes-1792666527"
+      ]
+    },
+    "already_rate_limited": false,
+    "session_id": "with:",
+    "session_id_found": true,
+    "resume_same_model": {
+      "attempted": true,
+      "argv": [
+        "C:\\Users\\Tiwa Pene\\AppData\\Local\\hermes\\bin\\hermes.EXE",
+        "chat",
+        "--oneshot",
+        "-q",
+        "print the word ok and exit",
+        "--yolo",
+        "--cli",
+        "--in",
+        "C:\\Users\\TIWAPE~1\\AppData\\Local\\Temp\\s1-live-hermes-1792666527",
+        "--pass-session-id",
+        "with:"
+      ],
+      "exit": 2,
+      "seconds": 9.0,
+      "stdout": "",
+      "stderr": "usage: hermes [-h] [--version] [-z PROMPT] [--usage-file PATH] [-m MODEL]\n              [--provider PROVIDER] [--reasoning LEVEL] [-t TOOLSETS]\n              [--resume SESSION] [--no-restore-cwd] [--in DIR]\n              [--continue [SESSION_NAME]] [--worktree] [--accept-hooks]\n              [--skills SKILLS] [--yolo] [--pass-session-id]\n              [--ignore-user-config] [--ignore-rules] [--safe-mode] [--tui]\n              [--native] [--cli] [--dev]\n              <command> ...\nhermes: error: unrecognized arguments: with:\n",
+      "ok": false
+    },
+    "resume_different_model": {
+      "attempted": false,
+      "reason": "no model flag appears in --help"
+    }
+  },
+  {
+    "cli": "kilo",
+    "version": "7.8.15",
+    "date": "2026-10-22T10:56:23Z",
+    "adapter": "kilo",
+    "profile": "kilo-auto",
+    "help_bytes": 4959,
+    "resume_flag_in_help": null,
+    "model_flag_in_help": null,
+    "argv_new": [
+      "kilo",
+      "run",
+      "{prompt}",
+      "--dir",
+      "{cwd}",
+      "--auto"
+    ],
+    "new": {
+      "exit": 0,
+      "stdout": "ok\n",
+      "stderr": "\u001b[0m\n> code · kilo-auto/free\n\u001b[0m\n\u001b[0m$ \u001b[0mecho ok\nok\n\u001b[0m\n",
+      "seconds": 75.7,
+      "timed_out": false,
+      "argv": [
+        "node",
+        "C:\\Users\\Tiwa Pene\\AppData\\Roaming\\npm\\node_modules\\@kilocode\\cli\\bin\\kilo",
+        "run",
+        "print the word ok and exit",
+        "--dir",
+        "C:\\Users\\TIWAPE~1\\AppData\\Local\\Temp\\s1-live-kilo-1792666590",
+        "--auto"
+      ]
+    },
+    "already_rate_limited": false,
+    "session_id": null,
+    "session_id_found": false,
+    "resume": {
+      "attempted": false,
+      "reason": "no session id was printed"
+    }
+  },
+  {
+    "cli": "pi",
+    "version": "1.2.0",
+    "date": "2026-10-22T10:57:51Z",
+    "adapter": "pi",
+    "profile": "pi-orca-deepseek",
+    "help_bytes": 10705,
+    "resume_flag_in_help": "--no-session",
+    "model_flag_in_help": "--list-models",
+    "argv_new": [
+      "pi",
+      "--provider",
+      "orcarouter",
+      "--model",
+      "deepseek/deepseek-v4-flash-free",
+      "-p",
+      "{prompt}"
+    ],
+    "new": {
+      "exit": 0,
+      "stdout": "ok\n",
+      "stderr": "",
+      "seconds": 10.9,
+      "timed_out": false,
+      "argv": [
+        "node",
+        "C:\\Users\\Tiwa Pene\\.pi\\agent\\bin\\pi-launcher.js",
+        "--provider",
+        "orcarouter",
+        "--model",
+        "deepseek/deepseek-v4-flash-free",
+        "-p",
+        "print the word ok and exit"
+      ]
+    },
+    "already_rate_limited": false,
+    "session_id": null,
+    "session_id_found": false,
+    "resume": {
+      "attempted": false,
+      "reason": "no session id was printed"
+    }
+  },
+  {
+    "cli": "cline",
+    "version": "3.0.73",
+    "date": "2026-10-22T10:58:13Z",
+    "adapter": "cline",
+    "profile": "cline-mimo",
+    "help_bytes": 3993,
+    "resume_flag_in_help": null,
+    "model_flag_in_help": null,
+    "argv_new": [
+      "cline",
+      "--provider",
+      "cline",
+      "--model",
+      "cline-free/mimo-v2.6-flash",
+      "{prompt}"
+    ],
+    "new": {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "\u001b[31merror:\u001b[0m Free model promotion ended\nThe free promotion for this model has ended and it is no longer available.\nSelect another model to continue.\nOpen the model selector with /model.\n",
+      "seconds": 17.6,
+      "timed_out": false,
+      "argv": [
+        "node",
+        "C:\\Users\\Tiwa Pene\\AppData\\Roaming\\npm\\node_modules\\cline\\bin\\cline",
+        "--provider",
+        "cline",
+        "--model",
+        "cline-free/mimo-v2.6-flash",
+        "print the word ok and exit"
+      ]
+    },
+    "already_rate_limited": false,
+    "session_id": null,
+    "session_id_found": false,
+    "resume": {
+      "attempted": false,
+      "reason": "no session id was printed"
+    }
+  },
+  {
+    "cli": "opencode",
+    "version": "opencode v2.1.0",
+    "date": "2026-10-22T10:58:38Z",
+    "adapter": "opencode",
+    "profile": "opencode-fallback",
+    "help_bytes": 2305,
+    "resume_flag_in_help": null,
+    "model_flag_in_help": null,
+    "argv_new": [
+      "opencode",
+      "run",
+      "{prompt}"
+    ],
+    "new": {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "\u001b[0m\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n\u001b[91m\u001b[1mError: \u001b[0mRate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\n",
+      "seconds": 96.4,
+      "timed_out": false,
+      "argv": [
+        "C:\\Users\\Tiwa Pene\\AppData\\Roaming\\npm\\node_modules\\@opencode\\cli\\bin\\opencode.exe",
+        "run",
+        "print the word ok and exit"
+      ]
+    },
+    "already_rate_limited": true,
+    "quota_fixture": "C:\\temp\\projects\\testproject1\\tests\\fleet\\fixtures\\opencode\\quota.txt",
+    "quota_fixture_body": "\u001b[0m\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n\u001b[91m\u001b[1mError: \u001b[0mRate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\n"
+  }
+]
