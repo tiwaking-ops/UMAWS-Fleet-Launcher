@@ -17,7 +17,7 @@
   | G1 | sync sending repo content to providers | **authorisation** | **authorised** — terms accepted, D-23 |
   | G2 | metadata capture | checkpoint | logged (`cli-matrix.md`) |
   | G2 | live S-A1 provider calls | **authorisation** | **authorised with terms** — D-24 |
-  | G3 | real CLI through a lease; restart from the briefing alone | **authorisation** | **ratification complete** (D-29); **handover test outstanding** (D-30) |
+  | G3 | real CLI through a lease; restart from the briefing alone | **authorisation** | **real-CLI half PASSES** (D-39); handover measured on kilo (D-36); **OpenCode half parked** (D-37) |
   | G4 | Caliber auto-sync on | **authorisation** | **HELD** — `mode = "dry-run"` |
   | G5 | live capacity run | **authorisation** | **HELD** |
 
@@ -64,6 +64,11 @@
     (`free-models-per-day`), so the gate stays open.
   - **`cline-mimo` repointed** to the operator's five offered free models
     (D-35); none of the five is verified yet.
+  - **G3's real-CLI half PASSES** (D-39): kilo took `T-0002` through a real
+    lease in a real worktree against a **functional** oracle, merged with the
+    gate green.  Evidence in `pilot/spikes/g3/`.
+  - **M1's upstream measured** (D-38): usage capturable, **no** quota headers,
+    and no `/v1` on the upstream.  Record in `pilot/spikes/m1-upstream.md`.
   - **209 tests passing.** `pmk sentinel` clean on the live repository.
   - `pilot/demo_one_click.py` runs the full lifecycle green: brief → PDD →
     tasks → claim → worktree → order → spawn → harness-run oracles →
@@ -71,27 +76,24 @@
   - Every Phase 1 commit is tagged `bootstrap/0` … `bootstrap/16`.
 - **In progress**: nothing.
 - **Next**:
-  1. **G3's other half — a real CLI taking work through a real lease.**  Its
-     handover *mechanism* now has evidence (D-36: four fresh sessions on
-     kilo, all correct from the briefing alone), but the gate names an
-     *OpenCode* session, which never ran (free tier exhausted), and no real
-     CLI has yet been driven through a lease with oracles — the demo uses
-     the fake CLI.
-  2. **Verify the five cline models** — offered, not working (D-35).  Costs
+  1. **Build QuotaGate M1** (the passthrough proxy).  Its upstream behaviour is
+     now measured (D-38): usage is capturable, quota headers do **not** exist,
+     and the upstream has no `/v1`.  So M1 needs a timeout policy and locally
+     declared limits.
+  2. **Exercise the recovery ladder with a real CLI.**  L0–L4 have never been
+     run against a live agent — D-39 succeeded on `attempt=1` with
+     `restart_count=0`, so the failure paths are still fixture-only.
+  3. **Verify the five cline models** — offered, not working (D-35).  Costs
      live provider calls, so it is its own authorisation.
-  3. Run **S-W1** and test **F7** (100 fake workers) to replace the
+  4. Run **S-W1** and test **F7** (100 fake workers) to replace the
      `max_total_agents = 20` guess.
-  4. Build QuotaGate **M1** (the passthrough proxy) so that the gateway
-     can serve the `context-sync` lane as CIP §7.3 describes, and so the
-     provider allowlist becomes the destination.
 - **Blocked / awaiting human**:
-  1. **G3** — the handover evidence exists on kilo (D-36), but whether that
-     satisfies the gate's wording (it names OpenCode) is **the operator's
-     call**.
+  1. **G3's OpenCode half** — quota `UNKNOWN` by instruction (D-37); the test
+     is to be run **together later**.  Whether D-39 closes G3 is the
+     operator's call.
   2. **Verifying the five cline models** — needs an authorisation for live
      calls.
-  3. **QuotaGate provider keys**, for M1's live capture.
-  4. **G4/G5** — held.
+  3. **G4/G5** — held.
 - **Open [VERIFY] items**:
   - `V-01` **mostly closed**: headless, resume and (for pi) model-switch
     are measured.  **Still open**: hermes, kilo and pi have no captured
@@ -117,12 +119,14 @@
   - `V-04` `max_total_agents` — needs S-W1; 20 is a placeholder.
   - `V-05` the Overseer's ordered profile list (G-F13).
   - `V-06` OpenCode headless (S-O1) — partly measured.
-- **Decisions since last update**: `pilot/decisions.md` D-01 … D-36.
+- **Decisions since last update**: `pilot/decisions.md` D-01 … D-39.
   **D-29** is the D-19/D-20 ratification, recorded as class K queue items
   Q-001 and Q-002 in the event log. **D-32/D-33** are the queue-id collision
   and the projection that let a duplicate overwrite a decision; **D-34** is
   the gate amendment in force (class K item Q-003); **D-35** the cline
-  repoint; **D-36** the H6 result.
+  repoint; **D-36** the H6 result; **D-37** the OpenCode quota parked as
+  `UNKNOWN`; **D-38** the M1 upstream measurement; **D-39** the real-CLI
+  through a real lease, which passes.
 - **Last green test run**: `pytest -q` → see the commit; `pmk sentinel`
   clean and `pmk context drift` clean on 2026-10-23.
 

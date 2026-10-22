@@ -480,25 +480,75 @@ ran, and a real CLI taking work through a real lease is still untested --
 the one-click demo uses the fake CLI.  Whether a variant satisfies the gate's
 wording is the operator's call, not the implementer's.
 
+D-37 | 2026-10-23 | operator | **OpenCode's quota is `UNKNOWN` and stays
+unknown.**  OpenCode does not publish its free-tier limits, so no amount of
+probing would establish them; the operator's instruction is to leave it as
+unknown and to **test it together later**.  H6 as worded — an *OpenCode*
+session restarting from the briefing alone — is therefore **parked, not
+satisfied**, and it is the only outstanding item on G3. | Recording the
+OpenCode quota as "measured" from a single rate-limit error, which would be
+inventing a number.  Or quietly dropping the condition. | G3's real-CLI half
+was closed separately the same day (D-39).  Whether the gate as a whole is
+closed is the operator's call.
+
+D-38 | 2026-10-23 | OpenCode (measured, M1) | **The upstream the gateway will
+use publishes usage but not quota.**  Measured against the operator's own
+OpenAI-compatible router on `127.0.0.1:20128`, keyed by `OMNIROUTE_API_KEY`
+(no key written to any file, log or commit):
+`GET /models` 200 with 10 230 models but `GET /v1/models` **503**, and
+`POST /chat/completions` 200 while `POST /v1/chat/completions` **hangs** — so
+**the base URL has no `/v1`**, which breaks any client that assumes it.  A
+successful call returns a full `usage` block and an
+`x-omniroute-decision: ... provider=cohere; latency_ms=741` header, so token
+usage and provider attribution **are** capturable.  But there is **no
+`x-ratelimit-*`, no `retry-after`, and no quota header at all**, and no `429`
+could be induced to inspect. | Assuming the proxy can learn the provider's
+limits.  It cannot through this upstream, so `V-03` **cannot be closed by
+observation** here: QuotaGate's limits must be **declared locally**.  That is
+a weaker guarantee than "we measured the provider" and is stated as such.
+Full record: `pilot/spikes/m1-upstream.md`. | A timeout policy is **required**,
+not optional: the alias `auto/cheap` timed out at 45 s while `auto/best-free`
+answered in ~1 s.  M1 still only sees traffic that routes through it, and every
+profile is currently `via_gateway = false`.
+
+D-39 | 2026-10-23 | operator (approved) + OpenCode | **G3's real-CLI half
+PASSES: a real CLI took work through a real lease and the Kernel accepted it.**
+Run with **kilo** against a scratch repository, with a **functional** oracle
+(`python check.py` parses the worker's output as a Markdown table) rather than
+the demo's file-exists check.  Task `T-0002` was admitted READY, spawned on
+`pid=10188` under fence 1 in a real git worktree, submitted after **500 s**,
+merged with the project gate green, and the close-check passed
+(`G-001: pass`, `gate: pass`).  The evidence bundle carries the output's
+sha256, a clean diff-scope check (`changed: [src/csv2md.py]`, no violations),
+oracle exit 0 and the constitution hash.  Full record:
+`pilot/g3-real-cli.md`; evidence in `pilot/spikes/g3/`. | Treating the demo's
+fake-CLI run as if it proved a real agent could do this.  It never did. | What
+this does **not** establish: the **recovery ladder was never exercised**
+(`attempt=1`, `restart_count=0`), so L0-L4 remain untested with a real CLI; it
+is one task, one CLI, one successful attempt; and a small task consumed **500 s
+of a 720 s wall budget**, which is a live latency risk because the Kernel
+cannot see this CLI's token use (`L-F2`).
+
+---
+
 ---
 
 ---
 
 ## Pending
 
-- **G3.**  Its handover *mechanism* now has evidence (D-36, four fresh
-  sessions on kilo), but the gate is **open on two counts**: the named CLI
-  (OpenCode) never ran -- its free tier is exhausted -- and a **real CLI
-  taking work through a real lease** is still untested.  Whether the kilo
-  variant satisfies the gate's wording is the operator's call.
-- **The `models` lists.**  Settled: hermes, kilo and opencode stay empty, so
-  L1 (resume on a different model) is unavailable for them and the ladder
-  falls through to L2; cline was repointed with five offered models (D-35).
-  Only pi has a **verified** model swap.
-- **Verifying the five cline models** -- costs live provider calls, so it is
+- **G3's OpenCode half.**  Parked at the operator's instruction (D-37): the
+  quota is `UNKNOWN` and the handover test is to be run **together later**.
+  The real-CLI half passed (D-39).  Whether that closes G3 is the operator's
+  call.
+- **QuotaGate M1** — the capture behaviour is now measured (D-38): usage yes,
+  quota headers no, and the upstream has **no `/v1`**.  Still to build: the
+  proxy itself, its timeout policy, and local limit declaration.
+- **The recovery ladder with a real CLI** — L0-L4 have never been exercised
+  against a live agent; only the fake CLI and the synthetic fixtures.
+- **Verifying the five cline models** — costs live provider calls, so it is
   a separate authorisation.  Until then they are offered, not working.
-- **QuotaGate provider keys**, for M1's live capture.
-- **G4/G5** -- held.
+- **G4/G5** — held.
 
 ## Resolved since the last update
 
