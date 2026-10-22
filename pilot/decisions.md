@@ -544,6 +544,20 @@ condition.  It is recorded here as outstanding work, not as debt written off.
 
 ---
 
+D-41 | 2026-10-23 | OpenCode (measured) | **Recovery ladder with real CLIs exercised.**  
+
+**L4** `1`/`1` attempts → real QUOTA failure from opencode (live, free-tier), ladder chose L4 → task BLOCKED with queue item `Q-001`, no fence bump.
+
+**L3** with `max_restarts_per_task = 0` → real QUOTA failure, ladder chose L3 → lease revoked, fence **bumped 1→2**, worktree quarantined, task returned READY. No queue item (L3 is not terminal).
+
+**Real recovery** — opencode fails QUOTA → L1 → **kilo-real**. Work submitted, oracle passed, evidence bundle complete. **However, a defect was found**:
+
+*L1* was chosen by the ladder (because opencode's adapter claims `can_resume = True`), but the receiving profile `kilo-real` had `argv_resume = []` — meaning `profile.supports_resume()` is `False`. The dispatcher mode became `"new"`, no handoff note was written, and the order file said `## Handoff none`. The event `AGENT_RESUMED` is misleading; no session was resumed. This needs a fix (write handoff when mode is `"new"`, or choose L2 when resume is impossible), but that decision is deferred.
+
+**L0** remains unexercised — no live CLI reliably produces a `NETWORK` failure. | Treating the ladder as "complete" without noting that L1's label diverges from its actual mode when the receiving profile has no `argv_resume`. Not reporting the defect means it stays latent. | The defect is documented; whether to fix it is operator-decision. |
+
+---
+
 ## Pending
 
 - **G3's OpenCode half.**  Parked at the operator's instruction (D-37): the

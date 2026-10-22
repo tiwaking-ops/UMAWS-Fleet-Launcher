@@ -80,14 +80,11 @@
      now measured (D-38): usage is capturable, quota headers do **not** exist,
      and the upstream has no `/v1`.  So M1 needs a timeout policy and locally
      declared limits.
-  2. **Exercise the recovery ladder with a real CLI.**  L0–L4 have never been
-     run against a live agent — D-39 succeeded on `attempt=1` with
-     `restart_count=0`, so the failure paths are still fixture-only.
-  3. **Verify the five cline models** — offered, not working (D-35).  Costs
+  2. **Verify the five cline models** — offered, not working (D-35).  Costs
      live provider calls, so it is its own authorisation.
-  4. Run **S-W1** and test **F7** (100 fake workers) to replace the
+  3. Run **S-W1** and test **F7** (100 fake workers) to replace the
      `max_total_agents = 20` guess.
-- **Blocked / awaiting human**:
+ - **Blocked / awaiting human**:
   1. **G3's OpenCode half** — quota `UNKNOWN` by instruction (D-37); the test
      is to be run **together later**.  G3 itself is **closed** (D-40); this
      condition is still owed, and a closed gate is not a satisfied
