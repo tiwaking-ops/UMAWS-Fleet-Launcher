@@ -59,6 +59,11 @@
     `pilot/spikes/cli-matrix.md`.  All five CLIs run **headless**; hermes,
     kilo, pi and opencode **resume**; pi resumes on a **different model**;
     cline's MODEL_GONE and opencode's QUOTA are captured as fixtures.
+  - **H6 handover evidence** (D-36): four fresh sessions, two seeds, all
+    correct from the briefing alone — on **kilo**.  OpenCode could not run
+    (`free-models-per-day`), so the gate stays open.
+  - **`cline-mimo` repointed** to the operator's five offered free models
+    (D-35); none of the five is verified yet.
   - **209 tests passing.** `pmk sentinel` clean on the live repository.
   - `pilot/demo_one_click.py` runs the full lifecycle green: brief → PDD →
     tasks → claim → worktree → order → spawn → harness-run oracles →
@@ -66,32 +71,34 @@
   - Every Phase 1 commit is tagged `bootstrap/0` … `bootstrap/16`.
 - **In progress**: nothing.
 - **Next**:
-  1. **G3's end-to-end handover test (H6)** — a real CLI driven through a
-     real lease, and an OpenCode session restarting from the briefing
-     alone.  **Needs its own go-ahead** (D-30: it hands real work to a real
-     agent, so it is not covered by the D-19/D-20 ratification).
-  2. **Fill in the `models` lists** for hermes, kilo, cline and opencode
-     from the operator's `prompts.json`, so the ladder's L1 step (resume on
-     a different model) is available for all of them and not only pi.
-  3. **Repoint `cline-mimo`** — its model's free promotion has ended (D-28);
-     free models were removed platform-wide this week and the operator is
-     reviewing which remain available. This is an **authorisation** action
-     (a different model, provider terms and quota), **not class K** —
-     `agents.toml` is not pinned.
-  4. Run **S-W1** and test **F7** (100 fake workers) to replace the
+  1. **G3's other half — a real CLI taking work through a real lease.**  Its
+     handover *mechanism* now has evidence (D-36: four fresh sessions on
+     kilo, all correct from the briefing alone), but the gate names an
+     *OpenCode* session, which never ran (free tier exhausted), and no real
+     CLI has yet been driven through a lease with oracles — the demo uses
+     the fake CLI.
+  2. **Verify the five cline models** — offered, not working (D-35).  Costs
+     live provider calls, so it is its own authorisation.
+  3. Run **S-W1** and test **F7** (100 fake workers) to replace the
      `max_total_agents = 20` guess.
-  5. Build QuotaGate **M1** (the passthrough proxy) so that the gateway
+  4. Build QuotaGate **M1** (the passthrough proxy) so that the gateway
      can serve the `context-sync` lane as CIP §7.3 describes, and so the
      provider allowlist becomes the destination.
 - **Blocked / awaiting human**:
-  1. **G3's handover test** — needs a go-ahead (D-30).
-  2. **QuotaGate provider keys**, for M1's live capture.
-  3. **G4/G5** — held.
+  1. **G3** — the handover evidence exists on kilo (D-36), but whether that
+     satisfies the gate's wording (it names OpenCode) is **the operator's
+     call**.
+  2. **Verifying the five cline models** — needs an authorisation for live
+     calls.
+  3. **QuotaGate provider keys**, for M1's live capture.
+  4. **G4/G5** — held.
 - **Open [VERIFY] items**:
   - `V-01` **mostly closed**: headless, resume and (for pi) model-switch
     are measured.  **Still open**: hermes, kilo and pi have no captured
     failure text, so their failures are `UNKNOWN`; the exit codes are only
     0 and 1; and no real CLI has been driven end to end through a lease.
+    The *briefing handover* half is now measured on kilo (D-36); OpenCode
+    itself is still unrun.
   - `V-02` **closed**: Caliber's overwrite semantics (S3) and determinism
     (S5) are measured.
   - `V-07` **new**: the generator has **not** been shown to be safe
@@ -101,22 +108,21 @@
   - `V-08` **new**: the lint's coverage limit is measured and pinned
     (D-21).  The residual protection is the combination of lint, score
     gate, blind V2 review and audit.
-  - `V-09` **new**: the operator's `cline-mimo` profile names a model
-    whose free promotion has **ended** (measured). The Fleet's MODEL_GONE
-    handler disables it. Repointing it is an **authorisation** action, not
-    class K — `agents.toml` is not pinned — so it needs the operator's
-    approval but not a class K two-key. The Fleet reports such a profile as
-    `ready` until it first dispatches, because readiness does not test the
-    model.
+  - `V-09` **partly closed**: the profile is repointed to the operator's
+    five offered free models (D-35), so the dead model string is gone.  But
+    **none of the five is verified** — that needs live calls — and the Fleet
+    still reports a profile as `ready` without testing its model, so the
+    first dispatch is where MODEL_GONE gets discovered.
   - `V-03` QuotaGate provider limits, 429 body shapes, quota headers.
   - `V-04` `max_total_agents` — needs S-W1; 20 is a placeholder.
   - `V-05` the Overseer's ordered profile list (G-F13).
   - `V-06` OpenCode headless (S-O1) — partly measured.
-- **Decisions since last update**: `pilot/decisions.md` D-01 … D-34.
+- **Decisions since last update**: `pilot/decisions.md` D-01 … D-36.
   **D-29** is the D-19/D-20 ratification, recorded as class K queue items
   Q-001 and Q-002 in the event log. **D-32/D-33** are the queue-id collision
   and the projection that let a duplicate overwrite a decision; **D-34** is
-  the gate amendment in force (class K item Q-003).
+  the gate amendment in force (class K item Q-003); **D-35** the cline
+  repoint; **D-36** the H6 result.
 - **Last green test run**: `pytest -q` → see the commit; `pmk sentinel`
   clean and `pmk context drift` clean on 2026-10-23.
 

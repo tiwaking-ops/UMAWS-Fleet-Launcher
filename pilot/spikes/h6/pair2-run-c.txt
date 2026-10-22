@@ -1,0 +1,7 @@
+﻿node.exe : 
+> code ┬À poolside/laguna-s-2.1
+ÔåÆ Read briefing.txt
+1) Project state: NEW
+2) Ready to dispatch: 1
+3) Next action: T-0002 ÔÇö H6-BETA: write hello.txt containing hello world
+4) Incidents recorded: 1

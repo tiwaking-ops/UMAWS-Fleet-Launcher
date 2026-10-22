@@ -1,0 +1,7 @@
+﻿node.exe : 
+> code ┬À poolside/laguna-s-2.1
+ÔåÆ Read briefing.txt
+1) Project state: NEW
+2) Ready to dispatch: 0
+3) N/A ÔÇö no ready tasks; the first PROPOSED task is T-0001 "H6-ALPHA: create greeting.txt containing the word hello"
+4) Incidents recorded: 1

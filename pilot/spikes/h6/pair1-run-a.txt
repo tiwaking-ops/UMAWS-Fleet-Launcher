@@ -1,0 +1,7 @@
+﻿node.exe : 
+> code ┬À poolside/laguna-s-2.1
+ÔåÆ Read briefing.txt
+1) Project state: NEW
+2) Ready to dispatch: 0
+3) There is no single "next action" that is ready ÔÇö the only task T-0001 is PROPOSED (not ready). Its id and title are: T-0001 "H6-ALPHA: create greeting.txt containing the word hello"
+4) Incidents recorded: 1

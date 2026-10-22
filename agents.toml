@@ -97,16 +97,26 @@ priority = 40
 max_concurrent = 1
 via_gateway = false
 roles = ["implement"]
-argv_new = ["cline", "--provider", "cline", "--model", "cline-free/mimo-v2.6-flash", "{prompt}"]
-# Measured: `--id <session-id>` resumes an existing session.  Untested in
-# practice, because the model this profile names is gone (see below).
+argv_new = ["cline", "--provider", "cline", "--model", "cline-free/minimax-m3.1-flash", "{prompt}"]
+# Measured: `--id <session-id>` resumes an existing session.  Still untested
+# in practice -- see the note below.
 argv_resume = ["cline", "--provider", "cline", "--model", "{model}", "{prompt}", "--id", "{session}"]
-models = ["cline-free/mimo-v2.6-flash", "cline-free/solar-mini4", "cline-free/muse-spark-1.3-contributor"]
-# NOTE: cline-free/mimo-v2.6-flash's free promotion has ENDED, measured
-# 2026-10-22: "The free promotion for this model has ended and it is no
-# longer available."  The Fleet's MODEL_GONE handler disables this profile
-# when it sees that.  Repointing it at another model is the operator's
-# call, because the profile schema is class K.
+models = ["cline-free/minimax-m3.1-flash", "cline-free/solar-mini4", "cline-free/nemotron-3.5-super-vl", "nvidia/nemotron-3.5-lightning-free", "poolside/laguna-s-2.1:free"]
+# 2026-10-23: repointed on the operator's instruction after the previous
+# model's free promotion ended (measured 2026-10-22: "The free promotion for
+# this model has ended and it is no longer available.").  The five model
+# strings above are the operator's list of currently-free models; the first
+# is the primary.  NONE of the five has been exercised yet -- verifying them
+# costs live provider calls, which is an authorisation action, so they are
+# recorded as *offered*, not as *working*.
+#
+# The id stays `cline-mimo` although the model is no longer mimo, so that
+# references in the decision log and the docs stay valid.
+#
+# Classification note: repointing a profile is an AUTHORISATION action, not
+# class K.  Only .pm/constitution.md and .pm/policy.toml are pinned, so this
+# file is not class K by artefact.  An earlier note here said it was; that
+# was wrong and is corrected in D-28.
 
 [[profile]]
 id = "opencode-strongest"

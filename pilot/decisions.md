@@ -445,25 +445,60 @@ checkpoints with a known weakness.  No outcome changes — nothing
 irreversible rested on them — but this is the first thing a future
 checkpoint must get right.
 
+D-35 | 2026-10-23 | operator | **`cline-mimo` repointed to the operator's
+list of currently-free models.**  `argv_new` now names
+`cline-free/minimax-m3.1-flash`; the `models` list carries all five strings
+the operator supplied.  **None of the five has been exercised.**  Verifying
+them costs live provider calls, which is a separate authorisation, so they
+are recorded as *offered*, not as *working*.  Also recorded here: the
+operator confirmed the `models` lists for hermes, kilo and opencode are fine
+as they are -- all three are empty, which means the ladder's L1 step (resume
+on a different model) is **unavailable** for them and the ladder falls
+through to L2.  That is the honest state, not a defect, and it is why only pi
+currently has a verified swap. | Leaving the profile pointing at a model
+whose free promotion has ended, where the Fleet's MODEL_GONE handler would
+discover it only on first dispatch. | Nothing.  **Classification:** an
+**authorisation** action, not class K -- `agents.toml` is not pinned.  D-28's
+"class K" was wrong and is corrected there.
+
+D-36 | 2026-10-23 | OpenCode | **H6: the handover mechanism is
+demonstrated; the gate as worded is not closed.**  Opencode could not run --
+exit 1 after 88 s on `free-models-per-day`, the same limit as S-A1 -- so H6
+as specified is **NOT RUN**, which is not a failure: it is evidence about a
+free tier.  The same mechanism was then run on **kilo**: four fresh
+processes, two seeds (a PROPOSED task; then a single READY task), all four
+correct on project state, ready count, task id and title, and incident
+count, with no disagreement between independent sessions.  **My
+pre-written ground truth for the first seed was wrong**: a task needs a
+`goal_ref` to be admitted, so `T-0001` was PROPOSED and "ready to dispatch"
+was 0, not 1.  Both runs were right and the *expectation* was wrong.  It is
+recorded rather than amended, because writing it down before the run is
+exactly what exposed it. | Letting the kilo variant stand as closure of G3,
+which would be claiming a gate on a CLI it does not name. | **G3 remains
+open on two counts**: the gate names an *OpenCode* session and that CLI never
+ran, and a real CLI taking work through a real lease is still untested --
+the one-click demo uses the fake CLI.  Whether a variant satisfies the gate's
+wording is the operator's call, not the implementer's.
+
+---
 
 ---
 
 ## Pending
 
-- **G3's end-to-end handover test (H6).**  A real CLI, a real lease, an
-  OpenCode session restarting from the briefing alone.  Needs its own
-  go-ahead (D-30).
-- **The `models` lists** for hermes, kilo, cline and opencode, so the
-  ladder's L1 step is available for all of them and not only pi.
-- **The `cline-mimo` profile** names a model whose free promotion has
-  ended (D-28).  The operator reports that free models were removed
-  platform-wide this week and will review which remain available.
-  Repointing the profile is an **authorisation** action \u2014 it selects a
-  different model, provider terms and quota \u2014 but **not class K**:
-  `agents.toml` is not pinned.  (An earlier note in this file called it class
-  K; that was a mislabel, corrected here.)
+- **G3.**  Its handover *mechanism* now has evidence (D-36, four fresh
+  sessions on kilo), but the gate is **open on two counts**: the named CLI
+  (OpenCode) never ran -- its free tier is exhausted -- and a **real CLI
+  taking work through a real lease** is still untested.  Whether the kilo
+  variant satisfies the gate's wording is the operator's call.
+- **The `models` lists.**  Settled: hermes, kilo and opencode stay empty, so
+  L1 (resume on a different model) is unavailable for them and the ladder
+  falls through to L2; cline was repointed with five offered models (D-35).
+  Only pi has a **verified** model swap.
+- **Verifying the five cline models** -- costs live provider calls, so it is
+  a separate authorisation.  Until then they are offered, not working.
 - **QuotaGate provider keys**, for M1's live capture.
-- **G4/G5** — held.
+- **G4/G5** -- held.
 
 ## Resolved since the last update
 
