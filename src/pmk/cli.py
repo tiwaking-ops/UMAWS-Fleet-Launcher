@@ -249,6 +249,19 @@ def cmd_context_sync(args) -> int:
     return 0 if result.get("ok") else 1
 
 
+def cmd_context_install(args) -> int:
+    """Install a reviewed baseline of the managed context files.
+
+    CIP section 8.6 step 1: the files have been generated and read; this
+    is the deliberate class K act that puts them in place.  They go through
+    the same diff, lint, sanitise and merge machinery as a generated sync.
+    """
+    kernel = _kernel(args)
+    result = kernel.context_sync(source_dir=args.source, commit=args.commit)
+    _out(result)
+    return 0 if result.get("ok") else 1
+
+
 def cmd_context_revert(args) -> int:
     kernel = _kernel(args)
     _out(kernel.context_revert(args.seq))
@@ -746,6 +759,14 @@ def build_parser() -> argparse.ArgumentParser:
                               help="preview without merging (the default "
                                    "until gate G4)")
     context_sync.set_defaults(func=cmd_context_sync)
+
+    context_install = context.add_parser(
+        "install", help="install a reviewed baseline of the context files")
+    context_install.add_argument("--from", dest="source", required=True,
+                                 help="a directory holding the generated files")
+    context_install.add_argument("--commit", action="store_true",
+                                  help="merge them (a deliberate class K act)")
+    context_install.set_defaults(func=cmd_context_install)
 
     context_revert = context.add_parser("revert", help="revert a context sync")
     context_revert.add_argument("seq", type=int)

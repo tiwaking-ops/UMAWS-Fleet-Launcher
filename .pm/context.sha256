@@ -1,0 +1,16 @@
+{
+  "files": {
+    "AGENTS.md": "049cade8e61a74af0d7c49141dae85a2e55e1c67f18129db41e72743b741cbc2",
+    "CLAUDE.md": "8f3dfce78bf872e668c34c40314bb3b49c2c51865ff250fff2b0e28db10d7862",
+    ".claude/rules/fleet-spawning.md": "ec3f0cbdd13d18ea87adc986b66a7306ecc1667027e691dfacf7eaa74532cdd7",
+    ".claude/rules/kernel-writing.md": "caf6c50e5630fa39b91e2524c367c45a912531a499b9e0a634a9f1cbacd99053",
+    ".claude/rules/windows-platform.md": "46a3f57a418adc0c3be373790975a12e0b07d037e204d353b280a43204a84a84",
+    ".claude/skills/fleet-adapter/SKILL.md": "1799b2c2639f7698000c1b3b070374a9a5a0eba7b0bf5d3b39a716e62a64cec1",
+    ".claude/skills/pmk-task/SKILL.md": "214855f36d22f996be45ee7d5fc110739890ae7b3a76b6a3d007c63ad7ce4dfd",
+    ".claude/skills/quotagate-rule/SKILL.md": "706c62dfb1300e6b1bba0ad051cce5c49fba83f48f2c49f0c52ea2a856cd4658",
+    ".claude/skills/sentinel-check/SKILL.md": "5dacc34d416706ce8ae361b36532aba8577714fb09cd1b42ae90c8b53e94b224",
+    ".opencode/skills/pmk-task/SKILL.md": "764d8b47b0840270978e6d0069f598465f9d80632efc0452d522dc265c3afac4"
+  },
+  "recorded_at": "2026-10-22T08:15:54Z",
+  "kernel_version": "0.1.0"
+}

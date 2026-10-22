@@ -165,6 +165,44 @@ _URL_RE = re.compile(r"https?://([A-Za-z0-9._-]+)(?::\d+)?(?:/[^\s)\"'`]*)?")
 _IMAGES_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
 
 
+#: A negation cue.  The lint must not fire on "do not edit `.pm/`" or on
+#: "never skip verification" — those are the *correct* instructions, and a
+#: lint that blocks every legitimate file is worse than no lint at all.
+_NEGATION = re.compile(
+    r"(?:\bdo\s+not\b|\bdo\s+n't\b|\bdon'?t\b|\bnever\b|\bnot\b|\bno\b|"
+    r"\bavoid(?:s|ed|ing)?\b|\bwithout\b|\bmust\s+not\b|\bshould\s+not\b|"
+    r"\bshall\s+not\b|\bcannot\b|\bcan'?t\b|\brefus(?:e|es|ing)\b|"
+    r"\bforbidden\b|\bprohibited\b|\binstead\s+of\b|\brather\s+than\b)",
+    re.IGNORECASE)
+
+#: How far back to look for a negation.  The window is the current
+#: sentence, not a fixed number of characters: a negation in the previous
+#: paragraph must not silence the current one.
+_NEGATION_WINDOW = 60
+
+
+def _is_negated(text: str, start: int) -> bool:
+    """Is the match at *start* inside a negated instruction?
+
+    ``do not edit .pm/`` and ``Never skip verification`` are the correct
+    instructions, and the pilot's own generated files contain them.  A
+    negation-aware lint is the difference between a control and an
+    obstruction.
+
+    The window is the current **sentence** — the text since the last
+    paragraph break or sentence end.  Otherwise a negation in the
+    previous paragraph would silence an instruction in this one.
+    """
+    window = text[max(0, start - _NEGATION_WINDOW):start]
+    # Cut the window back to the last sentence or paragraph boundary.
+    for boundary in ("\n\n", ". ", ":\n", "!\n", "?\n"):
+        index = window.rfind(boundary)
+        if index != -1:
+            window = window[index + len(boundary):]
+            break
+    return bool(_NEGATION.search(window))
+
+
 @dataclass
 class LintFinding:
     """One lint finding."""
@@ -187,6 +225,9 @@ def _scan(text: str, patterns: Sequence[tuple[str, str]], rule: str,
     findings: list[LintFinding] = []
     for pattern, detail in patterns:
         for match in re.finditer(pattern, text, re.IGNORECASE):
+            if _is_negated(text, match.start()):
+                # "do not edit .pm/" is the instruction we want.
+                continue
             line = text.count("\n", 0, match.start()) + 1
             findings.append(LintFinding(rule=rule, detail=detail,
                                         severity=REJECT, file=file, line=line,
@@ -239,32 +280,65 @@ def lint_text(text: str, *, file: str = "",
     return findings
 
 
+def expand_managed_paths(root: str | Path, managed_paths: Iterable[str],
+                        exclude: Iterable[str] = ()) -> list[str]:
+    """The concrete files the managed paths cover, minus the exclusions.
+
+    A managed path may name a file or a directory.  A directory is expanded
+    into the files under it, so that a new generated skill is covered
+    without having to name it.
+
+    *exclude* exists because the generator ships **its own** operational
+    files alongside the generated ones.  Caliber's `setup-caliber`,
+    `find-skills` and `save-learning` skills teach an agent to run Caliber,
+    so they are the generator's machinery rather than generated project
+    context, and they are not class C.  Left in, they would also make the
+    lint reject every sync.
+    """
+    base = Path(root)
+    excluded = {str(e).replace("\\", "/").strip("/") for e in exclude}
+    out: list[str] = []
+
+    def is_excluded(relative: str) -> bool:
+        normalised = relative.replace("\\", "/")
+        for item in excluded:
+            if normalised == item or normalised.startswith(item + "/"):
+                return True
+        return False
+
+    for entry in managed_paths:
+        path = base / entry
+        if path.is_file():
+            if not is_excluded(entry):
+                out.append(entry)
+            continue
+        if path.is_dir():
+            for child in sorted(path.rglob("*")):
+                if not child.is_file():
+                    continue
+                relative = str(child.relative_to(base)).replace("\\", "/")
+                if is_excluded(relative):
+                    continue
+                out.append(relative)
+    return out
+
+
 def lint_files(root: str | Path, managed_paths: Iterable[str], *,
                allowed_domains: Iterable[str] = DEFAULT_ALLOWED_DOMAINS,
-               max_tokens: int = 3000) -> dict:
+               max_tokens: int = 3000,
+               exclude: Iterable[str] = ()) -> dict:
     """Lint every managed file under *root*."""
     base = Path(root)
     findings: list[LintFinding] = []
     checked: list[str] = []
-    for relative in managed_paths:
+    for relative in expand_managed_paths(base, managed_paths, exclude):
         path = base / relative
-        if not path.is_file():
-            continue
-        if path.is_dir():
-            for child in sorted(path.rglob("*")):
-                if child.is_file():
-                    checked.append(str(child.relative_to(base)))
-                    findings += lint_text(
-                        child.read_text(encoding="utf-8", errors="replace"),
-                        file=str(child.relative_to(base)),
-                        allowed_domains=allowed_domains, max_tokens=max_tokens)
-            continue
         checked.append(relative)
         findings += lint_text(path.read_text(encoding="utf-8",
-                                              errors="replace"),
-                               file=relative,
-                               allowed_domains=allowed_domains,
-                               max_tokens=max_tokens)
+                                             errors="replace"),
+                              file=relative,
+                              allowed_domains=allowed_domains,
+                              max_tokens=max_tokens)
     return {
         "ok": not any(f.severity == REJECT for f in findings),
         "needs_review": any(f.severity == REVIEW for f in findings),
@@ -277,32 +351,48 @@ def lint_files(root: str | Path, managed_paths: Iterable[str], *,
 # Hashes and drift (I16)
 # ---------------------------------------------------------------------------
 
-def hash_context_files(root: str | Path,
-                       managed_paths: Iterable[str]) -> dict[str, str]:
-    """The SHA-256 of each managed file, for the drift check."""
+def normalise_newlines(data: bytes) -> bytes:
+    """Line endings to LF, so a hash does not depend on the checkout.
+
+    Git's ``core.autocrlf`` is ``true`` by default on Windows, so a file
+    written with LF in a worktree is checked out with CRLF.  Hashing the
+    raw bytes would make every sync raise a false drift finding the moment
+    it merged, because the recorded hash and the file on disk would differ
+    in their line endings and nothing else.
+
+    Hashing the normalised content makes the hash a property of the
+    *content*, which is what a drift check is about.
+    """
+    return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
+def hash_context_files(root: str | Path, managed_paths: Iterable[str],
+                       exclude: Iterable[str] = ()) -> dict[str, str]:
+    """The SHA-256 of each managed file, for the drift check.
+
+    The hash is of the **normalised** content, so it does not depend on
+    the platform's line-ending convention.  See :func:`normalise_newlines`.
+    """
     base = Path(root)
     out: dict[str, str] = {}
-    for relative in managed_paths:
+    for relative in expand_managed_paths(base, managed_paths, exclude):
         path = base / relative
         if path.is_file():
-            out[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
-        elif path.is_dir():
-            for child in sorted(path.rglob("*")):
-                if child.is_file():
-                    rel = str(child.relative_to(base)).replace("\\", "/")
-                    out[rel] = hashlib.sha256(child.read_bytes()).hexdigest()
+            out[relative] = hashlib.sha256(
+                normalise_newlines(path.read_bytes())).hexdigest()
     return out
 
 
 def drift_check(root: str | Path, managed_paths: Iterable[str],
-                recorded: dict[str, str]) -> dict:
+                recorded: dict[str, str],
+                exclude: Iterable[str] = ()) -> dict:
     """Compare the managed files with their recorded hashes (I16).
 
     A mismatch is an out-of-band edit: somebody changed a class C file
     without going through a sync.  The sentinel reports it; the Kernel can
     auto-revert to the last clean state.
     """
-    current = hash_context_files(root, managed_paths)
+    current = hash_context_files(root, managed_paths, exclude)
     changed = []
     removed = []
     for path, digest in (recorded or {}).items():
@@ -342,6 +432,9 @@ class SyncResult:
     generator_version: str = ""
     provider: str = ""
     diff_lines: int = 0
+    #: The generator-managed blocks the sanitiser removed, with their full
+    #: text, so that nothing is deleted silently (constitution point 8).
+    removed_blocks: list = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -352,6 +445,7 @@ class SyncResult:
             "score": self.score, "previous_score": self.previous_score,
             "lint": self.lint, "generator_version": self.generator_version,
             "provider": self.provider, "diff_lines": self.diff_lines,
+            "removed_blocks": self.removed_blocks,
         }
 
 
@@ -388,6 +482,68 @@ def run_lint_and_score(root: str | Path, managed_paths: Sequence[str], *,
 # ---------------------------------------------------------------------------
 # Snapshots, for a one-command revert
 # ---------------------------------------------------------------------------
+
+#: A generator-managed block, e.g. ``<!-- caliber:managed:pre-commit -->``.
+MANAGED_BLOCK = re.compile(
+    r"<!--\s*([\w:.-]*managed:[\w-]+)\s*-->(.*?)<!--\s*/\s*\1\s*-->",
+    re.DOTALL)
+
+
+def sanitize_context_text(text: str, *,
+                          allowed_domains: Iterable[str] = DEFAULT_ALLOWED_DOMAINS,
+                          max_tokens: int = 3000) -> tuple[str, list[dict]]:
+    """Remove the generator-managed blocks that the lint rejects.
+
+    CIP section 8.6 step 1 asks a human to "read every generated file, and
+    delete anything that tells an agent to write under `.pm/`, edit the
+    ledger, claim files by hand, or bypass the Kernel or harness".  This
+    does that part mechanically, and it does it **honestly**: every removed
+    block is returned so the caller can record its full text in the event
+    log.  Nothing is deleted silently (constitution point 8).
+
+    A block that the lint does not object to is left exactly as it is.
+    """
+    removed: list[dict] = []
+
+    def replace(match: re.Match) -> str:
+        name = match.group(1)
+        body = match.group(2)
+        findings = lint_text(body, file=f"<{name}>",
+                             allowed_domains=allowed_domains,
+                             max_tokens=max_tokens)
+        rejects = [f for f in findings if f.severity == REJECT]
+        if not rejects:
+            return match.group(0)
+        removed.append({
+            "block": name,
+            "reason": rejects[0].detail,
+            "all_reasons": [f.detail for f in rejects],
+            "text": body,
+        })
+        return ""
+
+    return MANAGED_BLOCK.sub(replace, text), removed
+
+
+def sanitize_context_files(root: str | Path, managed_paths: Iterable[str], *,
+                            allowed_domains: Iterable[str] = DEFAULT_ALLOWED_DOMAINS,
+                            max_tokens: int = 3000,
+                            exclude: Iterable[str] = ()) -> dict:
+    """Sanitise every managed file in place, and report what was removed."""
+    base = Path(root)
+    removed: list[dict] = []
+    touched: list[str] = []
+    for relative in expand_managed_paths(base, managed_paths, exclude):
+        path = base / relative
+        original = path.read_text(encoding="utf-8", errors="replace")
+        cleaned, blocks = sanitize_context_text(
+            original, allowed_domains=allowed_domains, max_tokens=max_tokens)
+        if blocks:
+            path.write_text(cleaned, encoding="utf-8", newline="\n")
+            touched.append(relative)
+            for block in blocks:
+                removed.append({"file": relative, **block})
+    return {"ok": True, "removed": removed, "touched": touched}
 
 def snapshot_files(root: str | Path, managed_paths: Iterable[str],
                    destination: str | Path) -> list[str]:

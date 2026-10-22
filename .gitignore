@@ -13,7 +13,8 @@ work/
 .env
 *.local.*
 secrets/
-.opencode/
 .caliber/
+.opencode/*
+!.opencode/skills/
 console.out.log
 console.err.log

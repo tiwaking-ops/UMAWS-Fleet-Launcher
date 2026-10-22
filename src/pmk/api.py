@@ -1,7 +1,7 @@
-"""The Kernel-lite library API (pilot v1 section 9; fleet amendment D-L4).
+﻿"""The Kernel-lite library API (pilot v1 section 9; fleet amendment D-L4).
 
-**The Kernel is the only writer of coordination state.**  Everything else —
-the CLI, the Fleet Dispatcher, the Console — calls this module.  Nothing
+**The Kernel is the only writer of coordination state.**  Everything else â€”
+the CLI, the Fleet Dispatcher, the Console â€” calls this module.  Nothing
 else appends to the event log.
 
 Fleet amendment D-L4: the Dispatcher calls this API **in-process** rather
@@ -11,7 +11,7 @@ minute on Windows.  The ``pmk`` CLI wraps exactly these functions and uses
 the same file lock, so the two paths cannot diverge.
 
 Locking: one exclusive lock (``<repo>/.pm/.kernel.lock``) guards every
-mutation.  It is a **sidecar** lock file, not the event log itself — see
+mutation.  It is a **sidecar** lock file, not the event log itself â€” see
 :mod:`pmk.plat` and decision D-04 for why that is mandatory on Windows.
 """
 
@@ -127,7 +127,7 @@ class Kernel:
         """Append an event and return it.
 
         The public entry point for components that are part of the app but
-        are not the CLI — the Fleet Dispatcher and the Overseer runner use
+        are not the CLI â€” the Fleet Dispatcher and the Overseer runner use
         this (fleet amendment D-L4).  The caller must hold the lock; the
         Kernel's own mutating commands call :meth:`_append` inside it.
         """
@@ -193,7 +193,7 @@ class Kernel:
 
         The Kernel allocates the id.  A card is created in PROPOSED and
         becomes READY only if it passes admission (goal_ref, scope, oracle,
-        budget).  A card that fails admission is still recorded — the
+        budget).  A card that fails admission is still recorded â€” the
         Overseer can see why it was refused.
         """
         with self._locked():
@@ -281,7 +281,7 @@ class Kernel:
         submission is exactly the case where the lease was **revoked**
         before the worker finished.  A revoked lease is no longer in
         ``state.leases``, so comparing against the live lease alone would
-        report "no lease" instead of "stale fence" — and the late work
+        report "no lease" instead of "stale fence" â€” and the late work
         would be neither quarantined nor promoted, which is the wrong
         answer twice over.  The task's own fence is the authority: it is
         bumped on revocation, so a submission carrying the old fence is
@@ -637,6 +637,16 @@ class Kernel:
     def context_managed_paths(self) -> list[str]:
         return list(self.context_config().get("managed_paths") or [])
 
+    def context_excluded_paths(self) -> list[str]:
+        """The generator's own files, which are not class C.
+
+        Caliber ships operational skills that teach an agent to run
+        Caliber.  They are the generator's machinery, not generated project
+        context: they are not linted, not hashed and not synced, and left
+        in they would make every sync fail the lint.
+        """
+        return list(self.context_config().get("managed_exclude") or [])
+
     def context_recorded_hashes(self) -> dict:
         """The last recorded hashes of the class C files (I16)."""
         path = Path(self.repo.pm) / "context.sha256"
@@ -660,6 +670,7 @@ class Kernel:
         managed = self.context_managed_paths()
         return context_mod.lint_files(
             self.repo.root, managed,
+            exclude=self.context_excluded_paths(),
             allowed_domains=self.context_config().get(
                 "url_allowlist", context_mod.DEFAULT_ALLOWED_DOMAINS),
             max_tokens=int(self.context_config().get("max_agents_md_tokens",
@@ -681,10 +692,13 @@ class Kernel:
         from . import context as context_mod
         return context_mod.drift_check(self.repo.root,
                                        self.context_managed_paths(),
-                                       self.context_recorded_hashes())
+                                       self.context_recorded_hashes(),
+                                       exclude=self.context_excluded_paths())
 
     def context_sync(self, *, dry_run: bool | None = None,
-                     actor: Actor | None = None) -> dict:
+                     actor: Actor | None = None,
+                     source_dir: str | Path | None = None,
+                     commit: bool = False) -> dict:
         """Run the context-sync task (CIP Part B section 14.5).
 
         The generator runs in a Kernel-created worktree, never in the
@@ -693,6 +707,11 @@ class Kernel:
 
         Before gate G4 the mode is **dry-run**: the diff, the lint and the
         score are computed and recorded, and nothing is merged.
+
+        *source_dir* replaces the generator with a copy: the reviewed
+        baseline install of CIP section 8.6, where the files have already
+        been generated (and read) by a human.  *commit* performs the
+        merge, which is the deliberate class K act that step is.
         """
         from . import context as context_mod
 
@@ -707,15 +726,12 @@ class Kernel:
             return result.to_dict()
 
         mode = str(config.get("mode", "dry-run"))
-        dry = (mode != "auto") if dry_run is None else bool(dry_run)
+        dry = (mode != "auto") and not commit
+        if dry_run is not None and not commit:
+            dry = bool(dry_run)
 
-        # The generator command, run in a worktree.
-        command = list(config.get("command") or [])
-        if not command:
-            result.reason = "no generator command is configured"
-            return result.to_dict()
-
-        before = context_mod.hash_context_files(self.repo.root, managed)
+        before = context_mod.hash_context_files(
+            self.repo.root, managed, exclude=self.context_excluded_paths())
         result.before_hash = before
 
         worktree = self.repo.root / "work" / "context-sync"
@@ -729,12 +745,44 @@ class Kernel:
             return result.to_dict()
 
         try:
-            import subprocess
-            proc = subprocess.run(command, cwd=str(worktree),
-                                  capture_output=True, timeout=1800, text=True,
-                                  encoding="utf-8", errors="replace")
-            generator_output = (proc.stdout or "") + (proc.stderr or "")
-            result.generator_version = result.generator_version or "unknown"
+            generator_output = ""
+            if source_dir is not None:
+                # The reviewed baseline install: copy the generated files
+                # in, sanitise them, and let the ordinary diff/lint/merge
+                # machinery decide.
+                source = Path(source_dir)
+                copied = []
+                for relative in context_mod.expand_managed_paths(
+                        source, managed, self.context_excluded_paths()):
+                    origin = source / relative
+                    if not origin.is_file():
+                        continue
+                    target = worktree / relative
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(origin.read_bytes())
+                    copied.append(relative)
+                generator_output = f"installed from {source}: {copied}"
+                result.generator_version = result.generator_version or "installed"
+            else:
+                command = list(config.get("command") or [])
+                if not command:
+                    result.reason = "no generator command is configured"
+                    return result.to_dict()
+                import subprocess
+                proc = subprocess.run(command, cwd=str(worktree),
+                                      capture_output=True, timeout=1800, text=True,
+                                      encoding="utf-8", errors="replace")
+                generator_output = (proc.stdout or "") + (proc.stderr or "")
+                result.generator_version = result.generator_version or "unknown"
+
+            # -- sanitise (CIP 8.6 step 1, mechanically) ----------------
+            sanitised = context_mod.sanitize_context_files(
+                worktree, managed,
+                exclude=self.context_excluded_paths(),
+                allowed_domains=config.get("url_allowlist",
+                                           context_mod.DEFAULT_ALLOWED_DOMAINS),
+                max_tokens=int(config.get("max_agents_md_tokens", 3000)))
+            result.removed_blocks = sanitised.get("removed", [])
 
             # -- the diff -------------------------------------------------
             diff_stat = self.git("diff", "--stat", cwd=worktree)[1]
@@ -742,6 +790,10 @@ class Kernel:
                                     if line.strip())
             changed = self.git("diff", "--name-only", cwd=worktree)[1]
             changed_files = [f for f in changed.splitlines() if f.strip()]
+            if not changed_files:
+                untracked = self.git("ls-files", "--others",
+                                     "--exclude-standard", cwd=worktree)[1]
+                changed_files = [f for f in untracked.splitlines() if f.strip()]
 
             if not changed_files:
                 result.noop = True
@@ -760,7 +812,8 @@ class Kernel:
                 cwd=worktree)
             result.lint = lint
             result.score = score
-            result.after_hash = context_mod.hash_context_files(worktree, managed)
+            result.after_hash = context_mod.hash_context_files(
+                worktree, managed, exclude=self.context_excluded_paths())
 
             # -- the score non-regression gate ----------------------------
             recorded_score = self._recorded_score()
@@ -822,10 +875,10 @@ class Kernel:
             snapshot = Path(self.repo.pm) / "context-snapshots" / \
                 f"{self._next_event_seq()}"
             context_mod.snapshot_files(self.repo.root, managed, snapshot)
-            merged = self._merge_context(worktree, changed_files)
+            merged, detail = self._merge_context(worktree, changed_files)
             if not merged:
                 result.rejected = True
-                result.reason = result.reason or "the merge failed"
+                result.reason = result.reason or detail or "the merge failed"
                 with self._locked():
                     self._append("CONTEXT_SYNC_REJECTED", actor=actor,
                                  payload={"reason": result.reason,
@@ -834,6 +887,7 @@ class Kernel:
 
             with self._locked():
                 self._write_context_hashes(result.after_hash)
+                self._record_score(score)
                 self._append("CONTEXT_SYNCED", actor=actor,
                              payload={"before_hash": result.before_hash,
                                       "after_hash": result.after_hash,
@@ -846,30 +900,51 @@ class Kernel:
                                       "snapshot": str(snapshot),
                                       "changed": changed_files,
                                       "needs_review": result.needs_review,
+                                      "removed_blocks": result.removed_blocks,
                                       "generator_output": generator_output[-2000:]})
             result.ok = True
             return result.to_dict()
         finally:
             self.git("worktree", "remove", "--force", str(worktree))
 
-    def _merge_context(self, worktree: Path, files: Sequence[str]) -> bool:
-        """Merge the generated context files through the merge queue."""
+    def _merge_context(self, worktree: Path, files: Sequence[str]) -> tuple[bool, str]:
+        """Merge the generated context files through the merge queue.
+
+        Returns ``(ok, detail)``.  The staging step **verifies** that every
+        file really was staged: ``git add`` on an ignored file succeeds
+        silently and does nothing, and an install that reports success
+        while quietly dropping a file is exactly the kind of quiet failure
+        this pilot keeps finding.
+        """
         if files:
             for path in files:
                 self.git("add", "--", path, cwd=worktree)
         else:
             self.git("add", "-A", cwd=worktree)
+
+        staged = self.git("diff", "--cached", "--name-only",
+                          cwd=worktree)[1]
+        staged_set = {f.strip() for f in staged.splitlines() if f.strip()}
+        missing = [f for f in files if f not in staged_set]
+        if missing:
+            return False, (f"{len(missing)} file(s) were not staged, most "
+                            f"likely because they are gitignored: "
+                            f"{', '.join(missing[:5])}")
+
         status = self.git("status", "--porcelain", "--untracked-files=all",
                           cwd=worktree)[1]
         if not status.strip():
-            return True
+            return True, ""
         message = "chore(context): regenerate the managed context files\n"
         if self.git("commit", "-m", message, cwd=worktree)[0] != 0:
-            return False
+            return False, "the commit failed"
         _, commit, _ = self.git("rev-parse", "HEAD", cwd=worktree)
         commit = commit.strip()
         code, out, err = self.git("merge", "--ff-only", commit)
-        return code == 0
+        if code != 0:
+            return False, (f"could not fast-forward the main tree: "
+                           f"{err or out}").strip()
+        return True, ""
 
     def _recorded_score(self) -> int | None:
         path = Path(self.repo.pm) / "context-score.json"

@@ -35,7 +35,21 @@ lanes = [
 [context_sync]
 mode = "dry-run"                  # D-P10: auto-sync is enabled only at gate G4
 caliber_version = "1.55.2"        # spike S1: measured 2026-10-22
-managed_paths = ["AGENTS.md", "CLAUDE.md", "CALIBER_LEARNINGS.md"]
+managed_paths = [
+  "AGENTS.md", "CLAUDE.md", "CALIBER_LEARNINGS.md",
+  ".claude/rules", ".claude/skills", ".opencode/skills",
+]                                # the real list, from spike S2 (2026-10-22)
+# The generator's own operational files.  These teach an agent to run
+# Caliber, so they are the generator's machinery rather than generated
+# project context: not class C, not linted, not hashed, not synced.
+managed_exclude = [
+  ".claude/skills/find-skills",
+  ".claude/skills/save-learning",
+  ".claude/skills/setup-caliber",
+  ".opencode/skills/find-skills",
+  ".opencode/skills/save-learning",
+  ".opencode/skills/setup-caliber",
+]
 # The generator, run by the Kernel in its own worktree.  Never in the
 # integration tree, never in a worker worktree.
 command = ["caliber", "refresh"]
