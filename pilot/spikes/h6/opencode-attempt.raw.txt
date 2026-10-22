@@ -1,0 +1,17 @@
+﻿opencode.exe : 
+At C:\Users\Tiwa Pene\AppData\Roaming\npm\opencode.ps1:14 char:3
++   & "$basedir/node_modules/@opencode/cli/bin/opencode.exe"   $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+> build ┬À recursive/flint-v1.0:free
+> build ┬À recursive/flint-v1.0:free
+> build ┬À recursive/flint-v1.0:free
+> build ┬À recursive/flint-v1.0:free
+> build ┬À recursive/flint-v1.0:free
+> build ┬À recursive/flint-v1.0:free
+> build ┬À recursive/flint-v1.0:free
+> build ┬À recursive/flint-v1.0:free
+> build ┬À recursive/flint-v1.0:free
+> build ┬À recursive/flint-v1.0:free
+Error: Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day

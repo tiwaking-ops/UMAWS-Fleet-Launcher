@@ -86,6 +86,22 @@ The same failure as spike S-A1 (2026-10-22). Under the criteria above this is
 about the handover mechanism. It is also the **second** time this CLI has been
 unavailable on its free tier, which is worth recording on its own.
 
+The invocation was **not** at fault, and that was checked rather than assumed:
+`opencode v2.1.3`, `opencode run [flags] [<message...>]`, so the argv used
+(`opencode run "<prompt>"`) is valid. The capture shows the CLI actually
+running — `> build · recursive/flint-v1.0:free` ten times — before the refusal.
+The `opencode.ps1 … NativeCommandError` banner above it is npm's `.ps1` shim
+writing to stderr, not a failure of the run.
+
+**Evidence-chain correction.** The first opencode capture was written into the
+scratch root and **deleted with it**, before being copied out — a real slip in
+this pass: the kilo captures were preserved and that one was not. It was
+regenerated afterwards into `pilot/spikes/h6/opencode-attempt.raw.txt` with the
+same argv shape and the same result. The original is gone; this document does
+not pretend otherwise, and the identical failure text from the earlier run is
+independently preserved in `tests/fleet/fixtures/opencode/quota.txt` (spike
+S-A1, 2026-10-22).
+
 ### Variant V1 — the same mechanism on **kilo**: **PASS**
 
 Because the gate's *mechanism* is "a fresh session continues from the briefing
