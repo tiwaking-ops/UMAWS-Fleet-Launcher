@@ -310,12 +310,18 @@ def test_a_failing_oracle_triggers_a_fix_round_then_fails(fake_kernel):
 
 
 def test_killing_a_worker_mid_task_does_not_promote_it(fake_kernel):
-    """F2: the fence is unchanged and nothing is integrated."""
+    """F2: the fence is unchanged and nothing is integrated.
+
+    The ``slow`` scenario keeps the worker alive long enough to be killed
+    mid-task; without it the fake finishes before the kill lands and the
+    test would race.
+    """
     task = make_task(fake_kernel, oracles=["python -c \"print('ok')\""])
     harness = _harness(fake_kernel)
-    profile = Profile.from_dict(fake_profile("fake-a"))
+    profile = Profile.from_dict(fake_profile("fake-a", scenario="slow"))
     run, failure = harness.start(task, profile)
     assert run is not None
+    fence = run.lease.fence
     from fleet import spawn as spawn_mod
     spawn_mod.kill_slot(run.slot)
     result = harness.poll(run)
@@ -324,6 +330,13 @@ def test_killing_a_worker_mid_task_does_not_promote_it(fake_kernel):
     assert result.outcome != "submitted"
     state = fake_kernel.state()
     assert state.tasks[task.id].state != "DONE"
+    # The fence is unchanged: the harness still owns the lease.
+    assert state.leases[task.id].fence == fence
+    # And exactly one integration event at most, which would be none.
+    integrations = [e for e in fake_kernel.events()
+                    if e.type == "INTEGRATED" and e.subject == task.id]
+    assert len(integrations) <= 1
+    assert not integrations
 
 
 def test_a_quota_failure_cools_the_profile_and_is_classified(fake_kernel):
