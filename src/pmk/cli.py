@@ -200,6 +200,24 @@ def cmd_pins_check(args) -> int:
     return 0 if result["ok"] else 1
 
 
+def cmd_pins_record(args) -> int:
+    """Re-record the pins after a deliberate class K change.
+
+    This is the *only* way the pins should ever change.  A mismatch is an
+    I8' breach, so re-recording is an explicit, recorded act, not a
+    side-effect of editing a file.
+    """
+    from pmk.events import Actor
+    from pmk.policy import write_pins
+    kernel = _kernel(args)
+    path = write_pins(kernel.repo)
+    kernel.record_event("PINS_CHECKED", actor=Actor.human(),
+                        payload={"recorded": str(path),
+                                 "note": "the pins were re-recorded"})
+    _out({"ok": True, "pins": str(path)})
+    return 0
+
+
 def cmd_pdd_lint(args) -> int:
     from .pdd import lint_file
     result = lint_file(args.file)
@@ -703,6 +721,8 @@ def build_parser() -> argparse.ArgumentParser:
         .add_subparsers(dest="pins_command", required=True)
     pins.add_parser("check", help="verify the pins") \
         .set_defaults(func=cmd_pins_check)
+    pins.add_parser("record", help="re-record the pins after a class K change") \
+        .set_defaults(func=cmd_pins_record)
 
     pdd = sub.add_parser("pdd", help="PDD tooling") \
         .add_subparsers(dest="pdd_command", required=True)

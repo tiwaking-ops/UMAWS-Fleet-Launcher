@@ -14,5 +14,6 @@ work/
 *.local.*
 secrets/
 .opencode/
+.caliber/
 console.out.log
 console.err.log

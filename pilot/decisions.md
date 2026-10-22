@@ -112,6 +112,55 @@ STATE.md, and the default is hold.** | Asking at each gate. | Nothing yet,
 because no gate has been crossed. The rule the operator would give is
 still wanted; until it arrives, no gate is crossed silently.
 
+D-15 | 2026-10-22 | operator (approved) + OpenCode | **Caliber 1.55.2 is
+installed globally and pinned** (`npm install -g @rely-ai/caliber@1.55.2`),
+and the generator endpoint is the operator's own **OmniRoute** router on
+`127.0.0.1:20128` (`OPENAI_BASE_URL` + `OPENAI_API_KEY` +
+`CALIBER_MODEL=poor-claude` + `CALIBER_FAST_MODEL=poor-claude`).
+`caliber hooks --install` was run **only in a throwaway repository**.
+| Leaving Caliber uninstalled under the G1 fallback. | Nothing — the
+G1 fallback is replaced by measurement. **CIP Q1 (provider data terms for
+the context-sync lane) is still the operator's decision.** No key was
+written to any file, and every invocation used `--no-traces`.
+
+D-16 | 2026-10-22 | OpenCode (measured, S4) | **Caliber's hooks must never
+be installed in a repository the Fleet manages work in.** `caliber
+hooks --install` writes a git `pre-commit` hook that runs `caliber
+refresh` (an LLM call) on every commit and **auto-stages** `AGENTS.md`,
+`CLAUDE.md`, `.claude/`, `.cursor/`, `.opencode/` and friends into the
+commit — outside the task's declared write scope, and concurrently from
+several worktrees. | Installing the hooks for convenience. | Nothing: the
+Fleet's per-worktree `core.hooksPath` override (pointing at an empty
+directory) already prevents git from running them. The rule is now
+measured rather than assumed, and it is recorded so that a future
+implementer does not "helpfully" install the hooks in the main checkout.
+
+D-17 | 2026-10-22 | OpenCode | **The Kernel's context machinery
+(the I15 lint, the I16 drift check, the sync task and the revert) is
+implemented and tested, and it does not depend on the generator.** 32
+tests. | Depending on Caliber being installed before building the
+controls. | Nothing. The generator is a tool; the safety machinery is
+the Kernel's, and it works with any generator or none.
+
+D-18 | 2026-10-22 | OpenCode | **Auto-sync stays off** (`mode =
+"dry-run"` in `.pm/policy.toml`), per D-P10: it is enabled only at gate
+G4, after the lint exists and the T4 canary has passed. | Enabling it
+now that Caliber is installed. | Nothing — the sync task is implemented
+and runs in dry-run mode, so its diff, lint and score are all recorded
+without anything being merged.
+
+D-19 | 2026-10-22 | operator (approved the Caliber install) + OpenCode |
+**Class K change: `.pm/policy.toml` was edited to add the context-sync
+generator command, the score command and the measured Caliber version,
+and the pins were re-recorded with `pmk pins record`.** | Leaving the
+policy unpinned. | Nothing — but the authority for this change is the
+operator's approval of the Caliber install, which is what the change
+enables. **A class K change with no human approval behind it would be a
+governance failure, and the sentinel's I8' check caught this one
+automatically** — the pins went stale the moment the policy was edited,
+and the sentinel reported it as a stopping finding until the pins were
+deliberately re-recorded.  That is the control working, not a nuisance.
+
 ---
 
 ## Pending
@@ -120,6 +169,11 @@ still wanted; until it arrives, no gate is crossed silently.
   stop at G0–G3 and replied "I will provide these". Until the rule
   arrives, the pilot v1 §12.1 default applies: **hold**. No gate has been
   crossed.
-- **Caliber install approval** — `npm i -g @rely-ai/caliber`, pinned.
+- **CIP Q1** — the provider data terms for the context-sync lane.  The
+  spike used the operator's own local OmniRoute router, which fronts
+  free-tier providers, so the repository's content still reaches a
+  provider.
+- **Caliber install approval** — **granted**; Caliber 1.55.2 is installed
+  and pinned.
 - **QuotaGate provider keys**, for M1's live capture.
 - **Live S-A1 approval** — one trivial one-shot prompt per CLI.
