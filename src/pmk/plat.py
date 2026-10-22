@@ -470,12 +470,17 @@ class Resolved:
 
 
 # npm shim patterns.  The executed program is quoted and prefixed with either
-# ``%~dp0`` (batch parameter for the script's own directory) or ``%dp0%``
-# (a variable set by the shim itself).  Both mean "directory of this .cmd".
-_SHIM_NODE_SELF = re.compile(r'node\s+"%~dp0([^"]+)"', re.IGNORECASE)
-_SHIM_NODE_DP0 = re.compile(r'node\s+"%dp0%\\([^"]+)"', re.IGNORECASE)
-_SHIM_EXE_DP0 = re.compile(r'"%dp0%\\([^"]+\.(?:exe|cmd|bat))"', re.IGNORECASE)
-_SHIM_EXE_SELF = re.compile(r'"%~dp0([^"]+\.(?:exe|cmd|bat))"', re.IGNORECASE)
+# ``%~dp0`` (the batch parameter for the script's own directory) or ``%dp0%``
+# (a variable the shim sets itself).  Both mean "directory of this .cmd".
+#
+# The interpreter is *not* matched directly: npm writes
+# ``"%_prog%"  "%dp0%\node_modules\pkg\bin\tool.js"`` where ``_prog`` is
+# ``node``, so the word "node" may be quoted, indirect, or absent.
+_QUOTED_DP0 = re.compile(r'"%dp0%\\([^"]+)"', re.IGNORECASE)
+_QUOTED_SELF = re.compile(r'"%~dp0([^"]+)"', re.IGNORECASE)
+
+#: An interpreter copy inside the package directory is not the program.
+_INTERPRETER_NAMES = {"node.exe", "node.cmd", "node"}
 
 
 def _resolve_cmd_shim(path: str) -> Resolved | None:
@@ -496,22 +501,28 @@ def _resolve_cmd_shim(path: str) -> Resolved | None:
         return None
     base = Path(path).parent
 
-    for pattern, kind in ((_SHIM_NODE_SELF, "node"), (_SHIM_NODE_DP0, "node")):
-        m = pattern.search(text)
-        if m:
-            target = base / m.group(1).replace("\\", os.sep)
+    candidates: list[Path] = []
+    for pattern in (_QUOTED_DP0, _QUOTED_SELF):
+        for match in pattern.finditer(text):
+            target = base / match.group(1).replace("\\", os.sep)
             if target.exists():
-                return Resolved(path=path, kind=kind, runner="node",
-                                target=str(target))
+                candidates.append(target)
+    if not candidates:
+        return None
 
-    # The shim may mention an interpreter ("node.exe") before the real
-    # program, so take the LAST quoted executable, not the first.
-    for pattern in (_SHIM_EXE_DP0, _SHIM_EXE_SELF):
-        matches = list(pattern.finditer(text))
-        for m in reversed(matches):
-            target = base / m.group(1).replace("\\", os.sep)
-            if target.exists():
-                return Resolved(path=path, kind="native", runner=None,
+    # A native executable wins, but the bundled interpreter copy is not the
+    # program (npm shims test for ``%dp0%\node.exe`` first).
+    for target in reversed(candidates):
+        if (target.suffix.lower() in (".exe", ".cmd", ".bat")
+                and target.name.lower() not in _INTERPRETER_NAMES):
+            return Resolved(path=path, kind="native", runner=None,
+                            target=str(target))
+
+    # Otherwise it is a script, and the shim runs it with node.
+    if "node" in text.lower():
+        for target in reversed(candidates):
+            if target.name.lower() not in _INTERPRETER_NAMES:
+                return Resolved(path=path, kind="node", runner="node",
                                 target=str(target))
     return None
 
