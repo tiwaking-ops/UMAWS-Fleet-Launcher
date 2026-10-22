@@ -78,6 +78,18 @@ _BYPASS_PATTERNS = (
      "instructs an agent not to use pmk"),
     (r"\bedit\s+[^\n]{0,30}?\.pm/(?:events|tasks|views)/",
      "instructs an agent to edit the Kernel's own state files"),
+    # -- found in real Caliber output (spike S2, 2026-10-22) -------------
+    (r"git\s+add\s+[^\n]{0,200}?"
+     r"(?:AGENTS\.md|CLAUDE\.md|CALIBER_LEARNINGS\.md|\.claude/|\.opencode/|"
+     r"\.cursor/|\.agents/)",
+     "instructs an agent to stage the managed context files, which the "
+     "Kernel's scope check governs"),
+    (r"(?:run|execute|invoke)\b[^\n]{0,60}?\bcaliber\s+"
+     r"(?:refresh|init|regen|regenerate|sync)\b",
+     "instructs an agent to run the context generator, which is a Kernel "
+     "task and would make an unaccounted model call"),
+    (r"\bMUST\b[^\n]{0,60}?\bcaliber\b",
+     "instructs an agent that it must run the context generator"),
 )
 
 # ---------------------------------------------------------------------------
@@ -120,6 +132,13 @@ _OVERRIDE_PATTERNS = (
      "claims the highest priority"),
     (r"\byou\s+are\s+no\s+longer\s+bound\s+by\b",
      "claims to be unbound by the constitution"),
+    # -- found in real Caliber output (spike S2, 2026-10-22) -------------
+    (r"\btreat\s+(?:them|these|it|this)\s+as\s+[^\n]{0,40}?\brules?\b",
+     "tells the agent to treat generated content as project rules, which "
+     "overrides the briefing"),
+    (r"\btreat\s+(?:them|these|it|this)\s+as\s+"
+     r"(?:authoritative|binding|mandatory|ground\s+truth)\b",
+     "tells the agent to treat generated content as authoritative"),
 )
 
 # ---------------------------------------------------------------------------

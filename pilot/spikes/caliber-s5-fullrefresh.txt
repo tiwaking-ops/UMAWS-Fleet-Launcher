@@ -1,0 +1,6 @@
+  ✓ .claude\skills\find-skills\SKILL.md (built-in)
+  ✓ .claude\skills\save-learning\SKILL.md (built-in)
+  ✓ .claude\skills\setup-caliber\SKILL.md (built-in)
+  ✓ .opencode\skills\find-skills\SKILL.md (built-in)
+  ✓ .opencode\skills\save-learning\SKILL.md (built-in)
+  ✓ .opencode\skills\setup-caliber\SKILL.md (built-in)

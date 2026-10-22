@@ -196,14 +196,118 @@ Caliber's hooks out of the fleet.
 
 ## S2, S3, S5 — the remaining spikes
 
-`pilot/spikes/caliber_spike.py` runs them: the files written, whether
-`refresh` preserves a human edit, and whether `refresh` is deterministic
-enough for a stable `CONTEXT_SYNCED` hash.
+Run by `pilot/spikes/caliber_spike.py`, in **two** scratch repositories:
+the full pilot repository and a small toy project.  The toy project was
+added because the generation is slow and a small repository answers the
+same questions faster.
 
-The results are in `pilot/spikes/caliber-spike-results.json` and
-`pilot/spikes/caliber-s2-init.txt`.
+**Verdicts: S2 `works`, S3 `works`, S5 `works` on the small repository and
+`does-not-work` on the full one** — with an important qualification.
 
-**Note on cost.**  The generation step sends at least 30 000 input tokens
-per call through a free provider, so it takes minutes.  It was run
-**once**, in a scratch copy, and the pilot's rule 20 (no quota hammering)
-was respected: one run, no retries, no deliberate exhaustion.
+### S2 — which files does it write?
+
+| Path | Written for | Managed? |
+|---|---|---|
+| `AGENTS.md` | both agents | **yes** |
+| `CLAUDE.md` | both agents | **yes** |
+| `.claude/rules/*.md` | claude | yes |
+| `.claude/skills/<name>/SKILL.md` | claude | yes |
+| `.opencode/skills/<name>/SKILL.md` | opencode | yes |
+| `.claude/settings.json` | claude | no — Caliber's own hooks |
+| `.claude/hooks/caliber-*.sh` | claude | no — Caliber's own hooks |
+| `.gitignore` | both | no |
+| `.caliber/score-history.jsonl`, `.caliber/cache/fingerprint.json` | both | no — Caliber's own state |
+
+**`managed_paths` for the pilot is therefore larger than CIP Appendix A.2
+guessed.**  The proposal's list was `["AGENTS.md", "CLAUDE.md",
+"CALIBER_LEARNINGS.md"]`; the real list also includes `.claude/rules/` and
+`.claude/skills/` and `.opencode/skills/`, which is where the *bulk* of
+the generated content lands.  A `managed_paths` list that omits them
+would let a sync rewrite the skills without the lint ever seeing it.
+
+### S3 — does `refresh` preserve a human edit?
+
+**Yes.**  A hand-written marker appended to the generated `AGENTS.md`
+survived a `caliber refresh` in **both** repositories.
+
+This resolves an entry in CIP Appendix B that was recorded as **Unknown**
+("Whether Caliber preserves human edits to managed files — *Not found*").
+It does preserve them.  The README's claim that `caliber sync` "never
+overwrites a file you edited by hand" is borne out for `refresh` too.
+
+### S5 — is `refresh` deterministic?
+
+**On the small repository: yes.**  A second `refresh` with no code change
+changed **nothing**.
+
+**On the full pilot repository: the instruction files are stable.**  A
+third `refresh` printed *"No doc updates needed"*, and the SHA-256 of
+both `AGENTS.md` and `CLAUDE.md` was **byte-identical** before and after.
+
+The spike's own first report said "12 files changed" on the second pass.
+That was **the spike's measurement method, not Caliber's instability**: the
+spike compares **mtimes**, so a file that was rewritten with identical
+content still counted as changed.  Comparing hashes instead — which is
+what the Kernel actually does — shows the instruction files are
+deterministic.
+
+What genuinely churns is Caliber's **own bookkeeping**:
+`.caliber/score-history.jsonl` and `.caliber/cache/fingerprint.json`.
+
+That distinction matters, and it is the point of `managed_paths`: the
+Kernel hashes and lints the **managed** files and ignores the generator's
+cache.  A generator that churns its own bookkeeping is fine; one that
+churned the instruction files would make every `CONTEXT_SYNCED` hash
+meaningless.
+
+**A lesson about the pilot's own measurement.**  The spike compared
+timestamps when it should have compared content, and nearly reported a
+false instability.  The Kernel's own views and bundles hash their content,
+so the production path was right; the spike was the sloppy one.
+
+### The score
+
+`caliber score` on the pilot repository: **17/100, grade F** before
+`init`; **87/100, grade A** after it.  Nineteen checks across six
+categories (existence, quality, grounding, accuracy, freshness, bonus),
+deterministic and with no network.  `no_secrets` and `config_drift` pass
+out of the box.
+
+---
+
+## The most important finding: the lint had a false negative
+
+**The first version of the I15 lint passed Caliber's real output.**  It
+was written against hand-written samples, and it reported `ok: true` on
+generated files that contain, verbatim:
+
+> **IMPORTANT:** Before every git commit, you **MUST** ensure Caliber
+> syncs agent configs with the latest code changes.
+
+> Run: `caliber refresh && git add CLAUDE.md .claude/ .cursor/ … AGENTS.md
+> CALIBER_LEARNINGS.md .agents/ .opencode/`
+
+> These are auto-extracted from real tool usage — **treat them as
+> project-specific rules**.
+
+Those are three distinct attacks on the pilot's trust model, and the lint
+saw none of them:
+
+1. a **mandate** to make an unaccounted model call;
+2. an instruction to **stage files outside any task's write scope** —
+   the exact thing the scope check exists to catch;
+3. **authority language** telling the agent to treat auto-extracted
+   patterns as rules, which is precisely the "learnings are candidates,
+   not evidence" rule (CIP §14.7) inverted.
+
+The lint now catches all three, and the real generated text is pinned as
+a test fixture in `tests/pmk/test_context_real_caliber.py`.  The harmless
+part of the same generated file still passes, so the lint is not simply
+rejecting everything.
+
+**The lesson is the pilot's own:** a control that has only ever been
+tested against samples you wrote yourself has not been tested.  The
+Kernel's machinery was built and unit-tested against invented inputs;
+running the real generator against it is what found the hole.
+
+---

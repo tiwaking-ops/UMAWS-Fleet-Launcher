@@ -1,0 +1,30 @@
+S2: exit=0
+    added   : 15
+      + .caliber\.caliber-state.json
+      + .caliber\manifest.json
+      + .claude\rules\fleet-spawning.md
+      + .claude\rules\kernel-writing.md
+      + .claude\rules\windows-platform.md
+      + .claude\skills\fleet-adapter\SKILL.md
+      + .claude\skills\pmk-task\SKILL.md
+      + .claude\skills\quotagate-rule\SKILL.md
+      + .claude\skills\sentinel-check\SKILL.md
+      + .opencode\skills\find-skills\SKILL.md
+      + .opencode\skills\pmk-task\SKILL.md
+      + .opencode\skills\save-learning\SKILL.md
+      + .opencode\skills\setup-caliber\SKILL.md
+      + AGENTS.md
+      + CLAUDE.md
+    changed : 7
+      ~ .caliber\cache\fingerprint.json
+      ~ .caliber\score-history.jsonl
+      ~ .claude\settings.json
+      ~ .claude\skills\find-skills\SKILL.md
+      ~ .claude\skills\save-learning\SKILL.md
+      ~ .claude\skills\setup-caliber\SKILL.md
+      ~ .gitignore
+S3: edit_preserved=True file=AGENTS.md
+S5: stable=False (second pass changed 12)
+score: 87/100 grade A
+
+results written to C:\temp\projects\testproject1\pilot\spikes\caliber-spike-results.json

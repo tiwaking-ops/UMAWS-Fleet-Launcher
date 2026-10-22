@@ -1,0 +1,31 @@
+S2: exit=0
+    added   : 23
+      + .caliber\.caliber-state.json
+      + .caliber\cache\fingerprint.json
+      + .caliber\manifest.json
+      + .caliber\score-history.jsonl
+      + .claude\hooks\caliber-check-sync.sh
+      + .claude\hooks\caliber-session-freshness.sh
+      + .claude\rules\cli-conventions.md
+      + .claude\rules\testing-patterns.md
+      + .claude\settings.json
+      + .claude\skills\cli-tooling\SKILL.md
+      + .claude\skills\csv-processing\SKILL.md
+      + .claude\skills\find-skills\SKILL.md
+      + .claude\skills\python-testing\SKILL.md
+      + .claude\skills\save-learning\SKILL.md
+      + .claude\skills\setup-caliber\SKILL.md
+      + .gitignore
+      + .opencode\skills\cli-tooling\SKILL.md
+      + .opencode\skills\find-skills\SKILL.md
+      + .opencode\skills\python-testing\SKILL.md
+      + .opencode\skills\save-learning\SKILL.md
+      + .opencode\skills\setup-caliber\SKILL.md
+      + AGENTS.md
+      + CLAUDE.md
+    changed : 0
+S3: edit_preserved=True file=AGENTS.md
+S5: stable=True (second pass changed 0)
+score: 87/100 grade A
+
+results written to C:\temp\projects\testproject1\pilot\spikes\caliber-spike-results.json

@@ -1,0 +1,281 @@
+{
+  "score": 87,
+  "maxScore": 100,
+  "grade": "A",
+  "checks": [
+    {
+      "id": "claude_md_exists",
+      "name": "CLAUDE.md exists",
+      "category": "existence",
+      "maxPoints": 6,
+      "earnedPoints": 6,
+      "passed": true,
+      "detail": "Found at project root"
+    },
+    {
+      "id": "claude_rules_exist",
+      "name": "Claude rules exist (.claude/rules/)",
+      "category": "existence",
+      "maxPoints": 3,
+      "earnedPoints": 3,
+      "passed": true,
+      "detail": "2 rules found"
+    },
+    {
+      "id": "codex_agents_md_exists",
+      "name": "AGENTS.md exists",
+      "category": "existence",
+      "maxPoints": 6,
+      "earnedPoints": 6,
+      "passed": true,
+      "detail": "Found at project root"
+    },
+    {
+      "id": "skills_exist",
+      "name": "Skills configured",
+      "category": "existence",
+      "maxPoints": 8,
+      "earnedPoints": 8,
+      "passed": true,
+      "detail": "11 skills found"
+    },
+    {
+      "id": "mcp_servers",
+      "name": "MCP servers configured",
+      "category": "existence",
+      "maxPoints": 0,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "No MCP servers configured",
+      "suggestion": "MCP servers connect your agent to external tools (databases, Slack, Linear, etc). Add if your team uses external services",
+      "fix": {
+        "action": "configure_mcp",
+        "data": {},
+        "instruction": "Add MCP server configurations in .mcp.json for any external services the project uses."
+      }
+    },
+    {
+      "id": "has_executable_content",
+      "name": "Executable content (code blocks)",
+      "category": "quality",
+      "maxPoints": 8,
+      "earnedPoints": 8,
+      "passed": true,
+      "detail": "5 code blocks found"
+    },
+    {
+      "id": "concise_config",
+      "name": "Concise config (token budget)",
+      "category": "quality",
+      "maxPoints": 6,
+      "earnedPoints": 6,
+      "passed": true,
+      "detail": "~1359 tokens total across all config files"
+    },
+    {
+      "id": "concreteness",
+      "name": "Concrete instructions",
+      "category": "quality",
+      "maxPoints": 4,
+      "earnedPoints": 3,
+      "passed": true,
+      "detail": "65% of lines reference specific files, paths, or code"
+    },
+    {
+      "id": "no_directory_tree",
+      "name": "No directory tree listings",
+      "category": "quality",
+      "maxPoints": 3,
+      "earnedPoints": 3,
+      "passed": true,
+      "detail": "No large directory trees found"
+    },
+    {
+      "id": "has_structure",
+      "name": "Structured with headings",
+      "category": "quality",
+      "maxPoints": 2,
+      "earnedPoints": 2,
+      "passed": true,
+      "detail": "7 sections, 10 list items"
+    },
+    {
+      "id": "project_grounding",
+      "name": "Project grounding",
+      "category": "grounding",
+      "maxPoints": 12,
+      "earnedPoints": 6,
+      "passed": true,
+      "detail": "2/8 notable project entries referenced in config (25%)",
+      "suggestion": "Config doesn't mention: .opencode\\skills, .opencode\\skills\\cli-tooling, .opencode\\skills\\find-skills, .opencode\\skills\\python-testing, .opencode\\skills\\save-learning (+1 more)",
+      "fix": {
+        "action": "add_references",
+        "data": {
+          "missing": [
+            ".opencode\\skills",
+            ".opencode\\skills\\cli-tooling",
+            ".opencode\\skills\\find-skills",
+            ".opencode\\skills\\python-testing",
+            ".opencode\\skills\\save-learning",
+            ".opencode\\skills\\setup-caliber"
+          ],
+          "mentioned": [
+            ".opencode",
+            "tests"
+          ],
+          "totalEntries": 8,
+          "coverage": 25
+        },
+        "instruction": "Reference these project paths in your config: .opencode\\skills, .opencode\\skills\\cli-tooling, .opencode\\skills\\find-skills, .opencode\\skills\\python-testing, .opencode\\skills\\save-learning"
+      }
+    },
+    {
+      "id": "reference_density",
+      "name": "Reference density",
+      "category": "grounding",
+      "maxPoints": 8,
+      "earnedPoints": 6,
+      "passed": true,
+      "detail": "190 specific references across 519 lines (37%)"
+    },
+    {
+      "id": "references_valid",
+      "name": "References point to real files",
+      "category": "accuracy",
+      "maxPoints": 8,
+      "earnedPoints": 6,
+      "passed": true,
+      "detail": "4/5 references verified",
+      "suggestion": "These references don't exist: .github/copilot-instructions.md",
+      "fix": {
+        "action": "fix_references",
+        "data": {
+          "invalid": [
+            ".github/copilot-instructions.md"
+          ],
+          "valid": [
+            "csv2md.py",
+            "tests/test_csv2md.py",
+            ".claude/hooks/",
+            ".claude/hooks/caliber-check-sync.sh"
+          ]
+        },
+        "instruction": "Remove or update these non-existent paths: .github/copilot-instructions.md"
+      }
+    },
+    {
+      "id": "config_drift",
+      "name": "Config freshness vs code",
+      "category": "accuracy",
+      "maxPoints": 7,
+      "earnedPoints": 7,
+      "passed": true,
+      "detail": "Config is up to date with latest commits"
+    },
+    {
+      "id": "claude_md_freshness",
+      "name": "Config freshness",
+      "category": "freshness",
+      "maxPoints": 4,
+      "earnedPoints": 4,
+      "passed": true,
+      "detail": "Config updated in the latest commit"
+    },
+    {
+      "id": "no_secrets",
+      "name": "No secrets in config files",
+      "category": "freshness",
+      "earnedPoints": 4,
+      "maxPoints": 4,
+      "passed": true,
+      "detail": "No secrets detected"
+    },
+    {
+      "id": "permissions_configured",
+      "name": "Permissions configured",
+      "category": "freshness",
+      "maxPoints": 2,
+      "earnedPoints": 2,
+      "passed": true,
+      "detail": "4 permissions configured"
+    },
+    {
+      "id": "hooks_configured",
+      "name": "Hooks configured",
+      "category": "bonus",
+      "maxPoints": 2,
+      "earnedPoints": 2,
+      "passed": true,
+      "detail": "Claude Code: Stop, SessionStart, PostToolUse, PostToolUseFailure, UserPromptSubmit, SessionEnd, git pre-commit, config pre-commit instruction"
+    },
+    {
+      "id": "open_skills_format",
+      "name": "Skills use OpenSkills format",
+      "category": "bonus",
+      "maxPoints": 2,
+      "earnedPoints": 2,
+      "passed": true,
+      "detail": "All 6 skills use SKILL.md with frontmatter"
+    },
+    {
+      "id": "learned_content",
+      "name": "Learned content present",
+      "category": "bonus",
+      "maxPoints": 2,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "No learned content",
+      "suggestion": "Session learnings capture patterns from your coding sessions so the agent improves over time. Run `caliber learn install`"
+    },
+    {
+      "id": "model_pinned",
+      "name": "Model & effort pinned",
+      "category": "bonus",
+      "maxPoints": 2,
+      "earnedPoints": 2,
+      "passed": true,
+      "detail": "Model or effort level explicitly set in config"
+    },
+    {
+      "id": "sources_configured",
+      "name": "External sources configured",
+      "category": "bonus",
+      "maxPoints": 0,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "No external sources configured",
+      "suggestion": "Run `caliber sources add <path>` to add related repos or docs"
+    }
+  ],
+  "categories": {
+    "existence": {
+      "earned": 23,
+      "max": 23
+    },
+    "quality": {
+      "earned": 22,
+      "max": 23
+    },
+    "grounding": {
+      "earned": 12,
+      "max": 20
+    },
+    "accuracy": {
+      "earned": 13,
+      "max": 15
+    },
+    "freshness": {
+      "earned": 10,
+      "max": 10
+    },
+    "bonus": {
+      "earned": 6,
+      "max": 8
+    }
+  },
+  "targetAgent": [
+    "claude",
+    "opencode"
+  ],
+  "timestamp": "2026-10-22T07:36:11.437Z"
+}
