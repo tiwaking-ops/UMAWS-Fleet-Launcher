@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 from .api import Kernel, KernelError
@@ -259,6 +260,291 @@ def cmd_sweep(args) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Fleet commands (fleet amendment section 7.7)
+# ---------------------------------------------------------------------------
+
+def _fleet_state(kernel, path=None):
+    from fleet.state import FleetState
+    return FleetState.load(Path(path) if path else None)
+
+
+def cmd_fleet_status(args) -> int:
+    from fleet.dispatcher import Dispatcher
+    kernel = _kernel(args)
+    dispatcher = Dispatcher(kernel, _fleet_state(kernel),
+                            fixture_root=_fixture_root(kernel))
+    _out(dispatcher.status())
+    return 0
+
+
+def cmd_fleet_profiles(args) -> int:
+    from fleet.profiles import load_profiles
+    kernel = _kernel(args)
+    state = _fleet_state(kernel)
+    now = time.time()
+    rows = []
+    for profile in load_profiles(kernel.repo):
+        pstate = state.profile(profile.id)
+        rows.append({
+            "id": profile.id, "adapter": profile.adapter,
+            "family": profile.family, "priority": profile.priority,
+            "max_concurrent": profile.max_concurrent,
+            "roles": profile.roles,
+            "enabled": pstate.enabled,
+            "cooling_remaining_s": pstate.cooling_remaining(now),
+            "last_failure_class": pstate.last_failure_class,
+            "runs": pstate.runs, "failures": pstate.failures,
+        })
+    _out(rows)
+    return 0
+
+
+def cmd_fleet_enable(args) -> int:
+    from pmk.events import Actor
+    kernel = _kernel(args)
+    state = _fleet_state(kernel)
+    state.enable(args.profile_id, note="enabled by the operator")
+    state.save()
+    kernel.record_event("PROFILE_ENABLED", actor=Actor.human(),
+                        subject=args.profile_id,
+                        payload={"profile": args.profile_id})
+    _out({"profile": args.profile_id, "enabled": True})
+    return 0
+
+
+def cmd_fleet_disable(args) -> int:
+    from pmk.events import Actor
+    kernel = _kernel(args)
+    state = _fleet_state(kernel)
+    state.disable(args.profile_id, note=args.reason or "disabled by the operator")
+    state.save()
+    kernel.record_event("PROFILE_DISABLED", actor=Actor.human(),
+                        subject=args.profile_id,
+                        payload={"profile": args.profile_id,
+                                 "reason": args.reason or ""})
+    _out({"profile": args.profile_id, "enabled": False})
+    return 0
+
+
+def cmd_fleet_cool(args) -> int:
+    from pmk.events import Actor
+    kernel = _kernel(args)
+    state = _fleet_state(kernel)
+    state.cool(args.profile_id, args.minutes * 60,
+               note=f"cooled for {args.minutes} minutes")
+    state.save()
+    kernel.record_event("PROFILE_COOLING", actor=Actor.human(),
+                        subject=args.profile_id,
+                        payload={"profile": args.profile_id,
+                                 "seconds": args.minutes * 60})
+    _out({"profile": args.profile_id, "minutes": args.minutes})
+    return 0
+
+
+def cmd_fleet_import_prompts(args) -> int:
+    from fleet.profiles import import_prompts, load_profiles, render_agents_toml
+    kernel = _kernel(args)
+    try:
+        profiles = import_prompts(args.file, existing=load_profiles(kernel.repo))
+    except ValueError as exc:
+        raise KernelError("import_failed", detail=str(exc)) from exc
+    if args.dry_run:
+        _out([p.to_dict() for p in profiles])
+        return 0
+    text = render_agents_toml(profiles)
+    target = Path(args.file).with_name("agents.imported.toml")
+    target.write_text(text, encoding="utf-8", newline="\n")
+    _out({"profiles": len(profiles), "written": str(target),
+          "note": "merge this into agents.toml by hand: the profile schema is "
+                  "a class K change"})
+    return 0
+
+
+def cmd_dispatch_run(args) -> int:
+    """Run the dispatch loop for a while (useful without the Console)."""
+    from fleet.dispatcher import Dispatcher
+    kernel = _kernel(args)
+    dispatcher = Dispatcher(kernel, _fleet_state(kernel),
+                            fixture_root=_fixture_root(kernel))
+    dispatcher.run_forever(max_seconds=args.seconds)
+    _out(dispatcher.status())
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# Agent commands (fleet amendment section 7.7)
+# ---------------------------------------------------------------------------
+
+def _lease_log_path(kernel, task_id: str) -> str:
+    for event in reversed(kernel.events()):
+        if event.type == "AGENT_STARTED" and event.subject == task_id:
+            return str(event.payload.get("log", ""))
+    return ""
+
+
+def cmd_agent_list(args) -> int:
+    kernel = _kernel(args)
+    state = kernel.state()
+    rows = []
+    for task_id, lease in sorted(state.active_leases().items()):
+        task = state.tasks.get(task_id)
+        rows.append({
+            "task": task_id,
+            "profile": lease.holder,
+            "agent": lease.agent,
+            "fence": lease.fence,
+            "pid": lease.pid,
+            "session": lease.session,
+            "restarts": lease.restart_count,
+            "last_failure_class": lease.last_failure_class,
+            "worktree": lease.worktree,
+            "title": task.title if task else "",
+        })
+    _out(rows)
+    return 0
+
+
+def cmd_agent_show(args) -> int:
+    kernel = _kernel(args)
+    state = kernel.state()
+    lease = state.leases.get(args.task)
+    task = state.tasks.get(args.task)
+    _out({
+        "task": args.task,
+        "state": task.state if task else None,
+        "attempt": task.attempt if task else None,
+        "lease": lease.to_obj() if lease else None,
+        "failure_history": lease.failure_history if lease else [],
+        "log": _lease_log_path(kernel, args.task),
+    })
+    return 0
+
+
+def cmd_agent_tail(args) -> int:
+    from pmk.plat import tail_file
+    kernel = _kernel(args)
+    path = _lease_log_path(kernel, args.task)
+    if not path:
+        raise KernelError("no_log", task=args.task)
+    lines = tail_file(path, args.lines)
+    _out("\n".join(lines))
+    return 0
+
+
+def cmd_agent_stop(args) -> int:
+    from pmk import plat
+    kernel = _kernel(args)
+    state = kernel.state()
+    lease = state.leases.get(args.task)
+    if lease is None:
+        raise KernelError("no_lease", task=args.task)
+    killed, detail = plat.kill_tree(lease.pid,
+                                    creation_time=lease.creation_time)
+    _out({"task": args.task, "killed": killed, "detail": detail})
+    return 0 if killed else 1
+
+
+def cmd_agent_swap(args) -> int:
+    from pmk.events import Actor
+    kernel = _kernel(args)
+    state = kernel.state()
+    if args.task not in state.leases:
+        raise KernelError("no_lease", task=args.task)
+    kernel.record_event("AGENT_RESUMED", actor=Actor.human(), subject=args.task,
+                        fence=state.leases[args.task].fence,
+                        payload={"profile": args.profile, "mode": "swap",
+                                 "requested_by": "operator"})
+    _out({"task": args.task, "profile": args.profile,
+          "note": "the Dispatcher picks the profile up on its next tick"})
+    return 0
+
+
+def cmd_agent_send(args) -> int:
+    from fleet.order import write_handoff
+    kernel = _kernel(args)
+    state = kernel.state()
+    lease = state.leases.get(args.task)
+    if lease is None:
+        raise KernelError("no_lease", task=args.task)
+    text = ("# Handoff — operator message\n\n"
+            + args.text + "\n")
+    path = write_handoff(lease.worktree, text) if lease.worktree else None
+    kernel.record_event("INCIDENT", subject=args.task,
+                        payload={"message": f"operator message: {args.text}",
+                                 "severity": "info"})
+    _out({"task": args.task, "handoff": str(path) if path else None,
+          "note": "headless one-shot CLIs generally do not accept input "
+                  "mid-run, so this is delivered as a handoff note"})
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# Project commands (fleet amendment section 10)
+# ---------------------------------------------------------------------------
+
+def cmd_project_init(args) -> int:
+    from fleet.project import init_project
+    kernel = _kernel(args)
+    _out(init_project(kernel, brief=args.brief, target=args.path))
+    return 0
+
+
+def cmd_project_status(args) -> int:
+    from fleet.project import project_status
+    kernel = _kernel(args)
+    _out(project_status(kernel))
+    return 0
+
+
+def cmd_project_close_check(args) -> int:
+    from fleet.project import close_check
+    kernel = _kernel(args)
+    result = close_check(kernel, pdd_path=args.pdd)
+    _out(result.to_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_project_pause(args) -> int:
+    from fleet.project import set_state, PAUSED
+    kernel = _kernel(args)
+    _out(set_state(kernel, PAUSED, reason=args.reason or "paused by the operator"))
+    return 0
+
+
+def cmd_project_resume(args) -> int:
+    from fleet.project import RUNNING, set_state
+    kernel = _kernel(args)
+    current = kernel.project_state()
+    target = RUNNING if current == "PAUSED" else current
+    _out(set_state(kernel, target, reason=args.reason or "resumed"))
+    return 0
+
+
+def cmd_project_run(args) -> int:
+    """Run the Conductor and the Dispatcher for a while."""
+    from fleet.conductor import Conductor
+    from fleet.dispatcher import Dispatcher
+    from fleet.overseer import OverseerRunner
+    kernel = _kernel(args)
+    fleet_state = _fleet_state(kernel)
+    dispatcher = Dispatcher(kernel, fleet_state,
+                            fixture_root=_fixture_root(kernel))
+    overseer = OverseerRunner(kernel, fleet_state)
+    conductor = Conductor(kernel, dispatcher, overseer)
+    deadline = time.time() + args.seconds
+    while time.time() < deadline:
+        conductor.tick()
+        dispatcher.tick()
+        time.sleep(1)
+    _out(project_status(kernel))
+    return 0
+
+
+def _fixture_root(kernel):
+    return Path(kernel.repo.root) / "tests" / "fleet" / "fixtures"
+
+
+# ---------------------------------------------------------------------------
 # Parser
 # ---------------------------------------------------------------------------
 
@@ -386,6 +672,99 @@ def build_parser() -> argparse.ArgumentParser:
     pdd_lint = pdd.add_parser("lint", help="structure-check a PDD")
     pdd_lint.add_argument("file")
     pdd_lint.set_defaults(func=cmd_pdd_lint)
+
+    # -- fleet (fleet amendment section 7.7) ----------------------------
+    fleet = sub.add_parser("fleet", help="the fleet and its profiles") \
+        .add_subparsers(dest="fleet_command", required=True)
+    fleet.add_parser("status", help="profiles, slots, cap, dispatch state") \
+        .set_defaults(func=cmd_fleet_status)
+    fleet.add_parser("profiles", help="list the profiles") \
+        .set_defaults(func=cmd_fleet_profiles)
+
+    enable = fleet.add_parser("enable", help="enable a profile")
+    enable.add_argument("profile_id")
+    enable.set_defaults(func=cmd_fleet_enable)
+
+    disable = fleet.add_parser("disable", help="disable a profile")
+    disable.add_argument("profile_id")
+    disable.add_argument("--reason")
+    disable.set_defaults(func=cmd_fleet_disable)
+
+    cool = fleet.add_parser("cool", help="cool a profile for N minutes")
+    cool.add_argument("profile_id")
+    cool.add_argument("--minutes", type=int, required=True)
+    cool.set_defaults(func=cmd_fleet_cool)
+
+    import_prompts = fleet.add_parser(
+        "import-prompts", help="generate profiles from prompts.json")
+    import_prompts.add_argument("file")
+    import_prompts.add_argument("--dry-run", dest="dry_run",
+                                action="store_true")
+    import_prompts.set_defaults(func=cmd_fleet_import_prompts)
+
+    dispatch = sub.add_parser("dispatch", help="the dispatch loop") \
+        .add_subparsers(dest="dispatch_command", required=True)
+    dispatch_run = dispatch.add_parser("run", help="run the dispatch loop")
+    dispatch_run.add_argument("--seconds", type=float, default=30)
+    dispatch_run.set_defaults(func=cmd_dispatch_run)
+
+    # -- agents (fleet amendment section 7.7) ---------------------------
+    agent = sub.add_parser("agent", help="the running agents") \
+        .add_subparsers(dest="agent_command", required=True)
+    agent.add_parser("list", help="the running slots") \
+        .set_defaults(func=cmd_agent_list)
+
+    agent_show = agent.add_parser("show", help="one agent")
+    agent_show.add_argument("task")
+    agent_show.set_defaults(func=cmd_agent_show)
+
+    agent_tail = agent.add_parser("tail", help="the tail of an agent's log")
+    agent_tail.add_argument("task")
+    agent_tail.add_argument("-n", "--lines", type=int, default=40)
+    agent_tail.set_defaults(func=cmd_agent_tail)
+
+    agent_stop = agent.add_parser("stop", help="stop an agent's process")
+    agent_stop.add_argument("task")
+    agent_stop.set_defaults(func=cmd_agent_stop)
+
+    agent_swap = agent.add_parser("swap", help="force a profile for an agent")
+    agent_swap.add_argument("task")
+    agent_swap.add_argument("--profile", required=True)
+    agent_swap.set_defaults(func=cmd_agent_swap)
+
+    agent_send = agent.add_parser("send", help="send a follow-up")
+    agent_send.add_argument("task")
+    agent_send.add_argument("text")
+    agent_send.set_defaults(func=cmd_agent_send)
+
+    # -- project (fleet amendment section 10) ---------------------------
+    project = sub.add_parser("project", help="the project lifecycle") \
+        .add_subparsers(dest="project_command", required=True)
+
+    project_init = project.add_parser("init", help="create a project")
+    project_init.add_argument("--brief", required=True)
+    project_init.add_argument("--path")
+    project_init.set_defaults(func=cmd_project_init)
+
+    project.add_parser("status", help="the project status") \
+        .set_defaults(func=cmd_project_status)
+
+    project_close = project.add_parser("close-check",
+                                       help="run the goal oracles and the gate")
+    project_close.add_argument("--pdd")
+    project_close.set_defaults(func=cmd_project_close_check)
+
+    project_pause = project.add_parser("pause", help="pause the project")
+    project_pause.add_argument("--reason")
+    project_pause.set_defaults(func=cmd_project_pause)
+
+    project_resume = project.add_parser("resume", help="resume the project")
+    project_resume.add_argument("--reason")
+    project_resume.set_defaults(func=cmd_project_resume)
+
+    project_run = project.add_parser("run", help="run the project unattended")
+    project_run.add_argument("--seconds", type=float, default=60)
+    project_run.set_defaults(func=cmd_project_run)
 
     sub.add_parser("stop", help="stop-the-line: freeze promotion and leases") \
         .set_defaults(func=cmd_stop)

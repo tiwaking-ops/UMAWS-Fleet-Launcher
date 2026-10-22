@@ -106,3 +106,55 @@ def lint_file(path: str | Path) -> LintResult:
     except OSError as exc:
         return LintResult(ok=False, errors=[f"cannot read {target}: {exc}"])
     return lint_text(text)
+
+
+# ---------------------------------------------------------------------------
+# Parsing (the close-check needs the goals and their oracles)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class Goal:
+    """One goal from a PDD."""
+
+    id: str
+    title: str = ""
+    acceptance: list = field(default_factory=list)
+    oracle: str | None = None
+    manual_check: str | None = None
+
+    @property
+    def needs_human(self) -> bool:
+        """A goal with only a ``manual-check`` cannot pass automatically."""
+        return self.oracle is None and self.manual_check is not None
+
+    def to_dict(self) -> dict:
+        return {"id": self.id, "title": self.title,
+                "acceptance": self.acceptance, "oracle": self.oracle,
+                "manual_check": self.manual_check,
+                "needs_human": self.needs_human}
+
+
+def parse_goals(text: str) -> list[Goal]:
+    """Extract the goals from a PDD."""
+    goals: list[Goal] = []
+    matches = list(GOAL_HEADING.finditer(text))
+    for index, match in enumerate(matches):
+        start = match.end()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        body = text[start:end]
+        goal = Goal(id=f"G-{match.group(1)}", title=match.group(2).strip())
+        goal.acceptance = [line.strip().lstrip("-*").strip()
+                           for line in body.splitlines()
+                           if re.match(r"^\s*[-*]\s+\S", line)]
+        oracles = ORACLE_LINE.findall(body)
+        manuals = MANUAL_LINE.findall(body)
+        goal.oracle = oracles[0] if oracles else None
+        goal.manual_check = manuals[0] if manuals else None
+        goals.append(goal)
+    return goals
+
+
+def parse_gate_cmd(text: str) -> str | None:
+    """Extract the gate command from a PDD."""
+    match = GATE_CMD.search(text)
+    return match.group(1) if match else None
