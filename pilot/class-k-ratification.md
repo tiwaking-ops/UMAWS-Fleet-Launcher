@@ -1,5 +1,31 @@
 # Class K changes for two-key ratification
 
+> ## OUTCOME — RATIFIED (2026-10-23)
+>
+> The operator was presented with both changes below and answered
+> **"RATIFIED"**.  Both are recorded as class K items in the Kernel's own
+> decision queue:
+>
+> | Item | Topic | Decision |
+> |---|---|---|
+> | **Q-001** | D-19 — `.pm/policy.toml` | `ratify` |
+> | **Q-002** | D-20 — the G1 baseline, the sanitised removals, `.gitignore` | `ratify` |
+>
+> The decision is an event in the hash-chained log, not only this note.
+> See `pmk queue list` and decisions **D-29** in `pilot/decisions.md`.
+>
+> **One weakness, recorded plainly.**  Both changes were made on
+> 2026-10-22; the queue items were raised on 2026-10-23, *after* the
+> changes were already in the tree.  The two-key rule is satisfied in
+> substance — the operator saw the diffs and could have reverted — but not
+> in **timing**, and timing is the part that makes a key a key.  A key
+> applied after the fact is an audit, not a gate.  The correct sequence
+> for the next class K change is: present the diff, raise the queue item,
+> **then** make the change.
+>
+> **Ratification does not close G3.**  G3's remaining condition is the
+> end-to-end handover test (D-30).
+
 **For:** the operator.  **Why this document exists:** the operator has
 correctly said that *"you approved the Caliber install" was not authority
 for a policy change*, and that **class K is two-key regardless of any

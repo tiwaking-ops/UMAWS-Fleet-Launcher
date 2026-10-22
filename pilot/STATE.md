@@ -1,13 +1,23 @@
 # Pilot P-01 state (update at every checkpoint)
 
-- **Updated**: 2026-10-22T22:40Z by OpenCode (implementing agent, Phase 1)
-- **Phase**: 1 — bootstrap. **Day**: 1. **Tier reached**: A (+ a working
+- **Updated**: 2026-10-23 by OpenCode (implementing agent, Phase 1)
+- **Phase**: 1 — bootstrap. **Day**: 2. **Tier reached**: A (+ a working
   Fleet). **Projected**: see "Cuts".
-- **Gate posture**: the operator was asked how to behave at G0–G3 and said
-  "I will provide these", which has not arrived. Until it does, the
-  pilot v1 §12.1 default applies — **hold**: no gate is crossed silently.
-  No gate has been crossed in this session. **This is the one open
-  question.**
+- **Gate posture** (the operator's rule, D-25; the pilot v1 §12.1 default
+  it replaces is recorded as a defect at report §4.4):
+
+  | Gate | Kind | Status |
+  |---|---|---|
+  | G0 environment | evidence | **crossed**, recorded with evidence |
+  | G1 Caliber go/fallback | evidence | **crossed**, recorded with evidence |
+  | G2 live capture | evidence | **crossed**, recorded with evidence |
+  | G3 handover | authorisation | **ratification complete** (D-19/D-20 ratified, D-29); **end-to-end handover test outstanding** (D-30) |
+  | G4 auto-sync | authorisation | **HELD** — `mode = "dry-run"` |
+  | G5 live capacity | authorisation | **HELD** |
+
+  **Class K is two-key, always**, regardless of any earlier approval — and
+  the key is taken *before* the change, not after (the D-19/D-20 timing
+  weakness is recorded at D-29).
 - **Scope decision**: whole pilot v1 + Fleet amendment A1, Tier A → C
   (operator choice). All five source specifications are present.
 - **Done**:
@@ -47,23 +57,25 @@
   - Every Phase 1 commit is tagged `bootstrap/0` … `bootstrap/16`.
 - **In progress**: nothing.
 - **Next**:
-  1. **G3** — the operator's spot-read (`pilot/g3-spot-read.md`) and the
-     ratification or reversal of D-19/D-20
-     (`pilot/class-k-ratification.md`).  **G3 is held.**
-  2. **The handover test (H6)** with a real OpenCode session, and a real
-     CLI driven end to end through a lease.
-  3. **Fill in the `models` lists** for hermes, kilo, cline and opencode
+  1. **G3's end-to-end handover test (H6)** — a real CLI driven through a
+     real lease, and an OpenCode session restarting from the briefing
+     alone.  **Needs its own go-ahead** (D-30: it hands real work to a real
+     agent, so it is not covered by the D-19/D-20 ratification).
+  2. **Fill in the `models` lists** for hermes, kilo, cline and opencode
      from the operator's `prompts.json`, so the ladder's L1 step (resume on
      a different model) is available for all of them and not only pi.
+  3. **Repoint `cline-mimo`** — its model's free promotion has ended (D-28).
   4. Run **S-W1** and test **F7** (100 fake workers) to replace the
      `max_total_agents = 20` guess.
   5. Build QuotaGate **M1** (the passthrough proxy) so that the gateway
      can serve the `context-sync` lane as CIP §7.3 describes, and so the
      provider allowlist becomes the destination.
 - **Blocked / awaiting human**:
-  1. **G3** — the spot-read and the two-key ratification.
-  2. **QuotaGate provider keys**, for M1's live capture.
-  3. **G4/G5** — held.
+  1. **G3's handover test** — needs a go-ahead (D-30).
+  2. **The amendment draft** `pilot/amendment-gates.md` — accept / edit /
+     discard.
+  3. **QuotaGate provider keys**, for M1's live capture.
+  4. **G4/G5** — held.
 - **Open [VERIFY] items**:
   - `V-01` **mostly closed**: headless, resume and (for pi) model-switch
     are measured.  **Still open**: hermes, kilo and pi have no captured
@@ -86,8 +98,11 @@
   - `V-04` `max_total_agents` — needs S-W1; 20 is a placeholder.
   - `V-05` the Overseer's ordered profile list (G-F13).
   - `V-06` OpenCode headless (S-O1) — partly measured.
-- **Decisions since last update**: `pilot/decisions.md` D-01 … D-25.
-- **Last green test run**: `pytest -q` → **209 passed**, 2026-10-23.
+- **Decisions since last update**: `pilot/decisions.md` D-01 … D-31.
+  **D-29** is the D-19/D-20 ratification, recorded as class K queue items
+  Q-001 and Q-002 in the event log.
+- **Last green test run**: `pytest -q` → see the commit; `pmk sentinel`
+  clean and `pmk context drift` clean on 2026-10-23.
 
 ## Cuts / risks carried
 

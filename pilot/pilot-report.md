@@ -550,8 +550,9 @@ To **pilot v1**:
    Â§7.5 does not mention it.
 
 4. **NEW - rule 14 and section 12.1 must be reconciled** (section 4.4).
-   The operator has offered to write a clarifying amendment.  The suggested
-   text:
+   The operator's amendment draft is now a standalone document at
+   `pilot/amendment-gates.md`, so it can be edited without touching this
+   report.  Its substance, for the record:
 
    > **Gates are of two kinds.**  An *evidence gate* (G0-G2) is one whose
    > artefacts can be reviewed after the fact: the implementer proceeds and

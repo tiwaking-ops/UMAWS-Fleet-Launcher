@@ -240,6 +240,45 @@ def test_queue_decision_closes_the_item(kernel):
     assert item["choice"] == "a"
 
 
+def test_queue_can_be_raised_and_decided_from_the_cli(tmp_path):
+    """The two-key mechanism must be reachable from the command line.
+
+    The queue is how a class K change is ratified: ``queue_add(class_k=True)``
+    then ``queue_decide``.  Before this, only ``list`` and ``decide`` were
+    exposed, so the queue could be decided from the CLI and never populated
+    from it — which makes the first key depend on someone writing Python.
+    """
+    from pmk import cli
+
+    code = cli.main([
+        "--root", str(tmp_path),
+        "queue", "add",
+        "--topic", "Ratify the policy change",
+        "--option", "ratify", "--option", "revert",
+        "--recommended", "ratify",
+        "--safe-default", "revert",
+        "--class-k",
+        "--details", "the exact diff, for the human",
+    ])
+    assert code == 0
+
+    items = cli.Kernel(root=tmp_path).queue_list()
+    assert len(items) == 1
+    item = items[0]
+    assert item["class_k"] is True
+    assert item["options"] == ["ratify", "revert"]
+    assert item["recommended"] == "ratify"
+    assert item["safe_default"] == "revert"
+    assert item["state"] == "open"
+
+    code = cli.main(["--root", str(tmp_path),
+                     "queue", "decide", item["id"], "ratify"])
+    assert code == 0
+    decided = cli.Kernel(root=tmp_path).queue_list()[0]
+    assert decided["state"] == "decided"
+    assert decided["choice"] == "ratify"
+
+
 def test_incident_is_recorded(kernel):
     kernel.incident("T-0001", "something broke", severity="error")
     assert any(i["message"] == "something broke"

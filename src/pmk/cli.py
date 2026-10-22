@@ -174,6 +174,19 @@ def cmd_views(args) -> int:
     return 0
 
 
+def cmd_queue_add(args) -> int:
+    kernel = _kernel(args)
+    item_id = kernel.queue_add(
+        topic=args.topic,
+        options=args.options,
+        recommended=args.recommended or "",
+        safe_default=args.safe_default or "",
+        class_k=bool(args.class_k),
+        details=args.details or "")
+    _out({"ok": True, "id": item_id})
+    return 0
+
+
 def cmd_queue_list(args) -> int:
     kernel = _kernel(args)
     _out(kernel.queue_list())
@@ -717,6 +730,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     queue = sub.add_parser("queue", help="human decision queue") \
         .add_subparsers(dest="queue_command", required=True)
+    queue_add = queue.add_parser("add", help="raise a question for the human")
+    queue_add.add_argument("--topic", required=True)
+    queue_add.add_argument("--option", dest="options", action="append",
+                           default=[], help="repeat for each option")
+    queue_add.add_argument("--recommended", help="the agent's recommendation")
+    queue_add.add_argument("--safe-default",
+                           help="what happens if the human says nothing")
+    queue_add.add_argument("--class-k", action="store_true",
+                           help="class K: needs the human, two-key")
+    queue_add.add_argument("--details", help="the full context, for the human")
+    queue_add.set_defaults(func=cmd_queue_add)
     queue.add_parser("list", help="list queue items") \
         .set_defaults(func=cmd_queue_list)
     decide = queue.add_parser("decide", help="decide a queue item")

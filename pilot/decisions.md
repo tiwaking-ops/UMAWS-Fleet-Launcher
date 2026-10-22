@@ -309,16 +309,58 @@ names three alternatives.
 
 ---
 
+D-29 | 2026-10-23 | operator | **D-19 and D-20 are RATIFIED.**  The
+operator was presented with both class K changes, their exact diffs and
+their hashes in `pilot/class-k-ratification.md`, with the question "ratify
+or revert"; the answer was "RATIFIED".  Both are now recorded in the
+Kernel's own decision queue as class K items (Q-001, Q-002, both decided
+`ratify`), so the ratification is an event in the hash-chained log rather
+than only a note in this file. | Reverting both: `pmk context sync` would
+have no command and `managed_paths` would name three files Caliber does not
+write; the repository's agent instructions would lose their generated
+context. | **A weakness in how the key was obtained, and it is recorded
+rather than quietly fixed.**  The two changes were made on 2026-10-22 and
+the queue items were raised on 2026-10-23 — *after* the changes were
+already in the tree.  A two-key rule applied after the fact is an audit,
+not a gate: it cannot prevent the change, only reverse it.  The rule is
+satisfied in substance (the operator saw the diff, and could have reverted)
+but not in timing, and timing is the part that makes a key a key.  The
+correct sequence for the next class K change is: present the diff, take the
+queue item, **then** make the change.
+
+D-30 | 2026-10-23 | operator | **The ratification closes the class K half
+of G3, and does not close G3.**  G3's remaining condition is the
+end-to-end handover test: a real CLI driven through a real lease, with an
+OpenCode session restarting from the briefing alone (H6).  That test hands
+real work to a real agent, so it is itself an authorisation — it needs its
+own go-ahead and is not covered by this ratification. | Treating "ratified"
+as "G3 closed", which would let the end-to-end test slip in under a
+decision that was only about two files. | Nothing.  The gate stays at
+*ratification complete, handover test outstanding*.
+
+D-31 | 2026-10-23 | OpenCode | **`pmk queue add` now exists.**  The human
+decision queue is the Kernel's two-key mechanism (`queue_add(class_k=True)`
+then `queue_decide`), but the CLI exposed only `list` and `decide` — so the
+queue could be decided from the command line and never *populated* from it.
+A two-key mechanism whose first key has no interface is a mechanism that
+depends on someone writing Python. | Raising class K items by hand-editing
+this file, which is not an event and has no hash chain. | Nothing.
+
+---
+
 ## Pending
 
-- **G3** — the operator's spot-read of the Fleet's spawn/kill code, and the
-  ratification or reversal of D-19 and D-20.  The read list is
-  `pilot/g3-spot-read.md`; the ratification request is
-  `pilot/class-k-ratification.md`.
+- **G3's end-to-end handover test (H6).**  A real CLI, a real lease, an
+  OpenCode session restarting from the briefing alone.  Needs its own
+  go-ahead (D-30).
 - **The `models` lists** for hermes, kilo, cline and opencode, so the
-  ladder's L1 step is available for all of them.
+  ladder's L1 step is available for all of them and not only pi.
+- **The `cline-mimo` profile** names a model whose free promotion has
+  ended (D-28).  Repointing it is class K.
 - **QuotaGate provider keys**, for M1's live capture.
 - **G4/G5** — held.
+- **The amendment draft** at `pilot/amendment-gates.md` — awaiting the
+  operator's accept / edit / discard.
 
 ## Resolved since the last update
 
@@ -328,3 +370,5 @@ names three alternatives.
   failure provoked (D-26).
 - **The gate rule** — given, and recorded as a standing posture above
   (D-25).
+- **D-19 and D-20** — **ratified** (D-29), as class K queue items Q-001 and
+  Q-002 in the event log.
