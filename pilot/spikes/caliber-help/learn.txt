@@ -1,0 +1,20 @@
+Usage: caliber learn [options] [command]
+
+Manage session learning — extract patterns from your AI coding sessions
+
+Options:
+  -h, --help               display help for command
+
+Commands:
+  observe [options]        Record a tool event from stdin (called by hooks)
+  finalize [options]       Analyze session events and update
+                           CALIBER_LEARNINGS.md (called on SessionEnd)
+  install                  Install learning hooks into .claude/settings.json
+  remove                   Remove learning hooks from .claude/settings.json
+  status                   Show learning system status
+  list [options]           List all learnings with their source and activation
+                           data
+  delete <index>           Delete a learning by its index number (from `caliber
+                           learn list`)
+  add [options] <content>  Add a learning directly (used by agent skills)
+  help [command]           display help for command

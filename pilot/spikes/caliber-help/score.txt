@@ -1,0 +1,11 @@
+Usage: caliber score [options]
+
+Score your AI context configuration (deterministic, no network)
+
+Options:
+  --json           Output as JSON
+  --quiet          One-line output for scripts/hooks
+  --agent <type>   Target agents (comma-separated): claude, cursor, codex,
+                   opencode, github-copilot
+  --compare <ref>  Compare score against a git ref (branch, tag, or SHA)
+  -h, --help       display help for command

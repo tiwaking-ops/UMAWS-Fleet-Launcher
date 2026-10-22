@@ -1,0 +1,18 @@
+Usage: caliber init [options]
+
+Initialize your project for AI-assisted development
+
+Options:
+  --agent <type>       Target agents (comma-separated): claude, cursor, codex,
+                       opencode, github-copilot. Note: github-copilot is a sync
+                       target only — requires another provider for generation
+  --source <paths...>  Related source paths to include as context
+  --dry-run            Preview changes without writing files
+  --force              Overwrite existing config without prompting
+  --debug-report        (default: false)
+  --show-tokens        Show token usage summary at the end
+  --auto-approve       Run without interactive prompts (auto-accept all)
+  --verbose            Show detailed logs of each step
+  --thorough           Deep analysis — more refinement passes for maximum
+                       quality
+  -h, --help           display help for command

@@ -34,8 +34,12 @@ lanes = [
 
 [context_sync]
 mode = "dry-run"                  # D-P10: auto-sync is enabled only at gate G4
-caliber_version = ""              # filled by spike S1
+caliber_version = "1.55.2"        # spike S1: measured 2026-10-22
 managed_paths = ["AGENTS.md", "CLAUDE.md", "CALIBER_LEARNINGS.md"]
+# The generator, run by the Kernel in its own worktree.  Never in the
+# integration tree, never in a worker worktree.
+command = ["caliber", "refresh"]
+score_command = ["caliber", "score", "--json"]
 triggers = { nightly = "03:00", after_promotions = 20 }
 lint = true
 score_non_regression_tolerance = 1     # [GUESS]

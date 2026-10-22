@@ -1,0 +1,8 @@
+Usage: caliber hooks [options]
+
+Manage auto-refresh hooks (toggle interactively)
+
+Options:
+  --install   Enable all hooks non-interactively
+  --remove    Disable all hooks non-interactively
+  -h, --help  display help for command

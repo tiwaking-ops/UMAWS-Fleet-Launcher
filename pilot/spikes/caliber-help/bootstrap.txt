@@ -1,0 +1,7 @@
+Usage: caliber bootstrap [options]
+
+Install agent skills (/setup-caliber, /find-skills, /save-learning) without
+running init
+
+Options:
+  -h, --help  display help for command

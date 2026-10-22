@@ -1,0 +1,284 @@
+﻿{
+  "score": 17,
+  "maxScore": 100,
+  "grade": "F",
+  "checks": [
+    {
+      "id": "codex_agents_md_exists",
+      "name": "AGENTS.md exists",
+      "category": "existence",
+      "maxPoints": 6,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "Not found",
+      "suggestion": "Create AGENTS.md with project context for Codex",
+      "fix": {
+        "action": "create_file",
+        "data": {
+          "file": "AGENTS.md"
+        },
+        "instruction": "Create AGENTS.md with project context for Codex."
+      }
+    },
+    {
+      "id": "skills_exist",
+      "name": "Skills configured",
+      "category": "existence",
+      "maxPoints": 0,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "No skills found",
+      "suggestion": "Skills are reusable agent workflows (e.g., deploy, test, review). Add 2-3 for your most common tasks",
+      "fix": {
+        "action": "create_skills",
+        "data": {
+          "currentCount": 0
+        },
+        "instruction": "Create .claude/skills/ with 2-3 project-specific workflow skills."
+      }
+    },
+    {
+      "id": "mcp_servers",
+      "name": "MCP servers configured",
+      "category": "existence",
+      "maxPoints": 0,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "No MCP servers configured",
+      "suggestion": "MCP servers connect your agent to external tools (databases, Slack, Linear, etc). Add if your team uses external services",
+      "fix": {
+        "action": "configure_mcp",
+        "data": {},
+        "instruction": "Add MCP server configurations in .mcp.json for any external services the project uses."
+      }
+    },
+    {
+      "id": "has_executable_content",
+      "name": "Executable content (code blocks)",
+      "category": "quality",
+      "maxPoints": 8,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "No instructions file to check",
+      "suggestion": "Add code blocks with project commands, build steps, and common workflows",
+      "fix": {
+        "action": "add_code_blocks",
+        "data": {
+          "currentCount": 0,
+          "targetCount": 3
+        },
+        "instruction": "Add code blocks with executable commands. Currently 0, need at least 3 for full points."
+      }
+    },
+    {
+      "id": "concise_config",
+      "name": "Concise config (token budget)",
+      "category": "quality",
+      "maxPoints": 6,
+      "earnedPoints": 6,
+      "passed": true,
+      "detail": "No config files to measure"
+    },
+    {
+      "id": "concreteness",
+      "name": "Concrete instructions",
+      "category": "quality",
+      "maxPoints": 4,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "No content to analyze"
+    },
+    {
+      "id": "no_directory_tree",
+      "name": "No directory tree listings",
+      "category": "quality",
+      "maxPoints": 3,
+      "earnedPoints": 3,
+      "passed": true,
+      "detail": "No large directory trees found"
+    },
+    {
+      "id": "has_structure",
+      "name": "Structured with headings",
+      "category": "quality",
+      "maxPoints": 2,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "No instructions file to check"
+    },
+    {
+      "id": "project_grounding",
+      "name": "Project grounding",
+      "category": "grounding",
+      "maxPoints": 12,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "0/47 notable project entries referenced in config (0%)",
+      "suggestion": "Config doesn't mention: .pm, .pm\\briefings, .pm\\conflicts, .pm\\events, .pm\\evidence (+36 more)",
+      "fix": {
+        "action": "add_references",
+        "data": {
+          "missing": [
+            ".pm",
+            ".pm\\briefings",
+            ".pm\\conflicts",
+            ".pm\\events",
+            ".pm\\evidence",
+            ".pm\\fleet",
+            ".pm\\fleet\\logs",
+            ".pm\\memory",
+            ".pm\\memory\\assumptions",
+            ".pm\\memory\\facts"
+          ],
+          "mentioned": [],
+          "totalEntries": 47,
+          "coverage": 0
+        },
+        "instruction": "Reference these project paths in your config: .pm, .pm\\briefings, .pm\\conflicts, .pm\\events, .pm\\evidence"
+      }
+    },
+    {
+      "id": "reference_density",
+      "name": "Reference density",
+      "category": "grounding",
+      "maxPoints": 8,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "No config content"
+    },
+    {
+      "id": "references_valid",
+      "name": "References point to real files",
+      "category": "accuracy",
+      "maxPoints": 8,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "No file references found in config",
+      "suggestion": "Add file path references to make your config grounded in the project",
+      "fix": {
+        "action": "add_references",
+        "data": {
+          "currentRefs": 0
+        },
+        "instruction": "Add file path references (e.g., `src/index.ts`) to ground the config in the project."
+      }
+    },
+    {
+      "id": "config_drift",
+      "name": "Config freshness vs code",
+      "category": "accuracy",
+      "maxPoints": 7,
+      "earnedPoints": 0,
+      "passed": true,
+      "detail": "Config files not tracked in git"
+    },
+    {
+      "id": "no_secrets",
+      "name": "No secrets in config files",
+      "category": "freshness",
+      "earnedPoints": 4,
+      "maxPoints": 4,
+      "passed": true,
+      "detail": "No secrets detected"
+    },
+    {
+      "id": "permissions_configured",
+      "name": "Permissions configured",
+      "category": "freshness",
+      "maxPoints": 2,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "No .claude/settings.json",
+      "suggestion": "Permissions control which shell commands the agent can run without asking. Adds a safety layer for your team",
+      "fix": {
+        "action": "add_permissions",
+        "data": {},
+        "instruction": "Add a permissions.allow list to .claude/settings.json with commonly used commands."
+      }
+    },
+    {
+      "id": "hooks_configured",
+      "name": "Hooks configured",
+      "category": "bonus",
+      "maxPoints": 2,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "No hooks configured",
+      "suggestion": "Hooks auto-sync your agent config on every commit so it stays fresh. Run `caliber init` to set up",
+      "fix": {
+        "action": "install_hooks",
+        "data": {},
+        "instruction": "Run caliber init to add pre-commit refresh instructions to config files."
+      }
+    },
+    {
+      "id": "open_skills_format",
+      "name": "Skills use OpenSkills format",
+      "category": "bonus",
+      "maxPoints": 0,
+      "earnedPoints": 0,
+      "passed": true,
+      "detail": "No skills to check"
+    },
+    {
+      "id": "learned_content",
+      "name": "Learned content present",
+      "category": "bonus",
+      "maxPoints": 2,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "No learned content",
+      "suggestion": "Session learnings capture patterns from your coding sessions so the agent improves over time. Run `caliber learn install`"
+    },
+    {
+      "id": "model_pinned",
+      "name": "Model & effort pinned",
+      "category": "bonus",
+      "maxPoints": 2,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "Config doesn't pin model or effort level ÔÇö behavior may change when defaults are updated",
+      "suggestion": "Add model/effort to config: CALIBER_MODEL env var, or /model in Claude Code, or a Model Configuration section in CLAUDE.md"
+    },
+    {
+      "id": "sources_configured",
+      "name": "External sources configured",
+      "category": "bonus",
+      "maxPoints": 0,
+      "earnedPoints": 0,
+      "passed": false,
+      "detail": "No external sources configured",
+      "suggestion": "Run `caliber sources add <path>` to add related repos or docs"
+    }
+  ],
+  "categories": {
+    "existence": {
+      "earned": 0,
+      "max": 6
+    },
+    "quality": {
+      "earned": 9,
+      "max": 23
+    },
+    "grounding": {
+      "earned": 0,
+      "max": 20
+    },
+    "accuracy": {
+      "earned": 0,
+      "max": 15
+    },
+    "freshness": {
+      "earned": 4,
+      "max": 6
+    },
+    "bonus": {
+      "earned": 0,
+      "max": 6
+    }
+  },
+  "targetAgent": [
+    "opencode"
+  ],
+  "timestamp": "2026-10-22T06:58:31.896Z"
+}

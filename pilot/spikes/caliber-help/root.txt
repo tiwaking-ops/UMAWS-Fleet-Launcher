@@ -1,0 +1,39 @@
+Usage: caliber [options] [command]
+
+AI context infrastructure for coding agents
+
+Options:
+  -V, --version               output the version number
+  --no-traces                 Disable anonymous telemetry for this run
+  -h, --help                  display help for command
+
+Commands:
+  init [options]              Initialize your project for AI-assisted
+                              development
+  bootstrap                   Install agent skills (/setup-caliber,
+                              /find-skills, /save-learning) without running init
+  undo                        Revert all config changes made by Caliber
+  uninstall [options]         Remove all Caliber resources from this project
+  status [options]            Show current Caliber config status
+  regenerate|regen [options]  Re-analyze project and regenerate config
+  config                      Configure LLM provider, API key, and model
+  skills [options]            Discover and install community skills for your
+                              project
+  score [options]             Score your AI context configuration
+                              (deterministic, no network)
+  refresh [options]           Update docs based on recent code changes
+  sync [options]              Mirror skills, rules and plugins across every
+                              agent (deterministic, no LLM)
+  compact [options]           Compact session context with Jev — drops stale
+                              tool calls, keeps wording verbatim
+  plugin                      Manage the Claude Code plugins Caliber ships
+  hooks [options]             Manage auto-refresh hooks (toggle interactively)
+  insights [options]          Show agent performance insights and learning
+                              impact
+  sources                     Manage external context sources (related repos,
+                              docs)
+  publish                     Generate a machine-readable summary for other
+                              repos to consume
+  learn                       Manage session learning — extract patterns from
+                              your AI coding sessions
+  help [command]              display help for command

@@ -1,0 +1,8 @@
+﻿
+Caliber Status
+
+  LLM: Not configured ÔÇö run caliber config
+  Config: No config applied
+
+  Run caliber init to get started.
+

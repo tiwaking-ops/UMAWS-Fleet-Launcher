@@ -18,6 +18,7 @@ mutation.  It is a **sidecar** lock file, not the event log itself — see
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import shutil
 from pathlib import Path
@@ -627,8 +628,305 @@ class Kernel:
         return briefing_mod.render(self, role=role)
 
     # ------------------------------------------------------------------
+    # Context files (CIP Part B section 14; the Kernel's side)
+    # ------------------------------------------------------------------
+    def context_config(self) -> dict:
+        """The ``[context_sync]`` policy section."""
+        return self.policy().get("context_sync", {}) or {}
+
+    def context_managed_paths(self) -> list[str]:
+        return list(self.context_config().get("managed_paths") or [])
+
+    def context_recorded_hashes(self) -> dict:
+        """The last recorded hashes of the class C files (I16)."""
+        path = Path(self.repo.pm) / "context.sha256"
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+        return raw.get("files", {}) if isinstance(raw, dict) else {}
+
+    def _write_context_hashes(self, files: dict) -> None:
+        from .plat import atomic_write_text
+        payload = {"files": files,
+                   "recorded_at": self.clock.now_iso(),
+                   "kernel_version": self.log.kernel_version}
+        atomic_write_text(Path(self.repo.pm) / "context.sha256",
+                          json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+
+    def context_lint(self) -> dict:
+        """Lint the class C files (I15)."""
+        from . import context as context_mod
+        managed = self.context_managed_paths()
+        return context_mod.lint_files(
+            self.repo.root, managed,
+            allowed_domains=self.context_config().get(
+                "url_allowlist", context_mod.DEFAULT_ALLOWED_DOMAINS),
+            max_tokens=int(self.context_config().get("max_agents_md_tokens",
+                                                     3000)))
+
+    def context_score(self) -> dict:
+        """The generator's read-only score, when one is configured."""
+        from . import context as context_mod
+        command = self.context_config().get("score_command") or []
+        if not command:
+            return {"score": None, "reason": "no score command is configured"}
+        lint, score = context_mod.run_lint_and_score(
+            self.repo.root, self.context_managed_paths(),
+            policy=self.policy(), score_command=command)
+        return {"score": score, "lint": lint}
+
+    def context_drift(self) -> dict:
+        """Compare the class C files with their recorded hashes (I16)."""
+        from . import context as context_mod
+        return context_mod.drift_check(self.repo.root,
+                                       self.context_managed_paths(),
+                                       self.context_recorded_hashes())
+
+    def context_sync(self, *, dry_run: bool | None = None,
+                     actor: Actor | None = None) -> dict:
+        """Run the context-sync task (CIP Part B section 14.5).
+
+        The generator runs in a Kernel-created worktree, never in the
+        integration tree and never in a worker worktree.  The output goes
+        through the same merge machinery as any other change.
+
+        Before gate G4 the mode is **dry-run**: the diff, the lint and the
+        score are computed and recorded, and nothing is merged.
+        """
+        from . import context as context_mod
+
+        config = self.context_config()
+        managed = self.context_managed_paths()
+        result = context_mod.SyncResult()
+        result.generator_version = str(config.get("caliber_version", ""))
+
+        if not managed:
+            result.reason = "no managed paths are configured"
+            result.rejected = True
+            return result.to_dict()
+
+        mode = str(config.get("mode", "dry-run"))
+        dry = (mode != "auto") if dry_run is None else bool(dry_run)
+
+        # The generator command, run in a worktree.
+        command = list(config.get("command") or [])
+        if not command:
+            result.reason = "no generator command is configured"
+            return result.to_dict()
+
+        before = context_mod.hash_context_files(self.repo.root, managed)
+        result.before_hash = before
+
+        worktree = self.repo.root / "work" / "context-sync"
+        if worktree.exists():
+            shutil.rmtree(worktree, ignore_errors=True)
+        worktree.parent.mkdir(parents=True, exist_ok=True)
+        code, out, err = self.git("worktree", "add", "--detach", str(worktree),
+                                  "HEAD")
+        if code != 0:
+            result.reason = f"could not create the sync worktree: {err or out}"
+            return result.to_dict()
+
+        try:
+            import subprocess
+            proc = subprocess.run(command, cwd=str(worktree),
+                                  capture_output=True, timeout=1800, text=True,
+                                  encoding="utf-8", errors="replace")
+            generator_output = (proc.stdout or "") + (proc.stderr or "")
+            result.generator_version = result.generator_version or "unknown"
+
+            # -- the diff -------------------------------------------------
+            diff_stat = self.git("diff", "--stat", cwd=worktree)[1]
+            result.diff_lines = sum(1 for line in diff_stat.splitlines()
+                                    if line.strip())
+            changed = self.git("diff", "--name-only", cwd=worktree)[1]
+            changed_files = [f for f in changed.splitlines() if f.strip()]
+
+            if not changed_files:
+                result.noop = True
+                result.ok = True
+                result.reason = "the generator changed nothing"
+                with self._locked():
+                    self._append("CONTEXT_SYNC_NOOP", actor=actor,
+                                 payload={"reason": result.reason,
+                                          "managed": managed})
+                return result.to_dict()
+
+            # -- the lint (I15) -------------------------------------------
+            lint, score = context_mod.run_lint_and_score(
+                worktree, managed, policy=self.policy(),
+                score_command=config.get("score_command") or None,
+                cwd=worktree)
+            result.lint = lint
+            result.score = score
+            result.after_hash = context_mod.hash_context_files(worktree, managed)
+
+            # -- the score non-regression gate ----------------------------
+            recorded_score = self._recorded_score()
+            tolerance = int(config.get("score_non_regression_tolerance", 1))
+            result.previous_score = recorded_score
+            if (score is not None and recorded_score is not None
+                    and score < recorded_score - tolerance):
+                result.rejected = True
+                result.reason = (f"the score regressed from {recorded_score} to "
+                                 f"{score} (tolerance {tolerance})")
+                with self._locked():
+                    self._append("CONTEXT_SYNC_REJECTED", actor=actor,
+                                 payload={"reason": result.reason,
+                                          "score": score,
+                                          "previous_score": recorded_score,
+                                          "lint": lint})
+                return result.to_dict()
+
+            if not lint.get("ok"):
+                result.rejected = True
+                result.reason = ("the lint rejected the sync: "
+                                 + "; ".join(f["detail"]
+                                             for f in lint.get("findings", [])
+                                             if f.get("severity") == "reject"))
+                with self._locked():
+                    self._append("CONTEXT_SYNC_REJECTED", actor=actor,
+                                 payload={"reason": result.reason,
+                                          "lint": lint})
+                return result.to_dict()
+
+            result.needs_review = bool(lint.get("needs_review"))
+            if result.needs_review:
+                result.reason = ("the lint routes this to blind V2 review: "
+                                 + "; ".join(f["detail"]
+                                             for f in lint.get("findings", [])
+                                             if f.get("severity") == "review"))
+
+            max_diff = int(config.get("max_diff_lines", 400))
+            if result.diff_lines > max_diff:
+                result.needs_review = True
+                result.reason = ((result.reason + "; " if result.reason else "")
+                                 + f"the diff is {result.diff_lines} lines, over "
+                                   f"the {max_diff} threshold: blind V2 review")
+
+            if dry:
+                result.ok = True
+                result.reason = (result.reason + "; " if result.reason else "") \
+                    + "dry run: nothing was merged"
+                with self._locked():
+                    self._append("CONTEXT_SYNC_REJECTED" if result.rejected
+                                 else "CONTEXT_SYNC_NOOP", actor=actor,
+                                 payload={"dry_run": True,
+                                          "reason": result.reason,
+                                          "lint": lint, "score": score,
+                                          "changed": changed_files})
+                return result.to_dict()
+
+            # -- merge ----------------------------------------------------
+            snapshot = Path(self.repo.pm) / "context-snapshots" / \
+                f"{self._next_event_seq()}"
+            context_mod.snapshot_files(self.repo.root, managed, snapshot)
+            merged = self._merge_context(worktree, changed_files)
+            if not merged:
+                result.rejected = True
+                result.reason = result.reason or "the merge failed"
+                with self._locked():
+                    self._append("CONTEXT_SYNC_REJECTED", actor=actor,
+                                 payload={"reason": result.reason,
+                                          "lint": lint})
+                return result.to_dict()
+
+            with self._locked():
+                self._write_context_hashes(result.after_hash)
+                self._append("CONTEXT_SYNCED", actor=actor,
+                             payload={"before_hash": result.before_hash,
+                                      "after_hash": result.after_hash,
+                                      "score": score,
+                                      "previous_score": recorded_score,
+                                      "generator_version":
+                                          result.generator_version,
+                                      "provider": result.provider,
+                                      "lane": "context-sync",
+                                      "snapshot": str(snapshot),
+                                      "changed": changed_files,
+                                      "needs_review": result.needs_review,
+                                      "generator_output": generator_output[-2000:]})
+            result.ok = True
+            return result.to_dict()
+        finally:
+            self.git("worktree", "remove", "--force", str(worktree))
+
+    def _merge_context(self, worktree: Path, files: Sequence[str]) -> bool:
+        """Merge the generated context files through the merge queue."""
+        if files:
+            for path in files:
+                self.git("add", "--", path, cwd=worktree)
+        else:
+            self.git("add", "-A", cwd=worktree)
+        status = self.git("status", "--porcelain", "--untracked-files=all",
+                          cwd=worktree)[1]
+        if not status.strip():
+            return True
+        message = "chore(context): regenerate the managed context files\n"
+        if self.git("commit", "-m", message, cwd=worktree)[0] != 0:
+            return False
+        _, commit, _ = self.git("rev-parse", "HEAD", cwd=worktree)
+        commit = commit.strip()
+        code, out, err = self.git("merge", "--ff-only", commit)
+        return code == 0
+
+    def _recorded_score(self) -> int | None:
+        path = Path(self.repo.pm) / "context-score.json"
+        try:
+            return json.loads(path.read_text(encoding="utf-8")).get("score")
+        except (OSError, ValueError):
+            return None
+
+    def _record_score(self, score: int | None) -> None:
+        if score is None:
+            return
+        from .plat import atomic_write_text
+        atomic_write_text(Path(self.repo.pm) / "context-score.json",
+                          json.dumps({"score": score,
+                                      "recorded_at": self.clock.now_iso()},
+                                     indent=2) + "\n")
+
+    def context_revert(self, seq: int, *, actor: Actor | None = None) -> dict:
+        """Revert a context sync, as a new event (CIP Part B section 14.5).
+
+        Nothing is deleted: the reverted-to state is restored and the
+        current state stays in the snapshot directory (invariant I9).
+        """
+        from . import context as context_mod
+        with self._locked():
+            event = next((e for e in self.events()
+                          if e.type == "CONTEXT_SYNCED" and e.seq == seq), None)
+            if event is None:
+                raise KernelError("unknown_sync", seq=seq)
+            snapshot = Path(event.payload.get("snapshot", ""))
+            if not snapshot.is_dir():
+                raise KernelError("no_snapshot", seq=seq, path=str(snapshot))
+            # Keep the state being superseded.
+            current_snapshot = Path(self.repo.pm) / "context-snapshots" / \
+                f"superseded-{seq}"
+            context_mod.snapshot_files(self.repo.root,
+                                       self.context_managed_paths(),
+                                       current_snapshot)
+            restored = context_mod.restore_snapshot(
+                snapshot, self.repo.root, self.context_managed_paths())
+            after = context_mod.hash_context_files(self.repo.root,
+                                                   self.context_managed_paths())
+            self._write_context_hashes(after)
+            self._append("CONTEXT_REVERTED", actor=actor, subject=str(seq),
+                         payload={"reverted_seq": seq,
+                                  "restored": restored,
+                                  "after_hash": after,
+                                  "superseded_snapshot": str(current_snapshot)})
+            return {"ok": True, "reverted": seq, "restored": restored}
+
+    # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+    def _next_event_seq(self) -> int:
+        events = self.events()
+        return (events[-1].seq + 1) if events else 1
+
     def _head_commit(self) -> str:
         """The current HEAD commit, or ``""`` outside a git repository."""
         return self.repo.head_commit()

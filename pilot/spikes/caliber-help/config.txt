@@ -1,0 +1,6 @@
+﻿Usage: caliber config [options]
+
+Configure LLM provider, API key, and model
+
+Options:
+  -h, --help  display help for command

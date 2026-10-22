@@ -1,0 +1,7 @@
+﻿caliber.cmd : error: unknown option '--show'
+At line:4 char:1
++ & caliber.cmd --no-traces config --show 2>&1 | Out-File "$out\config- ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (error: unknown option '--show':String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

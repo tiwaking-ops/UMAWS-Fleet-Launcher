@@ -183,4 +183,36 @@ def check(kernel) -> dict:
             report.findings.append(Finding(
                 "I14", f"task {task.id} is leased without a fence", subject=task.id))
 
+    # -- I15: the context lint (CIP Part B section 14.6) -----------------
+    report.checked.append("I15")
+    managed = kernel.context_managed_paths()
+    if managed:
+        lint = kernel.context_lint()
+        for finding in lint.get("findings", []):
+            if finding.get("severity") != "reject":
+                continue
+            report.findings.append(Finding(
+                "I15", f"{finding.get('file')}: {finding.get('detail')}",
+                stops=False, subject=finding.get("file", "")))
+        if lint.get("needs_review"):
+            report.findings.append(Finding(
+                "I15", "a managed context file has a URL on a domain that is "
+                       "not allowlisted: it needs blind V2 review"))
+
+    # -- I16: no out-of-band edit to a managed context file --------------
+    report.checked.append("I16")
+    recorded = kernel.context_recorded_hashes()
+    if recorded:
+        drift = kernel.context_drift()
+        for change in drift.get("changed", []):
+            report.findings.append(Finding(
+                "I16", f"{change['file']} was edited out of band "
+                       f"(recorded {change['recorded'][:12]}…, "
+                       f"now {change['current'][:12]}…)",
+                stops=False, subject=change["file"]))
+        for path in drift.get("removed", []):
+            report.findings.append(Finding(
+                "I16", f"{path} was deleted out of band", stops=False,
+                subject=path))
+
     return report.to_dict()

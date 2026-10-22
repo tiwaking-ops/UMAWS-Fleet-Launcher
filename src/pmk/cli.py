@@ -207,6 +207,43 @@ def cmd_pdd_lint(args) -> int:
     return 0 if result.ok else 1
 
 
+# ---------------------------------------------------------------------------
+# Context commands (CIP Part B section 14)
+# ---------------------------------------------------------------------------
+
+def cmd_context_lint(args) -> int:
+    kernel = _kernel(args)
+    result = kernel.context_lint()
+    _out(result)
+    return 0 if result["ok"] else 1
+
+
+def cmd_context_score(args) -> int:
+    kernel = _kernel(args)
+    _out(kernel.context_score())
+    return 0
+
+
+def cmd_context_sync(args) -> int:
+    kernel = _kernel(args)
+    result = kernel.context_sync(dry_run=args.dry_run)
+    _out(result)
+    return 0 if result.get("ok") else 1
+
+
+def cmd_context_revert(args) -> int:
+    kernel = _kernel(args)
+    _out(kernel.context_revert(args.seq))
+    return 0
+
+
+def cmd_context_drift(args) -> int:
+    kernel = _kernel(args)
+    result = kernel.context_drift()
+    _out(result)
+    return 0 if result["ok"] else 1
+
+
 def cmd_stop(args) -> int:
     kernel = _kernel(args)
     kernel.repo.stop_file.parent.mkdir(parents=True, exist_ok=True)
@@ -672,6 +709,27 @@ def build_parser() -> argparse.ArgumentParser:
     pdd_lint = pdd.add_parser("lint", help="structure-check a PDD")
     pdd_lint.add_argument("file")
     pdd_lint.set_defaults(func=cmd_pdd_lint)
+
+    # -- context (CIP Part B section 14) ---------------------------------
+    context = sub.add_parser("context", help="the generated context files") \
+        .add_subparsers(dest="context_command", required=True)
+    context.add_parser("lint", help="lint the managed context files (I15)") \
+        .set_defaults(func=cmd_context_lint)
+    context.add_parser("score", help="the generator's read-only score") \
+        .set_defaults(func=cmd_context_score)
+    context.add_parser("drift", help="check for out-of-band edits (I16)") \
+        .set_defaults(func=cmd_context_drift)
+
+    context_sync = context.add_parser("sync", help="run the context-sync task")
+    context_sync.add_argument("--dry-run", dest="dry_run", action="store_true",
+                              default=None,
+                              help="preview without merging (the default "
+                                   "until gate G4)")
+    context_sync.set_defaults(func=cmd_context_sync)
+
+    context_revert = context.add_parser("revert", help="revert a context sync")
+    context_revert.add_argument("seq", type=int)
+    context_revert.set_defaults(func=cmd_context_revert)
 
     # -- fleet (fleet amendment section 7.7) ----------------------------
     fleet = sub.add_parser("fleet", help="the fleet and its profiles") \

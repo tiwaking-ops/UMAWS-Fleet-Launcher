@@ -1,0 +1,8 @@
+Usage: caliber refresh [options]
+
+Update docs based on recent code changes
+
+Options:
+  --quiet     Suppress output (for use in hooks)
+  --dry-run   Preview changes without writing files
+  -h, --help  display help for command
