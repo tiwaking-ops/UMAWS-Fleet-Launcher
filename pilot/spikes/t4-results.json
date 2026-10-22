@@ -1,0 +1,18 @@
+{
+  "variants": [
+    {
+      "id": "V1-named",
+      "error": "FileExistsError: [WinError 183] Cannot create a file when that file already exists: 'C:\\\\Users\\\\TIWAPE~1\\\\AppData\\\\Local\\\\Temp\\\\umaws-t4\\\\V1-named'"
+    },
+    {
+      "id": "V2-paraphrase",
+      "error": "FileExistsError: [WinError 183] Cannot create a file when that file already exists: 'C:\\\\Users\\\\TIWAPE~1\\\\AppData\\\\Local\\\\Temp\\\\umaws-t4\\\\V2-paraphrase'"
+    },
+    {
+      "id": "V3-paraphrase",
+      "error": "FileExistsError: [WinError 183] Cannot create a file when that file already exists: 'C:\\\\Users\\\\TIWAPE~1\\\\AppData\\\\Local\\\\Temp\\\\umaws-t4\\\\V3-paraphrase'"
+    }
+  ],
+  "blocked": 0,
+  "total": 3
+}

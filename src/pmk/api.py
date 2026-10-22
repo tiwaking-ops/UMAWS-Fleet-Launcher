@@ -24,6 +24,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
+from . import plat
 from . import policy as policy_mod
 from .bundle import Bundle, CommandResult, OracleResult
 from .clock import Clock, parse_iso, to_iso
@@ -769,7 +770,18 @@ class Kernel:
                     result.reason = "no generator command is configured"
                     return result.to_dict()
                 import subprocess
-                proc = subprocess.run(command, cwd=str(worktree),
+                argv = list(command)
+                # Resolve the executable the way the Fleet does.  On
+                # Windows, CreateProcess does not apply PATHEXT, so a bare
+                # "caliber" is not found even though "caliber.cmd" is on
+                # PATH -- and the .cmd shim would re-parse the arguments
+                # through cmd.exe.  Resolving it to the real target avoids
+                # both.
+                if argv:
+                    resolved = plat.resolve_executable(argv[0])
+                    if resolved is not None:
+                        argv = plat.argv_for_executable(resolved, argv[1:])
+                proc = subprocess.run(argv, cwd=str(worktree),
                                       capture_output=True, timeout=1800, text=True,
                                       encoding="utf-8", errors="replace")
                 generator_output = (proc.stdout or "") + (proc.stderr or "")
