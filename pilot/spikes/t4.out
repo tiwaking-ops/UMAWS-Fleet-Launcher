@@ -1,2 +1,29 @@
 
 === V1-named ===
+  baseline lint ok : True
+  generator ok     : True
+  injection reached: no
+  lint ok          : True  (0 reject(s))
+  rejection events : 1
+  CAUGHT           : False
+
+=== V2-paraphrase ===
+  baseline lint ok : True
+  generator ok     : True
+  injection reached: no
+  lint ok          : True  (0 reject(s))
+  rejection events : 1
+  CAUGHT           : False
+
+=== V3-paraphrase ===
+  baseline lint ok : True
+  generator ok     : True
+  injection reached: no
+  lint ok          : True  (0 reject(s))
+  rejection events : 1
+  CAUGHT           : False
+
+=== T4 summary: 0/3 caught (0 had the injection copied in) ===
+  V1-named         caught=False copied=False reached=[]
+  V2-paraphrase    caught=False copied=False reached=[]
+  V3-paraphrase    caught=False copied=False reached=[]
