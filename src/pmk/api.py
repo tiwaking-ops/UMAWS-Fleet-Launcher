@@ -120,6 +120,19 @@ class Kernel:
         self._views_dirty = True
         return event
 
+    def record_event(self, event_type: str, *, actor: Actor | None = None,
+                     subject: str | None = None, fence: int | None = None,
+                     payload: dict | None = None) -> Event:
+        """Append an event and return it.
+
+        The public entry point for components that are part of the app but
+        are not the CLI — the Fleet Dispatcher and the Overseer runner use
+        this (fleet amendment D-L4).  The caller must hold the lock; the
+        Kernel's own mutating commands call :meth:`_append` inside it.
+        """
+        return self._append(event_type, actor=actor, subject=subject,
+                            fence=fence, payload=payload)
+
     def _next_fence(self, events: Sequence[Event] | None = None) -> int:
         events = list(events if events is not None else self.events())
         highest = 0
@@ -618,23 +631,9 @@ class Kernel:
     # ------------------------------------------------------------------
     def _head_commit(self) -> str:
         """The current HEAD commit, or ``""`` outside a git repository."""
-        import subprocess
-        try:
-            out = subprocess.run(
-                ["git", "-C", str(self.repo.root), "rev-parse", "HEAD"],
-                capture_output=True, text=True, timeout=15)
-        except (OSError, subprocess.SubprocessError):
-            return ""
-        return out.stdout.strip() if out.returncode == 0 else ""
+        return self.repo.head_commit()
 
     def git(self, *args: str, cwd: Path | None = None,
             timeout: int = 60) -> tuple[int, str, str]:
         """Run a git command in the repository."""
-        import subprocess
-        try:
-            out = subprocess.run(
-                ["git", "-C", str(cwd or self.repo.root), *args],
-                capture_output=True, text=True, timeout=timeout)
-        except (OSError, subprocess.SubprocessError) as exc:
-            return -1, "", str(exc)
-        return out.returncode, out.stdout, out.stderr
+        return self.repo.git(*args, cwd=cwd, timeout=timeout)

@@ -88,6 +88,27 @@ def atomic_write_text(path: os.PathLike[str] | str, text: str,
     os.replace(tmp, target)
 
 
+def read_text(path: os.PathLike[str] | str, *, encoding: str = "utf-8") -> str:
+    """Read a text file, tolerating a UTF-8 BOM.
+
+    Windows PowerShell 5.1's ``Set-Content -Encoding utf8`` writes a BOM
+    (bytes ``EF BB BF``).  The operator edits files with PowerShell, so
+    operator-written files routinely carry one, and Python's ``utf-8``
+    decoder leaves it in the string as ``\\ufeff``.
+
+    That is not cosmetic: a BOM at the start of a JSON or TOML file makes
+    the parser fail, and a BOM inside a classifier pattern makes the
+    pattern match only at the very start of a string.  Every file this
+    project reads that a human might have written goes through here.
+    """
+    try:
+        return Path(path).read_text(encoding="utf-8-sig")
+    except FileNotFoundError:
+        raise
+    except UnicodeDecodeError:
+        return Path(path).read_text(encoding=encoding, errors="replace")
+
+
 # ---------------------------------------------------------------------------
 # File locking
 # ---------------------------------------------------------------------------
@@ -351,6 +372,11 @@ class SpawnResult:
     pid: int
     creation_time: int | None
     log_path: str
+    #: The live :class:`subprocess.Popen`.  Keeping it is what makes the
+    #: exit code reliable: ``Popen.poll()`` is the authoritative answer for
+    #: a child process, and a separately opened handle can lose the code if
+    #: the child is reaped first.
+    proc: "subprocess.Popen | None" = None
 
 
 def spawn(argv: Sequence[str], *, cwd: os.PathLike[str] | str | None = None,
@@ -400,7 +426,8 @@ def spawn(argv: Sequence[str], *, cwd: os.PathLike[str] | str | None = None,
     info = process_info(proc.pid)
     return SpawnResult(argv=argv, pid=proc.pid,
                        creation_time=info.creation_time,
-                       log_path=str(log_path) if log_path else "")
+                       log_path=str(log_path) if log_path else "",
+                       proc=proc)
 
 
 def kill_tree(pid: int, *, creation_time: int | None = None,

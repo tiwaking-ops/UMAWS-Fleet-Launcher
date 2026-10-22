@@ -203,6 +203,19 @@ def rebuild(events: list[Event]) -> State:
                 card.state = VOID
                 card.block_reason = str(payload.get("reason", "premise refuted"))
 
+        elif etype == "AGENT_STARTED":
+            lease = state.leases.get(subject or "")
+            if lease:
+                # The pid and the process creation time are recorded here,
+                # not at claim time: they only exist once the process is
+                # running.  Restart reconciliation (fleet section 7.10)
+                # needs both, so they must survive in the log.
+                lease.pid = payload.get("pid", lease.pid)
+                lease.creation_time = payload.get("creation_time",
+                                                 lease.creation_time)
+                lease.worktree = str(payload.get("worktree", lease.worktree))
+                lease.agent = str(payload.get("adapter", lease.agent))
+
         elif etype == "AGENT_FAILED":
             lease = state.leases.get(subject or "")
             if lease:

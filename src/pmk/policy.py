@@ -1,4 +1,4 @@
-"""Policy, pins, and the policy hash (pilot v1 sections 9.6, D-P3, D-L3).
+﻿"""Policy, pins, and the policy hash (pilot v1 sections 9.6, D-P3, D-L3).
 
 Policy is human-edited TOML.  It is **class K**: hash-pinned, and changing
 it needs a two-key event.  The policy hash is stamped on every event, so
@@ -17,6 +17,7 @@ import tomllib
 from pathlib import Path
 
 from .events import canonical_json
+from .plat import read_text
 
 #: Files that are hash-pinned and protected by invariant I8'.
 PINNED_FILES = (".pm/constitution.md", ".pm/policy.toml")
@@ -57,13 +58,17 @@ DEFAULT_POLICY: dict = {
 
 
 def load_policy(repo) -> dict:
-    """Load ``.pm/policy.toml``, falling back to the defaults."""
+    """Load ``.pm/policy.toml``, falling back to the defaults.
+
+    Read with ``utf-8-sig``: the operator edits files with Windows
+    PowerShell, whose ``Set-Content -Encoding utf8`` writes a BOM, and
+    ``tomllib`` rejects one.
+    """
     path = Path(repo.policy_path)
     if not path.is_file():
         return json.loads(json.dumps(DEFAULT_POLICY))
     try:
-        with open(path, "rb") as fh:
-            data = tomllib.load(fh)
+        data = tomllib.loads(read_text(path))
     except (OSError, tomllib.TOMLDecodeError):
         return json.loads(json.dumps(DEFAULT_POLICY))
     merged = json.loads(json.dumps(DEFAULT_POLICY))
@@ -103,7 +108,7 @@ def check_pins(repo) -> dict:
                 "mismatches": [], "checked": 0}
     mismatches = []
     checked = 0
-    for line in pins_path.read_text(encoding="utf-8").splitlines():
+    for line in read_text(pins_path).splitlines():
         line = line.strip()
         if not line:
             continue
@@ -123,7 +128,7 @@ def check_pins(repo) -> dict:
 
 
 def load_agents(repo) -> dict:
-    """Load ``agents.toml`` — the Fleet profiles (fleet amendment 12.A).
+    """Load ``agents.toml`` â€” the Fleet profiles (fleet amendment 12.A).
 
     Returns ``{"fleet": {...}, "overseer": {...}, "profiles": [...]}``.
     An unreadable file yields an empty profile list rather than an
@@ -133,8 +138,7 @@ def load_agents(repo) -> dict:
     if not path.is_file():
         return {"fleet": {}, "overseer": {}, "profiles": []}
     try:
-        with open(path, "rb") as fh:
-            data = tomllib.load(fh)
+        data = tomllib.loads(read_text(path))
     except (OSError, tomllib.TOMLDecodeError):
         return {"fleet": {}, "overseer": {}, "profiles": []}
     return {

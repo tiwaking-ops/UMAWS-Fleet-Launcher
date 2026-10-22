@@ -195,5 +195,29 @@ class Repo:
         except ValueError:
             return str(path)
 
+    # -- git ---------------------------------------------------------------
+    def git(self, *args: str, cwd: "Path | None" = None,
+            timeout: int = 60) -> tuple[int, str, str]:
+        """Run a git command in this repository.
+
+        Returns ``(returncode, stdout, stderr)``.  Git failures are
+        returned, not raised, because most callers want to *record* what
+        git said (the evidence bundle keeps stdout and stderr hashes).
+        """
+        import subprocess
+        try:
+            out = subprocess.run(
+                ["git", "-C", str(cwd or self.root), *args],
+                capture_output=True, text=True, timeout=timeout,
+                encoding="utf-8", errors="replace")
+        except (OSError, subprocess.SubprocessError) as exc:
+            return -1, "", str(exc)
+        return out.returncode, out.stdout, out.stderr
+
+    def head_commit(self) -> str:
+        """The current HEAD commit, or ``""`` outside a git repository."""
+        code, out, _ = self.git("rev-parse", "HEAD")
+        return out.strip() if code == 0 else ""
+
     def __fspath__(self) -> str:
         return str(self.root)
