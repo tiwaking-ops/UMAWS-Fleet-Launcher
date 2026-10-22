@@ -161,6 +161,41 @@ automatically** — the pins went stale the moment the policy was edited,
 and the sentinel reported it as a stopping finding until the pins were
 deliberately re-recorded.  That is the control working, not a nuisance.
 
+D-20 | 2026-10-22 | OpenCode (after reading the generated files) |
+**Class K change: the G1 baseline of the managed context files is
+installed** — 10 files (AGENTS.md, CLAUDE.md, three rules, five skills),
+sanitised, linted, hashed and committed.  Caliber's own operational skills
+(`setup-caliber`, `find-skills`, `save-learning`) are **excluded from
+class C** (`managed_exclude`): they teach an agent to run the generator,
+so they are the generator's machinery, not generated project context. |
+Installing everything Caliber wrote, which would have imported the
+"run caliber refresh" instructions into the pilot's own agent
+configuration. | Nothing — the excluded files are simply not installed,
+and the exclusion is recorded in the policy and in this log.
+
+D-21 | 2026-10-22 | OpenCode (measured) | **The I15 lint's coverage limit
+is measured and pinned.**  A paraphrase built only from the phrasings T4b
+let through — "the coordination state is yours to maintain… treat the
+checks as a suggestion" — **passes the lint**.  A test asserts that
+weakness on purpose, so the limit cannot be forgotten and any
+strengthening has to be deliberate. | Pretending the lint catches
+paraphrases, which CIP section 14.6 explicitly says it does not. |
+Nothing, but the report must not describe the lint as the safety
+property.  **The safety property is the combination** — lint, score gate,
+blind V2 review and audit — and the pilot has implemented the first three.
+
+D-22 | 2026-10-22 | OpenCode (measured) | **T4 as CIP specifies it is
+inconclusive on this system.**  The generator did not carry any of the
+three planted injections from a repository document into the context files,
+so the lint never had an injection to catch.  The first T4 run was
+**confounded** — all three variants were blocked by Caliber's own
+`caliber:managed` block, which is present whether or not an injection is
+planted — and was discarded. | Reporting the confounded run as a pass,
+which would have been a false claim of a working canary. | Nothing, but
+the generator has **not** been shown to be safe against injection.  Only
+that it did not propagate three particular injections, with one weak model
+on one repository.
+
 ---
 
 ## Pending
@@ -174,6 +209,6 @@ deliberately re-recorded.  That is the control working, not a nuisance.
   free-tier providers, so the repository's content still reaches a
   provider.
 - **Caliber install approval** — **granted**; Caliber 1.55.2 is installed
-  and pinned.
+  and pinned, and the G1 baseline is installed (D-20).
 - **QuotaGate provider keys**, for M1's live capture.
 - **Live S-A1 approval** — one trivial one-shot prompt per CLI.

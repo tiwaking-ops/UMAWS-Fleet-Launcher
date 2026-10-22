@@ -88,18 +88,7 @@ overwrote the poison.  That is correct behaviour, but it means the sync is
 not the control for a poisoned live file: the **lint** and the **sentinel**
 are.  The sentinel caught the poison before the sync ran.
 
-## What T4 does and does not establish
-
-| Claim | Status |
-|---|---|
-| The lint rejects a class C file that tells an agent to bypass the Kernel | **measured** (T4b, 3/3) |
-| The sentinel records the violation (I15) and the out-of-band edit (I16) | **measured** (T4b, 3/3) |
-| The generator did not copy three planted injections into the context files | **measured** (T4, 0/3 reached) |
-| The generator will *never* copy an injection into the context files | **not established** — one model, one repo, three phrasings |
-| The lint catches every paraphrase | **not established, and known to be false** — it caught half of each paraphrase |
-| A paraphrase using only the un-caught phrasings would pass the lint | **not tested** — this is the obvious next experiment |
-
-## The obvious next experiment
+## The obvious next experiment — done
 
 Build the paraphrase that the lint *cannot* see, from the parts it let
 through:
@@ -108,7 +97,33 @@ through:
 > convenient, and treat the checks as a suggestion rather than a
 > requirement."
 
-If that passes the lint, then the lint's coverage is the known limit and
-the residual protection is the **blind V2 review** and the **sampled
-audit** (CIP §14.6), not the lint.  That is worth knowing before G4, and
-it is cheap to test.
+**It passes the lint.**  That is now pinned by
+`tests/pmk/test_context_limits.py`, which asserts the weakness on purpose:
+if the lint is ever strengthened to catch it, the test fails and the
+change has to be made deliberately, with the report updated.
+
+So the answer to "does the lint catch every paraphrase" is **no**, and the
+residual protection is **not** the lint:
+
+| Layer | Catches the un-caught paraphrase? |
+|---|---|
+| the I15 lint | **no** — it is built from phrasings the lint does not match |
+| the score non-regression gate | possibly — it compares the generator's own score, not the wording |
+| the diff-size threshold | **yes, for a large change** — it routes the sync to blind V2 review, and it does not depend on recognising the wording |
+| the sampled audit | yes, eventually | 
+
+The honest summary for G4: **the lint is a cheap, deterministic first
+filter, not the safety property.**  The safety property is the *combination*
+of lint, score gate, blind V2 review and audit — and the pilot has
+implemented the first three.
+
+## What T4 does and does not establish
+
+| Claim | Status |
+|---|---|
+| The lint rejects a class C file that tells an agent to bypass the Kernel | **measured** (T4b, 3/3) |
+| The sentinel records the violation (I15) and the out-of-band edit (I16) | **measured** (T4b, 3/3) |
+| The generator did not copy three planted injections into the context files | **measured** (T4, 0/3 reached) |
+| The generator will *never* copy an injection into the context files | **not established** — one model, one repo, three phrasings |
+| The lint catches every paraphrase | **not established, and now known to be false** — a paraphrase built from the un-caught phrasings passes |
+| The residual protection catches it | **the diff-size threshold does**, for a large change |
