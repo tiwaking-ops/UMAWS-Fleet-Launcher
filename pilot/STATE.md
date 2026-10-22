@@ -3,18 +3,27 @@
 - **Updated**: 2026-10-23 by OpenCode (implementing agent, Phase 1)
 - **Phase**: 1 — bootstrap. **Day**: 2. **Tier reached**: A (+ a working
   Fleet). **Projected**: see "Cuts".
-- **Gate posture** (the operator's rule, D-25; the pilot v1 §12.1 default
-  it replaces is recorded as a defect at report §4.4):
+- **Gate posture** (the operator's rule, D-25, **amended in force as v2**,
+  D-34 — `pilot/amendment-gates.md`; the pilot v1 §12.1 default it replaces
+  is recorded as a defect at report §4.4). **Classification is by action,
+  not by gate number:**
 
-  | Gate | Kind | Status |
-  |---|---|---|
-  | G0 environment | evidence | **crossed**, recorded with evidence |
-  | G1 Caliber go/fallback | evidence | **crossed**, recorded with evidence |
-  | G2 live capture | evidence | **crossed**, recorded with evidence |
-  | G3 handover | authorisation | **ratification complete** (D-19/D-20 ratified, D-29); **end-to-end handover test outstanding** (D-30) |
-  | G4 auto-sync | authorisation | **HELD** — `mode = "dry-run"` |
-  | G5 live capacity | authorisation | **HELD** |
+  | Point | Action | Kind | Status |
+  |---|---|---|---|
+  | G0 | the platform decision | **authorisation** | **authorised** — operator's instruction, D-02 |
+  | G0 | environment metadata | checkpoint | logged (`s-p1-platform.md`) |
+  | G1 | measuring Caliber (S1–S5) | checkpoint | logged (`caliber-s1-s5.md`) |
+  | G1 | installing Caliber | **authorisation** | **authorised** — D-15…D-19 |
+  | G1 | sync sending repo content to providers | **authorisation** | **authorised** — terms accepted, D-23 |
+  | G2 | metadata capture | checkpoint | logged (`cli-matrix.md`) |
+  | G2 | live S-A1 provider calls | **authorisation** | **authorised with terms** — D-24 |
+  | G3 | real CLI through a lease; restart from the briefing alone | **authorisation** | **ratification complete** (D-29); **handover test outstanding** (D-30) |
+  | G4 | Caliber auto-sync on | **authorisation** | **HELD** — `mode = "dry-run"` |
+  | G5 | live capacity run | **authorisation** | **HELD** |
 
+  **"Self-crossed" is retired** (D-34): a crossing is either authorised by a
+  named decision or logged as a checkpoint. A gate is crossed **once per
+  mechanism**, and an approval covers that mechanism and no other.
   **Class K is two-key, always**, regardless of any earlier approval — and
   the key is taken *before* the change, not after (the D-19/D-20 timing
   weakness is recorded at D-29).
@@ -64,7 +73,11 @@
   2. **Fill in the `models` lists** for hermes, kilo, cline and opencode
      from the operator's `prompts.json`, so the ladder's L1 step (resume on
      a different model) is available for all of them and not only pi.
-  3. **Repoint `cline-mimo`** — its model's free promotion has ended (D-28).
+  3. **Repoint `cline-mimo`** — its model's free promotion has ended (D-28);
+     free models were removed platform-wide this week and the operator is
+     reviewing which remain available. This is an **authorisation** action
+     (a different model, provider terms and quota), **not class K** —
+     `agents.toml` is not pinned.
   4. Run **S-W1** and test **F7** (100 fake workers) to replace the
      `max_total_agents = 20` guess.
   5. Build QuotaGate **M1** (the passthrough proxy) so that the gateway
@@ -72,10 +85,8 @@
      provider allowlist becomes the destination.
 - **Blocked / awaiting human**:
   1. **G3's handover test** — needs a go-ahead (D-30).
-  2. **The amendment draft** `pilot/amendment-gates.md` — accept / edit /
-     discard.
-  3. **QuotaGate provider keys**, for M1's live capture.
-  4. **G4/G5** — held.
+  2. **QuotaGate provider keys**, for M1's live capture.
+  3. **G4/G5** — held.
 - **Open [VERIFY] items**:
   - `V-01` **mostly closed**: headless, resume and (for pi) model-switch
     are measured.  **Still open**: hermes, kilo and pi have no captured
@@ -91,16 +102,21 @@
     (D-21).  The residual protection is the combination of lint, score
     gate, blind V2 review and audit.
   - `V-09` **new**: the operator's `cline-mimo` profile names a model
-    whose free promotion has **ended** (measured).  The Fleet's MODEL_GONE
-    handler disables it; repointing it is class K, so it is the operator's
-    call.
+    whose free promotion has **ended** (measured). The Fleet's MODEL_GONE
+    handler disables it. Repointing it is an **authorisation** action, not
+    class K — `agents.toml` is not pinned — so it needs the operator's
+    approval but not a class K two-key. The Fleet reports such a profile as
+    `ready` until it first dispatches, because readiness does not test the
+    model.
   - `V-03` QuotaGate provider limits, 429 body shapes, quota headers.
   - `V-04` `max_total_agents` — needs S-W1; 20 is a placeholder.
   - `V-05` the Overseer's ordered profile list (G-F13).
   - `V-06` OpenCode headless (S-O1) — partly measured.
-- **Decisions since last update**: `pilot/decisions.md` D-01 … D-31.
+- **Decisions since last update**: `pilot/decisions.md` D-01 … D-34.
   **D-29** is the D-19/D-20 ratification, recorded as class K queue items
-  Q-001 and Q-002 in the event log.
+  Q-001 and Q-002 in the event log. **D-32/D-33** are the queue-id collision
+  and the projection that let a duplicate overwrite a decision; **D-34** is
+  the gate amendment in force (class K item Q-003).
 - **Last green test run**: `pytest -q` → see the commit; `pmk sentinel`
   clean and `pmk context drift` clean on 2026-10-23.
 

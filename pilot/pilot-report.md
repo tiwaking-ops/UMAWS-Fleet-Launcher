@@ -182,21 +182,49 @@ would have silently changed what the gates *meant*.
 tension between them, is not a supervision model; it is a supervision
 model with an ambiguous boundary.
 
-**The resolution actually used** (operator, 2026-10-22) is worth
-recording, because it is a better rule than either the proposal's:
+**The resolution actually used** (operator, 2026-10-22) separated the gates
+whose artefacts can be reviewed after the fact from the gates that need the
+human at the moment, and made the class K rule absolute. **The operator
+then amended it on 2026-10-23**, and the amendment is now **in force** —
+`pilot/amendment-gates.md` v2, class K item Q-003, D-34 — because the first
+version still classified **by gate number**, and a gate number does not
+determine whether the action at that point needs the human:
 
-> G0–G2 proceed and are logged for later review.  G3, G4 and G5 hold.
-> Class K is two-key regardless of any earlier approval.
+> **Classification is by action, not by gate number.** An action is an
+> **authorisation** — it needs a named decision, and silence is not
+> consent — if it makes a live provider call or spends quota, sends
+> repository content to a third party, hands work to a real agent, turns on
+> a mechanism that can write instructions agents follow, or makes a
+> decision that reverting a commit cannot undo (including the platform
+> decision). Otherwise it is a **checkpoint**: logged with pass criteria
+> written *before* the check runs, and reversible by reverting a commit or
+> deleting scratch files. Ambiguity resolves to **authorisation**, never to
+> proceed. A gate is crossed **once per mechanism**, not once per task or
+> dispatch, and an approval covers that mechanism and no other. **Class K
+> is always two-key**, and the key is taken *before* the change.
 
-That rule is coherent where the proposal is not: it separates the gates
-that are **evidence** gates (whose artefacts can be reviewed
-asynchronously) from the gates that are **authorisation** gates (which
-change the system's behaviour or spend money, and therefore need the
-human at the moment).  And it makes the class K rule absolute, which the
-proposal's "ask only when blocked" does not.
+Why the distinction is not pedantry is visible in this pilot's own record:
+**G2 is not one thing.** Its metadata capture is a checkpoint; its live
+provider calls are an **authorisation** action, and were authorised as such
+(D-24). The same split appears at **G1** — measuring Caliber is a
+checkpoint, installing it and sending repository content to providers are
+authorisations (D-15…D-19, D-23). Under the first wording — and under this
+report's own earlier draft — those crossings were described as
+"self-crossed", which is both inaccurate and, worse, would have hidden the
+fact that the operator had authorised each consequential action by name.
 
-**This is a finding against the proposal, and the operator has offered to
-write a clarifying amendment.**  The suggested text is in section 8.
+**A gate with no nameable consequence is not a gate.** The amendment makes
+that a test rather than a sentiment: if the consequence cannot be written in
+one sentence, the point is a checkpoint — and the two tests above decide
+whether calling it one is honest. Applying that test to this pilot leaves
+one recorded weakness: the G0–G2 checkpoints predate the rule, so their pass
+criteria were not written down before the checks ran. They are logged as
+checkpoints with a **known weakness**. No outcome changes — nothing
+irreversible rested on them, because the consequential actions were
+authorised by name — but a future checkpoint must get that right.
+
+**This is a finding against the proposal, and it is now closed** by the
+amendment in force.
 
 ### 4.5 Windows findings that shaped the design
 
@@ -550,21 +578,25 @@ To **pilot v1**:
    Â§7.5 does not mention it.
 
 4. **NEW - rule 14 and section 12.1 must be reconciled** (section 4.4).
-   The operator's amendment draft is now a standalone document at
-   `pilot/amendment-gates.md`, so it can be edited without touching this
-   report.  Its substance, for the record:
+   **The amendment is now in force**: `pilot/amendment-gates.md` v2, class K
+   item Q-003, recorded at D-34. Its substance, for the record:
 
-   > **Gates are of two kinds.**  An *evidence gate* (G0-G2) is one whose
-   > artefacts can be reviewed after the fact: the implementer proceeds and
-   > records the crossing, its evidence and its reasoning in the decision
-   > log, and the artefacts are reviewed asynchronously.  An
-   > *authorisation gate* (G3-G6) is one that changes the system's
-   > behaviour, hands work to real agents, spends a provider's quota, or
-   > turns on a mechanism that can write instructions to agents: the
-   > implementer stops and waits for the human.
+   > **Classification is by action, not by gate number.** An action is an
+   > **authorisation** — it needs a named decision, and silence is not
+   > consent — if it makes a live provider call or spends quota, sends
+   > repository content to a third party, hands work to a real agent, turns
+   > on a mechanism that can write instructions agents follow, or makes a
+   > decision that reverting a commit cannot undo (including the platform
+   > decision). Otherwise it is a **checkpoint**: logged with pass criteria
+   > written *before* the check runs, and reversible by reverting a commit
+   > or deleting scratch files. An action failing either test is an
+   > authorisation.
    >
-   > **Class K is always two-key**, regardless of any earlier approval: an
-   > approval of one thing is never authority for a different class K
+   > **Ambiguity resolves to authorisation**, never to proceed. **A gate
+   > with no nameable consequence is not a gate.** **A gate is crossed once
+   > per mechanism**, not once per task or dispatch; an approval covers the
+   > mechanism it named and no other. **Class K is always two-key**,
+   > regardless of any earlier approval, and the key is taken *before* the
    > change.
    >
    > Rule 14's "state your default" applies to *unblocked work between
@@ -572,7 +604,8 @@ To **pilot v1**:
 
    This keeps rule 14 (do not pester the human) and adds the one thing the
    proposal was missing: a definition of what a gate *is*, in terms of what
-   the human is actually being asked to decide.
+   the human is actually being asked to decide — and a test the implementer
+   can fail.
 
 To **the Fleet amendment A1**:
 

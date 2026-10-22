@@ -198,30 +198,66 @@ on one repository.
 
 ---
 
-## The gate rule (operator, 2026-10-22)
+## The gate rule (operator, 2026-10-22; amended in force 2026-10-23)
 
 **The rule, as given:**
 
-> G0–G2: proceed, log each crossing in `pilot/decisions.md` with evidence
-> and mark it "self-crossed, pending review". G3: HOLD until I've
-> spot-read `fleet/` spawn/kill code and ratified or reverted D-19.
-> Class-K changes need two-key regardless of any earlier approval.
-> G4/G5: hold.
+> G0–G2: proceed, log each crossing in `pilot/decisions.md` with evidence.
+> G3: HOLD until I've spot-read `fleet/` spawn/kill code and ratified or
+> reverted D-19.  Class-K changes need two-key regardless of any earlier
+> approval.  G4/G5: hold.
 
-**Standing posture** (the structural fix the pilot report asked for in §6):
-**G0–G2 are self-crossed and pending review.  G3, G4 and G5 hold.  Class K
-is always two-key.**
+**Amended in force** — `pilot/amendment-gates.md` v2, approved as class K
+queue item **Q-003**, recorded at **D-34**.  The amendment's central change:
+**classification is by action, not by gate number.**  A gate number names a
+point in the plan; it does not decide whether the action there needs the
+human.
 
-### Gate crossings
+An action is an **authorisation** — it needs a named decision, and silence
+is not consent — if it:
 
-| Gate | Status | Evidence |
-|---|---|---|
-| **G0** — environment, platform decision | **self-crossed, pending review** | `pilot/spikes/s-p1-platform.md`; D-02; no `sudo` was needed or used; the environment checks are recorded in §3 of that spike |
-| **G1** — Caliber go/fallback | **self-crossed in part, pending review** | `pilot/spikes/caliber-s1-s5.md` (S1–S5, all `works`); the baseline diff is the 10 sanitised class C files; the score moved 17/100 (F) → 87/100 (A).  The provider-terms element is now answered — D-23 |
-| **G2** — live capture | **self-crossed in part, pending review** | the metadata capture (five `--help`s, five versions, the `.cmd`-shim measurement) is in `pilot/spikes/cli-matrix.md` and `pilot/spikes/caliber-help/`; the fixtures are in `tests/fleet/fixtures/`.  The **live provider-failure capture is deferred** to the operator's own decision — D-24 |
-| **G3** — handover | **HELD** | the operator's spot-read is outstanding; the read list is `pilot/g3-spot-read.md` |
-| **G4** — Caliber auto-sync | **HELD** | the policy stays `mode = "dry-run"` |
-| **G5** — live capacity | **HELD** | no live capacity run has been made |
+* makes a live call to a provider, or spends a provider's quota;
+* sends repository content to a third party, including a router that fronts
+  one;
+* hands work to a real agent, in a real repository;
+* turns on a mechanism that can write instructions an agent will follow;
+* makes a decision with lasting consequence that reverting a commit cannot
+  undo — including the platform decision.
+
+Otherwise it is a **checkpoint**: logged with its pass criteria written
+**before** the check ran, and reversible by reverting a commit or deleting
+scratch files.  An action that fails either of those tests is an
+authorisation.  Ambiguity resolves to **authorisation**, never to proceed.
+And **a gate is crossed once per mechanism**, not once per task or dispatch
+— while an approval covers the mechanism it named and no other.
+
+**"Self-crossed" is retired.**  A crossing is either *authorised by* a named
+decision, or *logged as a checkpoint* against pre-written criteria.  There
+is no third state.
+
+### Gate crossings, classified by action
+
+| Point | Action | Kind | Named consequence | Authority / criteria |
+|---|---|---|---|---|
+| **G0** | The platform decision (native Windows, no WSL/Docker) | **authorisation** | the system is built on Windows-native assumptions for its lifetime | **the operator's instruction**; D-02 |
+| **G0** | Environment metadata (versions, paths, lock test, shim measurement) | checkpoint | — | logged; `pilot/spikes/s-p1-platform.md` |
+| **G1** | Measuring Caliber's behaviour (S1–S5) | checkpoint | — | logged; `pilot/spikes/caliber-s1-s5.md` |
+| **G1** | Installing Caliber | **authorisation** | a third-party generator runs in this repository | **operator approved the install** — D-15…D-19 |
+| **G1** | The sync sending repository content to providers | **authorisation** | the repository's content reaches third-party free providers | **the operator accepted the terms** — OmniRoute, D-23 |
+| **G2** | Metadata capture (five `--help`s, five versions, shim measurement) | checkpoint | — | logged; `pilot/spikes/cli-matrix.md`, `pilot/spikes/s1-live-help/` |
+| **G2** | **Live S-A1 provider calls** | **authorisation** | real requests to real providers, consuming their quota | **the operator approved it with terms** — D-24 |
+| **G3** | A real CLI through a real lease; an OpenCode session restarting from the briefing alone | **authorisation** | real agents take real work in a real repository | ratification of D-19/D-20 done (D-29); **the handover test itself is outstanding and needs its own go-ahead** (D-30) |
+| **G4** | Turning Caliber auto-sync on | **authorisation** | the generator writes instructions agents will follow, on every commit | **HELD** — `mode = "dry-run"` |
+| **G5** | Live capacity run | **authorisation** | spend, and sustained load on real providers | **HELD** |
+
+**A known weakness, recorded.**  The G0–G2 *checkpoints* were logged before
+this rule existed, so their pass criteria were implied by each spike's
+question rather than written down as pass/fail beforehand.  Under the
+amendment they are **checkpoints with a known weakness**, not clean ones.
+No outcome changes — the consequential actions at G0–G2 were authorised by
+name, so nothing irreversible rested on those checkpoints — but a future
+checkpoint must state its criteria before it runs.
+
 
 **G0 evidence, in short.**  Python 3.12.10, Git 2.55.0, Node 26.7.0,
 `LongPathsEnabled=1`, WSL present but with `docker-desktop` as its default
@@ -303,9 +339,17 @@ a model whose free promotion has ended** (measured: "The free promotion
 for this model has ended and it is no longer available").  The profile is
 left as it is, and the Fleet's `MODEL_GONE` handler disables it when it
 sees that failure. | Disabling or repointing the profile by hand. |
-Nothing — but repointing it is a **class K** change (the profile schema),
-so it is the operator's call, and the profile's `models` list already
-names three alternatives.
+Nothing irreversible.  **Correction, same day:** this entry first called
+repointing a **class K** change, "because it touches the profile schema".
+That was wrong.  Only `.pm/constitution.md` and `.pm/policy.toml` are
+pinned, so `agents.toml` is **not** class K by artefact; under the amendment
+in force (D-34) repointing is an **authorisation** action — it selects a
+different model, provider terms and quota — which needs the operator's
+approval but not a class K second key.  Also noted: all three models on the
+profile are `cline-free/*`, and the operator reports that free models were
+removed platform-wide this week, so the "three alternatives" this entry
+relied on may themselves be unavailable; the operator is reviewing which
+remain.
 
 ---
 
@@ -378,6 +422,30 @@ Q-001 ratify` is still at seq 31.  What was corrupted was the *view*.  That
 distinction is the whole argument for an append-only log, and it is worth
 stating plainly that the log held while the projection failed.
 
+D-34 | 2026-10-23 | operator | **Amendment v2 is IN FORCE** (class K,
+Q-003 approved).  The gate rule now classifies **by action, not by gate
+number**: an action that makes a live provider call, sends repository
+content to a third party, hands work to a real agent, turns on a mechanism
+that can write instructions agents follow, or makes a decision a commit
+cannot undo, is an **authorisation** and needs a named decision.  Everything
+else is a **checkpoint**, logged against pass criteria written *before* the
+check runs and reversible by reverting a commit or deleting scratch files.
+Ambiguity resolves to authorisation.  A gate is crossed **once per
+mechanism**, and an approval covers that mechanism and no other.
+Consequences applied: "self-crossed" is retired from this record and from
+`STATE.md`; each G0–G2 crossing now cites the decision that authorised it
+(D-02, D-15…D-19, D-23, D-24) or is logged as a checkpoint; report §4.4 and
+§8 adopt the text. | Leaving the v1 rule, which classified by gate number
+and described the crossings as "self-crossed" — an inaccurate account of
+what actually happened, and one that hid the fact that the operator had
+authorised each consequential action. | **A weakness that the amendment
+itself exposes.**  The G0–G2 checkpoints predate the rule, so their pass
+criteria were not written before the checks ran.  They are recorded as
+checkpoints with a known weakness.  No outcome changes — nothing
+irreversible rested on them — but this is the first thing a future
+checkpoint must get right.
+
+
 ---
 
 ## Pending
@@ -388,11 +456,14 @@ stating plainly that the log held while the projection failed.
 - **The `models` lists** for hermes, kilo, cline and opencode, so the
   ladder's L1 step is available for all of them and not only pi.
 - **The `cline-mimo` profile** names a model whose free promotion has
-  ended (D-28).  Repointing it is class K.
+  ended (D-28).  The operator reports that free models were removed
+  platform-wide this week and will review which remain available.
+  Repointing the profile is an **authorisation** action \u2014 it selects a
+  different model, provider terms and quota \u2014 but **not class K**:
+  `agents.toml` is not pinned.  (An earlier note in this file called it class
+  K; that was a mislabel, corrected here.)
 - **QuotaGate provider keys**, for M1's live capture.
 - **G4/G5** — held.
-- **The amendment draft** at `pilot/amendment-gates.md` — awaiting the
-  operator's accept / edit / discard.
 
 ## Resolved since the last update
 
@@ -400,7 +471,7 @@ stating plainly that the log held while the projection failed.
 - **Caliber install** — approved and done; the G1 baseline is installed.
 - **Live S-A1** — approved with terms (D-24) and **run**; 13 requests, no
   failure provoked (D-26).
-- **The gate rule** — given, and recorded as a standing posture above
-  (D-25).
+- **The gate rule** — given (D-25), then **amended in force** as v2
+  (D-34), approved as class K item Q-003.
 - **D-19 and D-20** — **ratified** (D-29), as class K queue items Q-001 and
   Q-002 in the event log.
