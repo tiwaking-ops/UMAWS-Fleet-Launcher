@@ -1,0 +1,14 @@
+﻿.venv/
+__pycache__/
+*.pyc
+.pm/index.db
+.pm/briefings/
+.pm/quarantine/*
+.pm/evidence/*
+.pm/fleet/
+.pmwork/
+work/
+.env
+*.local.*
+secrets/
+.opencode/

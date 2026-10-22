@@ -1,0 +1,28 @@
+[project]
+name = "umaws-fleet"
+version = "0.1.0"
+description = "UMAWS Fleet — Kernel-lite, Fleet Dispatcher and Console (pilot P-01, amendment A1)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "httpx",
+    "tzdata",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+pmk = "pmk.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q"

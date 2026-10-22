@@ -1,0 +1,108 @@
+# agents.toml — Fleet profiles.
+#
+# Fleet amendment section 12.A.  Human-edited TOML (pilot v1 D-P3).
+#
+# A profile is one way to run one CLI on one model.  The operator's saved
+# entries in prompts.json are really profiles: the same prefix repeated per
+# project (fleet amendment section 6.1).  `pmk fleet import-prompts prompts.json`
+# generates profiles from that file.
+#
+# Placeholders: {prompt} {cwd} {session} {model}.  An empty argv_resume means
+# the adapter has no resume support; that is UNVERIFIED until spike S-A1
+# captures the CLI's real behaviour.
+#
+# IMPORTANT (spike S-A1, 2026-10-22): the operator's CLIs are installed as
+# npm PowerShell shims (opencode.ps1, kilo.ps1, cline.ps1, pi.ps1) plus
+# hermes.exe.  `argv_new` below names the tool, not a resolved path; the
+# Dispatcher resolves the executable at spawn time through pmk.plat, which
+# knows how to run a .ps1 shim.  See src/fleet/adapters/.
+
+[fleet]
+max_total_agents   = 20      # [GUESS] set from spike S-W1; operator ceiling 100
+dispatch_tick_s    = 5       # [GUESS]
+stall_minutes      = 15      # [GUESS]
+fix_rounds         = 2       # [GUESS]
+max_restarts_per_task = 5    # [GUESS]
+min_free_ram_mb    = 2048    # [GUESS]
+net_probe_urls     = []      # operator or implementer supplies reachable URLs
+
+[overseer]
+# Ordered; names are placeholders (G-F13).  The strongest available model
+# goes first: plan quality is the largest unknown in the whole system.
+profiles = ["opencode-strongest", "opencode-fallback"]
+
+# ---------------------------------------------------------------------------
+# Profiles
+# ---------------------------------------------------------------------------
+# Priority: lower is tried first.  Hermes first because the operator reports
+# its free models are not rate limited; Cline last because its models have
+# per-model daily limits (G-F3).
+#
+# family is DECLARED, not verified (D-L11, D-L12).  A profile with
+# family = "unknown" can never serve as an independent verifier.
+
+[[profile]]
+id = "hermes-oneshot"
+adapter = "hermes"
+family = "unknown"               # declared, not verified
+priority = 10
+max_concurrent = 4
+via_gateway = false
+roles = ["implement", "review", "plan"]
+argv_new = ["hermes", "chat", "--oneshot", "-q", "{prompt}", "--yolo", "--cli", "--in", "{cwd}"]
+argv_resume = []                 # [VERIFY] until S-A1
+
+[[profile]]
+id = "kilo-auto"
+adapter = "kilo"
+family = "unknown"
+priority = 20
+max_concurrent = 3
+via_gateway = false
+roles = ["implement", "review"]
+argv_new = ["kilo", "run", "{prompt}", "--dir", "{cwd}", "--auto"]
+argv_resume = []                 # [VERIFY] until S-A1
+
+[[profile]]
+id = "pi-orca-deepseek"
+adapter = "pi"
+family = "deepseek"
+priority = 30
+max_concurrent = 2
+via_gateway = false
+roles = ["implement", "review"]
+argv_new = ["pi", "--provider", "orcarouter", "--model", "deepseek/deepseek-v4-flash-free", "-p", "{prompt}"]
+argv_resume = []                 # [VERIFY] until S-A1
+
+[[profile]]
+id = "cline-mimo"
+adapter = "cline"
+family = "unknown"
+priority = 40
+max_concurrent = 1               # per-model daily limits per operator
+via_gateway = false
+roles = ["implement"]
+argv_new = ["cline", "--provider", "cline", "--model", "cline-free/mimo-v2.6-flash", "{prompt}"]
+argv_resume = []                 # [VERIFY] until S-A1
+
+[[profile]]
+id = "opencode-strongest"
+adapter = "opencode"
+family = "unknown"               # [VERIFY] until S-A1 reports the model
+priority = 5                     # the Overseer draws from this list
+max_concurrent = 2
+via_gateway = false
+roles = ["plan", "review", "implement"]
+argv_new = ["opencode", "run", "{prompt}"]
+argv_resume = []                 # [VERIFY] until S-A1
+
+[[profile]]
+id = "opencode-fallback"
+adapter = "opencode"
+family = "unknown"
+priority = 90
+max_concurrent = 1
+via_gateway = false
+roles = ["plan", "review"]
+argv_new = ["opencode", "run", "{prompt}"]
+argv_resume = []

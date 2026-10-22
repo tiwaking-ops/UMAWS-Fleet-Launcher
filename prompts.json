@@ -1,0 +1,350 @@
+{
+  "settings": {
+    "delay_seconds": 1.0,
+    "keep_open": true
+  },
+  "prompts": [
+    {
+      "id": "24baf263b111446b861176e1d2270cf7",
+      "name": "hermes · TiwasProjectsv3",
+      "group": "TiwasProjectsv3",
+      "prefix": "hermes chat --oneshot -q",
+      "prompt": "Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "--yolo --cli --in \"C:\\temp\\projects\\TiwasProjectsv3\"",
+      "cwd": "C:\\temp\\projects\\TiwasProjectsv3"
+    },
+    {
+      "id": "5e93002c8b9b451db278570f2395bffa",
+      "name": "hermes · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "hermes chat --oneshot -q",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "--yolo --cli --in \"C:\\temp\\projects\\Babylon5CCGGameDesign\"",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "54058dfb4c154cacbf21cb25f94c0fa8",
+      "name": "kilo · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "kilo run",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "--dir \"C:\\temp\\projects\\Babylon5CCGGameDesign\" --auto",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "cf5927cf4e4f40d499df5a40acfd4790",
+      "name": "kilo · TiwasProjectsv3",
+      "group": "TiwasProjectsv3",
+      "prefix": "kilo run",
+      "prompt": "Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "--dir \"C:\\temp\\projects\\TiwasProjectsv3\" --auto",
+      "cwd": "C:\\temp\\projects\\TiwasProjectsv3"
+    },
+    {
+      "id": "a21f816649894b87b1e1729c6facb5d3",
+      "name": "cline · cline-free/muse-spark-1.3-contributor",
+      "group": "wf-workflow",
+      "prefix": "cline --provider cline --model cline-free/muse-spark-1.3-contributor",
+      "prompt": "Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": ""
+    },
+    {
+      "id": "e52b42fdd0e447879d4d513a0c6e383d",
+      "name": "cline · cline-free/mimo-v2.6-flash",
+      "group": "wf-workflow",
+      "prefix": "cline --provider cline --model cline-free/mimo-v2.6-flash",
+      "prompt": "Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": ""
+    },
+    {
+      "id": "b82786ec72a3439a970f98d9aa1b6528",
+      "name": "cline · cline-free/nemotron-3.5-super-vl:free",
+      "group": "wf-workflow",
+      "prefix": "cline --provider cline --model cline-free/nemotron-3.5-super-vl",
+      "prompt": "Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": ""
+    },
+    {
+      "id": "1918b5eb75e14ad7976545d9215e91ed",
+      "name": "cline · cline-free/solar-mini4",
+      "group": "wf-workflow",
+      "prefix": "cline --provider cline --model cline-free/solar-mini4",
+      "prompt": "Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": ""
+    },
+    {
+      "id": "d9399796054d4a12923700dd9631c4fe",
+      "name": "cline · cline-free/muse-spark-1.3-contributor · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "cline --provider cline --model cline-free/muse-spark-1.3-contributor",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "38b572e2f98f450eb9742f56a6611166",
+      "name": "cline · cline-free/mimo-v2.6-flash · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "cline --provider cline --model cline-free/mimo-v2.6-flash",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "9c8ead27df1f40389b577199cf788c4d",
+      "name": "cline · cline-free/nemotron-3.5-super-vl:free · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "cline --provider cline --model cline-free/nemotron-3.5-super-vl",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "180658474b4840009a5301729d8ebb11",
+      "name": "cline · cline-free/solar-mini4 · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "cline --provider cline --model cline-free/solar-mini4",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "0be0d82b915b40ebb3e7456ff1ec95dc",
+      "name": "pi · free · TiwasProjectsv3",
+      "group": "TiwasProjectsv3",
+      "prefix": "pi --provider openrouter --model free -p",
+      "prompt": "You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\TiwasProjectsv3"
+    },
+    {
+      "id": "c23cf245ab77439f93424a4ae9d9987b",
+      "name": "pi · zai/glm-4.5-flash · TiwasProjectsv3",
+      "group": "TiwasProjectsv3",
+      "prefix": "pi --provider zai --model glm-4.5-flash -p",
+      "prompt": "You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\TiwasProjectsv3"
+    },
+    {
+      "id": "dc192cfcab294e8eb5d6b3cc17bf6e96",
+      "name": "pi · claude-3-opus-20240229 · TiwasProjectsv3",
+      "group": "TiwasProjectsv3",
+      "prefix": "pi --provider omniroute --model claude-3-opus-20240229 -p",
+      "prompt": "You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\TiwasProjectsv3"
+    },
+    {
+      "id": "f7ee64e9a68b4b8c80990faa4a0a504e",
+      "name": "pi · poor-claude · TiwasProjectsv3",
+      "group": "TiwasProjectsv3",
+      "prefix": "pi --provider omniroute --model poor-claude -p",
+      "prompt": "You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\TiwasProjectsv3"
+    },
+    {
+      "id": "e1ccc6dc7f4f4f51ae697ac4a5239c08",
+      "name": "pi · poor-codex · TiwasProjectsv3",
+      "group": "TiwasProjectsv3",
+      "prefix": "pi --provider omniroute --model poor-codex -p",
+      "prompt": "You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\TiwasProjectsv3"
+    },
+    {
+      "id": "1a62cf7bd6c64afc8419c670f903e7b1",
+      "name": "pi · nvidia/nemotron-3-ultra-550b-a55b · TiwasProjectsv3",
+      "group": "TiwasProjectsv3",
+      "prefix": "pi --provider nvidia --model nvidia/nemotron-3-ultra-550b-a55b nvidia -p",
+      "prompt": "You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\TiwasProjectsv3"
+    },
+    {
+      "id": "1743399483024fa387be875234c544b6",
+      "name": "pi · poolside/laguna-s-2.1:free · TiwasProjectsv3",
+      "group": "TiwasProjectsv3",
+      "prefix": "pi --provider openrouter --model poolside/laguna-s-2.1:free -p",
+      "prompt": "You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\TiwasProjectsv3"
+    },
+    {
+      "id": "aa15d8e8070948cbb9e2965829a35903",
+      "name": "pi · laguna-s-2.1 · TiwasProjectsv3",
+      "group": "TiwasProjectsv3",
+      "prefix": "pi --provider poolside-api --model laguna-s-2.1 -p",
+      "prompt": "You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\TiwasProjectsv3"
+    },
+    {
+      "id": "7ee7989642254d14bfd802d85549ab0a",
+      "name": "pi · poor-pi · TiwasProjectsv3",
+      "group": "TiwasProjectsv3",
+      "prefix": "pi --provider omniroute --model poor-pi -p",
+      "prompt": "You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\TiwasProjectsv3"
+    },
+    {
+      "id": "841c6db3fb0043e184c14acff396d5b1",
+      "name": "pi · tencent/hy4-preview-free · TiwasProjectsv3",
+      "group": "TiwasProjectsv3",
+      "prefix": "pi --provider orcarouter --model tencent/hy4-preview-free -p",
+      "prompt": "You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\TiwasProjectsv3"
+    },
+    {
+      "id": "e4e0e96a4c0f4a798cef0702079aee06",
+      "name": "pi · tencent/hy3-free · TiwasProjectsv3",
+      "group": "TiwasProjectsv3",
+      "prefix": "pi --provider orcarouter --model tencent/hy3-free -p",
+      "prompt": "You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\TiwasProjectsv3"
+    },
+    {
+      "id": "f2506911d3a04d52883d3783d4ec5d58",
+      "name": "pi · deepseek/deepseek-v4-flash-free · TiwasProjectsv3",
+      "group": "TiwasProjectsv3",
+      "prefix": "pi --provider orcarouter --model deepseek/deepseek-v4-flash-free -p",
+      "prompt": "You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\TiwasProjectsv3"
+    },
+    {
+      "id": "11507bddd0aa4204a29c7e9bd2adc29b",
+      "name": "pi · z-ai/glm-5.3-flash-free · TiwasProjectsv3",
+      "group": "TiwasProjectsv3",
+      "prefix": "pi --provider orcarouter --model z-ai/glm-5.3-flash-free -p",
+      "prompt": "You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\TiwasProjectsv3"
+    },
+    {
+      "id": "20df14d75c0b4732ad298c52d46df720",
+      "name": "pi · free · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "pi --provider openrouter --model free -p",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "c40d6694336742a281d765f54f5cb518",
+      "name": "pi · zai/glm-4.5-flash · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "pi --provider zai --model glm-4.5-flash -p",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "d91dfde34bc241a782d4ec6dfa461e28",
+      "name": "pi · zai/glm-4.7-flash · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "pi --provider zai --model glm-4.7-flash -p",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "d7acf3aaa5434afc986f2c4c81091f10",
+      "name": "pi · laguna-s-2.1 · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "pi --provider poolside-api --model laguna-s-2.1 -p",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "56ebdd37af474cda811ae5762b234bab",
+      "name": "pi · claude-3-opus-20240229 · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "pi --provider omniroute --model claude-3-opus-20240229 -p",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "c35182939eb84e2598fcd1606e7da616",
+      "name": "pi · nvidia/nemotron-3-ultra-550b-a55b · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "pi --provider nvidia --model nvidia/nemotron-3-ultra-550b-a55b nvidia -p",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "45d75fac0a1e436e9af292dfff8a950d",
+      "name": "pi · poolside/laguna-s-2.1:free · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "pi --provider openrouter --model poolside/laguna-s-2.1:free -p",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "755706d8c7ca4a87b3875819a77a39e1",
+      "name": "pi · poor-codex · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "pi --provider omniroute --model poor-codex -p",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "681c20a528cb4156a2cc371fb7daea2c",
+      "name": "pi · poor-pi · Babylon5CCGGameDesign (copy)",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "pi --provider omniroute --model poor-pi -p",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "5d99e30f1313441480c2ac3acc775b49",
+      "name": "pi · tencent/hy4-preview-free · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "pi --provider orcarouter --model tencent/hy4-preview-free -p",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "e8feda89d7684925a2280fbf1a2e5a21",
+      "name": "pi · tencent/hy3-free · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "pi --provider orcarouter --model tencent/hy3-free -p",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "bff6fb68c59b437e8a331964af69dcdd",
+      "name": "pi · deepseek/deepseek-v4-flash-free · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "pi --provider orcarouter --model deepseek/deepseek-v4-flash-free -p",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    },
+    {
+      "id": "cbb1c0493b80431490967b737af78e2b",
+      "name": "pi · z-ai/glm-5.3-flash-free · Babylon5CCGGameDesign",
+      "group": "Babylon5CCGGameDesign",
+      "prefix": "pi --provider orcarouter --model z-ai/glm-5.3-flash-free -p",
+      "prompt": "You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.",
+      "suffix": "",
+      "cwd": "C:\\temp\\projects\\Babylon5CCGGameDesign"
+    }
+  ]
+}
