@@ -20,17 +20,25 @@ from typing import Iterable
 from pmk.plat import read_text
 
 #: Model strings that look like aliases rather than concrete models.  A
-#: profile built from one is marked ``family = "unknown"`` (fleet Â§12.A).
+#: profile built from one is marked ``family = "unknown"`` (fleet §12.A).
 #:
 #: The test is deliberately narrow: ``--model free`` is a router alias, but
 #: ``deepseek-v4-flash-free`` is a concrete model in a known family.  Only
-#: the whole string being an alias, or the OpenRouter ``:free`` suffix,
-#: counts.
+#: the whole string being an alias counts.
+#:
+#: ``:free`` as a *suffix* is only an alias when the string is OpenRouter's.
+#: Measured on the operator's machine: Kilo and Nous both use the identical
+#: ``:free`` suffix for concrete free-tier models
+#: (``kilo/poolside/laguna-s-2.1:free``, ``upstage/solar-mini4:free``), and
+#: reading those as aliases marked every free model ``unknown`` and so
+#: unusable as a verifier (D-L12).  OpenRouter's own free aliases take the
+#: forms ``openrouter/free`` and ``poor-*``, both caught above, so narrowing
+#: this costs nothing on that provider and recovers the vendor for the rest.
 ALIAS_PATTERNS = (
     re.compile(r"^free$", re.IGNORECASE),
     re.compile(r"^poor-", re.IGNORECASE),
     re.compile(r"^poorer?$", re.IGNORECASE),
-    re.compile(r":free$", re.IGNORECASE),
+    re.compile(r"^openrouter/.*:free$", re.IGNORECASE),
     re.compile(r"^auto$", re.IGNORECASE),
 )
 

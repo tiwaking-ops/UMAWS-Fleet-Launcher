@@ -590,6 +590,30 @@ def test_guess_family():
     assert guess_family("") == "unknown"
 
 
+def test_guess_family_free_suffix_is_only_an_alias_for_openrouter():
+    """``:free`` is a Kilo/Nous pricing tier, not an alias (D-43).
+
+    Kilo and Nous both use ``:free`` for concrete free-tier models, so reading
+    the suffix as an alias marked every free model ``unknown`` and left them
+    unusable as a verifier (D-L12).  OpenRouter's own free aliases take the
+    forms ``openrouter/free`` and ``poor-*``, both already caught, so narrowing
+    this costs nothing on that provider.
+    """
+    # A concrete free-tier model keeps its vendor, and can therefore verify.
+    assert guess_family("kilo/poolside/laguna-s-2.1:free") == "poolside"
+    assert guess_family("kilo/nvidia/nemotron-3.5-super-vl:free") == "nvidia"
+    assert guess_family("upstage/solar-mini4:free") == "unknown"
+
+    # OpenRouter's ``:free`` is still treated as the alias it is there.
+    assert guess_family("openrouter/anthropic/claude-opus:free") == "unknown"
+    assert guess_family("openrouter/free") == "unknown"
+
+    # And the alias forms that never used a colon are untouched.
+    assert guess_family("poor-claude") == "unknown"
+    assert guess_family("poorer") == "unknown"
+    assert guess_family("auto") == "unknown"
+
+
 # ---------------------------------------------------------------------------
 # The dispatcher
 # ---------------------------------------------------------------------------
