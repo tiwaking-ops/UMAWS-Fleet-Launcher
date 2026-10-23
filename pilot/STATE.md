@@ -141,6 +141,9 @@
   **D-43** OpenRouter is account-limited and Kilo Gateway model-limited,
   so `kilo-auto` defaults to `kilo/kilo-auto/free` with the free models as
   its L1 swap targets.
+- **Session report (2026-10-23)**: `pilot/report-opencode-2026-10-23.md` — the recovery ladder with
+  real CLIs, QuotaGate M1, provider and model limits, and
+  provenance.  Advisory record; decisions D-39 … D-44.
 - **Last green test run**: `pytest -q` → see the commit; `pmk sentinel`
   clean and `pmk context drift` clean on 2026-10-23.
 
