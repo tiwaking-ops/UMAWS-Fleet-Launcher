@@ -84,10 +84,12 @@
      now measured (D-38, D-42): usage is capturable, quota headers do
      **not** exist, and the two upstreams disagree about `/v1`.  So M1 needs a
      timeout policy and locally declared limits.
-  3. **Decide the `:free` family question** (D-43).  `ALIAS_PATTERNS` makes
-     every Kilo free model family `unknown`, so none can serve as an
-     independent verifier (D-L12).  Safe, lossy, and a change to a
-     verifier-independence rule — the operator's call.
+  3. **Declare a family for a verifier profile** (D-43/D-44).  Provenance
+     is now live (`MODEL_SERVED` at submit, compared by `select.py`),
+     but it can only *narrow* eligibility: every `agents.toml` profile
+     still declares `family = "unknown"`, so D-L12's unknown-family
+     veto is what actually gates verification.  Naming one is the
+     operator's call, not the implementer's.
   4. **Verify the five cline models** — offered, not working (D-35).  Costs
      live provider calls, so it is its own authorisation.
   5. Run **S-W1** and test **F7** (100 fake workers) to replace the

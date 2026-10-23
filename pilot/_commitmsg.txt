@@ -1,0 +1,35 @@
+feat(fleet,quotagate): provenance - which model actually served
+
+D-L12 stopped a verifier being the implementer's DECLARED FAMILY, which is a
+guess about a string.  It fails both ways: an opaque router can be the same
+model as the verifier while declaring a different family, and two genuinely
+different models in one family are rejected needlessly.
+
+Provenance answers with a fact.  The gateway is the one component in the
+request path, and the upstream's own answer names the model that served -
+measured live against hermes' subscription proxy, where a real call returns a
+body naming upstage/solar-mini4:free, and x-omniroute-decision names the
+provider where the body names a router alias.
+
+  src/quotagate/provenance.py   capture, parse, ledger
+  GET /v1/quotagate/provenance  ?task= or ?deployment=&start=&end=
+  src/fleet/provenance.py       the Fleet's reader, plus a worktree cache
+  harness.py                    MODEL_SERVED recorded at submit
+  select.py                     served models compared BEFORE families
+
+The query is by window+deployment, not task header, because the Fleet spawns
+a CLI PROCESS and cannot put a header on requests the CLI makes.  A lease is
+exclusive to one worktree and a profile is capped by max_concurrent, so the
+calls a deployment made inside the window were that lease's.  The task header
+is still honoured where a client can send it.
+
+Empty is a real answer, not a failure: a direct-CLI profile never reaches the
+gateway (L-F2), so the fabricate-a-name temptation is refused and D-L12's
+unknown-family veto stays in force.  A test pins exactly that.
+
+Stated plainly in the decision: provenance can only NARROW eligibility today,
+never widen it, because every agents.toml profile still declares family
+unknown.  Both rules now apply - family is about the lab, provenance about the
+model - so widening needs a declared family, which is the operator's call.
+
+14 new tests.  Suite green; sentinel, pins and drift clean.

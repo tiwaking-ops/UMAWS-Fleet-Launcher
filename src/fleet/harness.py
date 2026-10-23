@@ -45,6 +45,7 @@ from . import classify as classes
 from . import order as order_mod
 from . import recover
 from . import spawn as spawn_mod
+from . import provenance as provenance_mod
 from .profiles import Profile
 from .state import FleetState
 
@@ -335,6 +336,12 @@ class Harness:
         if failure_class != classes.OK:
             return self._recover(run, result, failure_class, log_tail)
 
+        # -- provenance: which model actually served ----------------------
+        # Recorded at submit, before the answer, so the fact outlives the
+        # gateway and the run.  Empty is a real answer for a direct-CLI
+        # profile, and it leaves D-L12's veto in force rather than guessing.
+        served = self._record_provenance(run)
+
         # -- the oracles decide -------------------------------------------
         oracle_results = run_oracles(run.task, run.worktree)
         result.oracles = [o.to_obj() for o in oracle_results]
@@ -466,6 +473,46 @@ class Harness:
         return new_slot
 
     # ------------------------------------------------------------------
+    def _record_provenance(self, run: LeaseRun) -> set[str]:
+        """Ask the gateway which model served this lease's calls.
+
+        Only gateway-routed profiles can answer.  A direct-CLI profile never
+        sends a request through the gateway, so the Kernel cannot know what
+        served (``L-F2``) and the honest answer is an empty set - which keeps
+        D-L12's unknown-family veto in force instead of inventing a model name
+        from the profile's declared ``model``.
+
+        The query is by window, not by task id: the Fleet spawns a CLI
+        *process* and so cannot put a header on the CLI's requests.  A lease is
+        exclusive to one worktree and a profile is capped by ``max_concurrent``,
+        so the calls a deployment made inside the window were this lease's.
+        """
+        models: set[str] = set()
+        if not run.profile.via_gateway:
+            deployment = ""
+        else:
+            gateway = (self.policy.get("gateway") or {}).get("base_url", "")
+            deployment = run.profile.model or run.profile.id
+            end = time.time()
+            start = run.started_at or end
+            if gateway:
+                models = provenance_mod.served_models_for_run(
+                    gateway, deployment, start=start, end=end)
+
+        try:
+            provenance_mod.write_cache(run.worktree, deployment, models)
+        except OSError:
+            pass                         # a cache that cannot be written is not worth failing a run
+
+        self.kernel.record_event(
+            "MODEL_SERVED", subject=run.task.id, fence=run.lease.fence,
+            payload={"deployment": deployment,
+                     "served_models": sorted(models),
+                     "profile": run.profile.id,
+                     "via_gateway": run.profile.via_gateway,
+                     "source": "gateway-window" if models else "none"})
+        return models
+
     def _recover(self, run: LeaseRun, result: LeaseResult,
                  failure_class: str, log_tail: str) -> LeaseResult:
         """Apply the recovery ladder."""

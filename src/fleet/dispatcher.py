@@ -204,10 +204,12 @@ class Dispatcher:
 
             excluded = self.failed_profiles.get(task.id, set())
             implementer_family = self._implementer_family(task, state)
+            implementer_served = self._implementer_served(task, state)
             selection = select_mod.select_profile(
                 task, profiles, self.fleet_state, running_counts,
                 fleet_cap=cap, total_running=len(self.runs),
-                implementer_family=implementer_family)
+                implementer_family=implementer_family,
+                implementer_served=implementer_served)
 
             # Exclude profiles that already failed this task.
             for candidate in selection.candidates:
@@ -253,6 +255,24 @@ class Dispatcher:
                 if profile.id == lease.holder:
                     return profile.family
         return ""
+
+    def _implementer_served(self, task, state) -> set[str]:
+        """The models that *actually* served the task being verified.
+
+        Read back from the ``MODEL_SERVED`` events the harness records at
+        submit.  This is a fact about the requests rather than a guess about a
+        model string, so it outranks ``_implementer_family``; an empty set
+        means the gateway could not say — a direct-CLI profile never reaches
+        it — and leaves the family rule in charge.
+        """
+        served: set[str] = set()
+        for event in reversed(self.kernel.events()):
+            if event.type != "MODEL_SERVED" or event.subject != task.id:
+                continue
+            payload = event.payload or {}
+            served.update(str(m) for m in (payload.get("served_models") or [])
+                          if m)
+        return served
 
     # ------------------------------------------------------------------
     # Recovery
@@ -327,7 +347,8 @@ class Dispatcher:
         selection = select_mod.select_profile(
             task, profiles, self.fleet_state, running_counts,
             fleet_cap=self.max_total_agents(), total_running=len(self.runs),
-            implementer_family=self._implementer_family(task, state))
+            implementer_family=self._implementer_family(task, state),
+            implementer_served=self._implementer_served(task, state))
         for candidate in selection.candidates:
             if candidate.profile.id in excluded:
                 continue

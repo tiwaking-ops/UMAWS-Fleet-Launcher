@@ -566,6 +566,10 @@ D-43 | 2026-10-23 | operator (observed behaviour) + OpenCode | **The two provide
 
 ---
 
+D-44 | 2026-10-23 | operator (approved) + OpenCode | **Provenance first: APPROVED and built.**  D-L12 stopped a verifier being the implementer's *declared family*, which is a guess about a string and fails both ways - an opaque router (`kilo/kilo-auto/free`) can be the same model as the verifier while declaring a different family, and two genuinely different models in one family are rejected needlessly.  Provenance answers with a fact: the gateway is the one component in the request path, and the upstream's own answer names the model that served.  Measured live against hermes' subscription proxy: a real call returns `"model": "upstage/solar-mini4:free"`, and `x-omniroute-decision: ... provider=cohere` names the provider where the body names a router alias.  Implemented as `src/quotagate/provenance.py` (capture + ledger, keyed by task header **or** window+deployment, because the Fleet spawns a CLI *process* and so cannot put a header on the CLI's requests), `GET /v1/quotagate/provenance`, `MODEL_SERVED` recorded at submit, and `select.py` now compares served models before families. | Fabricating a model name from the profile's declared `model` when the gateway could not say.  A direct-CLI profile never reaches the gateway (`L-F2`), so the honest answer is an empty set, which leaves D-L12's existing veto in force.  That is what the code does, and a test pins it. | **Provenance can only narrow eligibility today, never widen it** - and this needs saying plainly.  Both rules now apply, because they are different axes: family is about the *lab* (shared blind spots), provenance about the *model* (same model checking its own work).  Every `agents.toml` profile still declares `family = "unknown"`, so nothing is eligible to verify regardless of what the gateway reports.  Widening that needs a declared family, which is the pending D-43 decision and the operator's call.
+
+---
+
 ## Pending
 
 - **G3's OpenCode half.**  Parked at the operator's instruction (D-37): the

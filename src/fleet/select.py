@@ -63,15 +63,45 @@ class Selection:
         }
 
 
+def could_serve(profile: Profile, served: set[str]) -> bool:
+    """Could this profile be *one of* the models that served?
+
+    ``True`` means "not ruled out", which is deliberately the conservative
+    reading.  An opaque router (``kilo-auto``) can route to anything, so it is
+    never ruled out even when it does not literally list the model - that is
+    the whole reason the string comparison was not enough.
+    """
+    if not served:
+        return False
+    # Anything the profile declares or may swap to.
+    declared = set(profile.models) | {profile.model}
+    declared.discard("")
+    if declared & served:
+        return True
+    # An alias cannot be ruled out: we do not know what it would pick.
+    for candidate in declared:
+        if "/" in candidate and candidate.rsplit("/", 1)[-1].split(":")[0] in (
+                "free", "auto", "best-coding", "best-reasoning", "chat",
+                "fast", "cheap", "offline", "smart", "chaos"):
+            return True
+    return False
+
+
 def select_profile(task, profiles: list[Profile], fleet_state: FleetState,
                    running_counts: dict[str, int], *,
                    fleet_cap: int = 20, total_running: int = 0,
                    implementer_family: str = "",
+                   implementer_served: set[str] | None = None,
                    now: float | None = None) -> Selection:
     """Choose a profile for *task*.
 
     *task* needs ``id``, ``type`` and ``agent_hint``.  *running_counts*
     maps a profile id to the number of slots it currently holds.
+
+    *implementer_served* is the set of models that actually served the work
+    being verified, as recorded by the gateway (``MODEL_SERVED``).  When it is
+    known it beats the family guess, because a declared family is a claim
+    about a string while this is a fact about the request.
     """
     now = time.time() if now is None else now
     is_verification = task.type in ("verify", "review")
@@ -99,6 +129,14 @@ def select_profile(task, profiles: list[Profile], fleet_state: FleetState,
         elif not profile.eligible_for(task.type):
             candidate.eligible = False
             candidate.reason = f"not eligible for type {task.type!r}"
+        elif (is_verification and implementer_served
+                and could_serve(profile, implementer_served)):
+            # Provenance, which outranks a declared family: this profile
+            # could be a model that already served the work under review.
+            candidate.eligible = False
+            candidate.reason = ("provenance: could be one of "
+                                f"{sorted(implementer_served)}, which "
+                                "implemented this task")
         elif is_verification and (profile.family == "unknown"
                                   or profile.family == implementer_family):
             # D-L12: an unverifiable family can never be an independent

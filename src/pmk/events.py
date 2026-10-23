@@ -56,6 +56,10 @@ KNOWN_EVENT_TYPES = frozenset({
     "PROFILE_COOLING", "PROFILE_RECOVERED", "PROFILE_DISABLED", "PROFILE_ENABLED",
     "DISPATCH_PAUSED", "DISPATCH_RESUMED",
     "OVERSEER_WOKEN", "MANUAL_LAUNCH", "RECONCILED",
+    # Provenance: which model actually served a lease (D-43).  A fact about
+    # the request, not a guess about the model string, so it can outrank a
+    # declared family when D-L12 decides who may verify.
+    "MODEL_SERVED",
 })
 
 

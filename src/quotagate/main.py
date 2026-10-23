@@ -34,6 +34,8 @@ from pmk.clock import Clock
 from quotagate.config import GatewayConfig
 from quotagate.engine import Ledger, QuotaEngine, QuotaExceeded
 from quotagate.latency import LatencyLedger
+from quotagate.provenance import (TASK_HEADER, ProvenanceLedger,
+                                  served_from_response)
 
 # ---------------------------------------------------------------------------
 # Global state
@@ -42,9 +44,17 @@ from quotagate.latency import LatencyLedger
 _config: GatewayConfig | None = None
 _engine: QuotaEngine | None = None
 _latency: LatencyLedger | None = None
+_provenance: ProvenanceLedger | None = None
 _upstream_url = os.environ.get("QUOTAGATE_UPSTREAM",
                                "http://127.0.0.1:20128")
 _timeout_s = 60.0
+
+
+def get_provenance() -> ProvenanceLedger:
+    global _provenance
+    if _provenance is None:
+        _provenance = ProvenanceLedger()
+    return _provenance
 
 
 def get_config() -> GatewayConfig:
@@ -215,7 +225,24 @@ async def _chat_completions(request):
     engine.commit(reservation,
                   tokens=int(usage.get("total_tokens", 0) or 0))
 
-    # 4. Answer, carrying the upstream's headers so x-omniroute-decision
+    # 4. Provenance.  The upstream's answer names the model that served, which
+    #    is the fact D-L12 needs and the only thing that can distinguish
+    #    "a different declared family" from "the same model".  Recorded before
+    #    answering, so a client that dies mid-flight still leaves the record.
+    task_key = request.headers.get(TASK_HEADER, "")
+    if task_key and data is not None:
+        served = served_from_response(data, dict(upstream.headers))
+        if served.get("model"):
+            get_provenance().record(
+                task_key, str(request.headers.get("x-quotagate-profile",
+                                                  "unknown")),
+                deployment_id, served["model"],
+                served_provider=served.get("provider", ""),
+                decision=served.get("decision", ""),
+                request_id=str(upstream.headers.get("x-request-id", "")),
+                latency_ms=elapsed_ms)
+
+    # 5. Answer, carrying the upstream's headers so x-omniroute-decision
     #    (which tells us who really served the call) reaches the caller.
     headers = {k: v for k, v in upstream.headers.items()
                if k.lower() not in ("transfer-encoding", "content-length")}
@@ -223,6 +250,43 @@ async def _chat_completions(request):
     return Response(upstream.text, status_code=upstream.status_code,
                     headers=headers,
                     media_type=upstream.headers.get("Content-Type"))
+
+
+async def _provenance(request):
+    """GET /v1/quotagate/provenance - which models actually served.
+
+    Two shapes, because the two callers have different knowledge:
+
+    * ``?task=T-0002``       - a client that could correlate (the header path).
+    * ``?deployment=X&start=S&end=E`` - the Fleet, which spawns a CLI **process**
+      and so cannot put a header on the requests the CLI makes.  A lease is
+      exclusive to one worktree and a profile is capped by ``max_concurrent``,
+      so a window on a deployment is attributable.
+    """
+    task = request.query_params.get("task", "")
+    deployment = request.query_params.get("deployment", "")
+    try:
+        start = float(request.query_params.get("start", "0") or 0)
+        end = float(request.query_params.get("end", "0") or 0)
+    except ValueError:
+        return _error("start and end must be numbers", 400)
+
+    if task:
+        rows = get_provenance().for_task(task)
+    elif deployment and end > start:
+        rows = get_provenance().for_window(deployment, start, end)
+    else:
+        return _error("give ?task=T-0002, or ?deployment=X&start=S&end=E", 400)
+
+    served = sorted({r["served_model"] for r in rows if r["served_model"]})
+    return JSONResponse({
+        "task": task or None,
+        "deployment": deployment or None,
+        "window": [start, end] if deployment else None,
+        "served_models": served,
+        "unknown": not served,
+        "calls": rows,
+    })
 
 
 async def _availability(request):
@@ -248,6 +312,7 @@ routes = [
           methods=["GET", "POST"]),
     Route("/v1/models", _models, methods=["GET", "POST"]),
     Route("/v1/quotagate/availability", _availability, methods=["GET"]),
+    Route("/v1/quotagate/provenance", _provenance, methods=["GET"]),
     Route("/v1/quotagate/health", _health, methods=["GET"]),
 ]
 
