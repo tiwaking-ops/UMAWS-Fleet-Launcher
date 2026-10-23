@@ -26,6 +26,7 @@ from typing import Any, Iterable, Sequence
 
 from . import plat
 from . import policy as policy_mod
+from .policy import PolicyError
 from .bundle import Bundle, CommandResult, OracleResult
 from .clock import Clock, parse_iso, to_iso
 from .events import Actor, Event, EventLog
@@ -90,7 +91,19 @@ class Kernel:
         return rebuild(self.events())
 
     def policy(self) -> dict:
-        return policy_mod.load_policy(self.repo)
+        """Load the policy, refusing loudly if it cannot be read.
+
+        ``.pm/policy.toml`` that exists but does not parse is a stop-the-
+        line condition, not a fallback-to-defaults: the gate and every
+        lane's permission come from this file, so a typo'd policy must
+        never silently become the defaults (defect recorded at F7,
+        fixed 2026-10-24).  The CLI renders this as
+        ``{"error": "policy_invalid", ...}`` on stderr with exit 2.
+        """
+        try:
+            return policy_mod.load_policy(self.repo)
+        except PolicyError as exc:
+            raise KernelError("policy_invalid", detail=str(exc)) from exc
 
     def policy_hash(self) -> str:
         return policy_mod.policy_hash(self.policy())

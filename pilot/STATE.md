@@ -1,6 +1,8 @@
 # Pilot P-01 state (update at every checkpoint)
 
-- **Updated**: 2026-10-23 by OpenCode (implementing agent, Phase 1)
+- **Updated**: 2026-10-24 by OpenCode (implementing agent, Phase 1) — the
+  two latent defects fixed (D-51); the operator raised `max_total_agents`
+  to 100 (D-50, their edit).
 - **Phase**: 1 — bootstrap. **Day**: 2. **Tier reached**: A (+ a working
   Fleet). **Projected**: see "Cuts".
 - **Gate posture** (the operator's rule, D-25, **amended in force as v2**,
@@ -69,7 +71,8 @@
     gate green.  Evidence in `pilot/spikes/g3/`.
   - **M1's upstream measured** (D-38): usage capturable, **no** quota headers,
     and no `/v1` on the upstream.  Record in `pilot/spikes/m1-upstream.md`.
-  - **209 tests passing.** `pmk sentinel` clean on the live repository.
+  - **234 tests passing** (2026-10-24; 227 before, +7 regression tests for
+    the D-51 defect fixes). `pmk sentinel` clean on the live repository.
   - `pilot/demo_one_click.py` runs the full lifecycle green: brief → PDD →
     tasks → claim → worktree → order → spawn → harness-run oracles →
     evidence bundle → merge queue → close-check → **DONE**.
@@ -95,14 +98,19 @@
      live provider calls, so it is its own authorisation.
   5. ~~Run **S-W1** and test **F7**~~ **DONE (D-48)**: F7 passes 100/100 at
      peak 100 concurrent slots (105 s, RAM 7 491 MB min); S-W1 measured.
-     `max_total_agents` may be raised 20 -> 100 — the operator's edit
-     (fleet-launcher G-F5).
+           `max_total_agents` raised 20 -> 100 **by the operator's edit**
+      (2026-10-23 23:55, D-50; G-F5 satisfied).  The two latent defects
+      **FIXED 2026-10-24 (D-51)**: invalid `policy.toml` stops the line
+      (`KernelError("policy_invalid")`), and re-integration of an
+      already-committed lease runs the gate; 7 regression tests,
+      234 passing, sentinel clean.
  - **Blocked / awaiting human**:
   1. **pi live-unrun** — G5 never needed it (hermes+kilo filled all
      six slots); its first live dispatch is still unexercised.
   2. **Verifying the five cline models** — needs an authorisation for live
      calls; the operator reports their rate limit resets 2026-10-24.
-  3. **G4/G5** — G4 **crossed** 2026-10-23 (D-47, Q-004); G5 in progress.
+  3. ~~**G4/G5**~~ — both **crossed** 2026-10-23 (G4: D-47, Q-004, left on;
+      G5: D-49, passed twice).
 - **Open [VERIFY] items**:
   - `V-01` **mostly closed**: headless, resume and (for pi) model-switch
     are measured.  **Still open**: hermes, kilo and pi have no captured
@@ -125,12 +133,12 @@
     still reports a profile as `ready` without testing its model, so the
     first dispatch is where MODEL_GONE gets discovered.
   - `V-03` QuotaGate provider limits, 429 body shapes, quota headers.
-  - `V-04` `max_total_agents` — **answerable (D-48)**: S-W1 and
-    F7 both pass at 100 slots on this machine; raising 20 -> 100 is
-    permitted by fleet-launcher G-F5 and is the operator's edit.
+  - `V-04` `max_total_agents` — **closed (D-48/D-50)**: S-W1 and
+    F7 both pass at 100 slots on this machine; the operator raised
+    20 -> 100 in `agents.toml` themselves (2026-10-23 23:55).
   - `V-05` the Overseer's ordered profile list (G-F13).
   - `V-06` OpenCode headless (S-O1) — partly measured.
-- **Decisions since last update**: `pilot/decisions.md` D-01 … D-43.
+- **Decisions since last update**: `pilot/decisions.md` D-01 … D-51.
   **D-29** is the D-19/D-20 ratification, recorded as class K queue items
   Q-001 and Q-002 in the event log. **D-32/D-33** are the queue-id collision
   and the projection that let a duplicate overwrite a decision; **D-34** is

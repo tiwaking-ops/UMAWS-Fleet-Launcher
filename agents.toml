@@ -17,7 +17,7 @@
 # Nothing here is guessed.
 
 [fleet]
-max_total_agents   = 20      # [GUESS] set from spike S-W1; operator ceiling 100
+max_total_agents   = 100      # [GUESS] set from spike S-W1; operator ceiling 100 Fri Oct 23 23:55:33 NZDT 2026 changed from 20 to 100 by Human Tiwa
 dispatch_tick_s    = 5       # [GUESS]
 stall_minutes      = 15      # [GUESS]
 fix_rounds         = 2       # [GUESS]

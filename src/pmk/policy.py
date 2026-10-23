@@ -57,20 +57,43 @@ DEFAULT_POLICY: dict = {
 }
 
 
+class PolicyError(RuntimeError):
+    """``.pm/policy.toml`` exists but cannot be read or parsed.
+
+    Policy decides *what the gate is* and what every lane may do, so a
+    file the Kernel cannot read must stop the line: quietly substituting
+    the defaults would run an enforcement regime the operator never
+    approved -- the recorded defect ("invalid policy.toml falls back to
+    defaults silently", surfaced by the F7 drill; a typo'd policy
+    silently changed the merge gate to ``pytest -q``).  Fixed 2026-10-24:
+    present-but-unreadable now raises; the file *absent* still loads the
+    defaults, as first-boot behaviour.  The Kernel wraps this in
+    ``KernelError("policy_invalid")`` so every surface -- CLI, brief,
+    sentinel, any event append -- refuses loudly.
+    """
+
+
 def load_policy(repo) -> dict:
     """Load ``.pm/policy.toml``, falling back to the defaults.
 
     Read with ``utf-8-sig``: the operator edits files with Windows
     PowerShell, whose ``Set-Content -Encoding utf8`` writes a BOM, and
     ``tomllib`` rejects one.
+
+    The fallback applies **only** while the file is absent (first boot).
+    A file that exists but cannot be read or parsed raises
+    :class:`PolicyError` -- a policy the Kernel cannot read must never
+    be silently replaced by a different one.
     """
     path = Path(repo.policy_path)
     if not path.is_file():
         return json.loads(json.dumps(DEFAULT_POLICY))
     try:
         data = tomllib.loads(read_text(path))
-    except (OSError, tomllib.TOMLDecodeError):
-        return json.loads(json.dumps(DEFAULT_POLICY))
+    except tomllib.TOMLDecodeError as exc:
+        raise PolicyError(f"{path}: invalid TOML: {exc}") from exc
+    except OSError as exc:
+        raise PolicyError(f"{path}: unreadable: {exc}") from exc
     merged = json.loads(json.dumps(DEFAULT_POLICY))
     merged.update(data)
     return merged

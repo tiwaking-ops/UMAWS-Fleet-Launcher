@@ -590,13 +590,26 @@ D-49 | 2026-10-23 | operator (authorised "Execute G5") + OpenCode (measured, liv
 
 ---
 
+D-50 | 2026-10-24 | operator (edited `agents.toml` themselves, 2026-10-23 23:55; provenance comment in the file) + OpenCode (recorded) | **`max_total_agents` is raised 20 -> 100, by the operator's own edit.**  `agents.toml` line 20 now reads `max_total_agents = 100` with the human's in-file provenance comment; the edit carries D-P3 (human-edited file) and is not class K (D-28).  It is the change D-48 said was permitted (fleet-launcher G-F5, "raised only after F7 passes" — F7 passed), delivered by the hand the measurement belonged to. | The fleet's *mechanism* is now at 100 slots, but real-agent concurrency stays bound by the free-tier limits and by the guards (RAM floor 2 048 MB in `.pm/policy.toml` and `agents.toml`); the 100-slot number was measured on the fake CLI.  No test, pin or sentinel state changed with the edit. | Dispatcher, harness and merge queue are untouched by the edit — no code change was needed to realise it.
+
+---
+
+D-51 | 2026-10-24 | operator (put the two fixes in scope: "fix the following") + OpenCode (authored the fixes, tests written and run) | **Both latent defects are FIXED, with regression tests pinning each.**  (a) **Invalid policy no longer silently becomes the defaults** (`src/pmk/policy.py`): a `policy.toml` that exists but cannot be read or parsed raises `PolicyError`, surfaced through `Kernel.policy()` as `KernelError("policy_invalid")` — so the CLI, the brief, the sentinel and every event append (each is stamped with the policy hash) refuse loudly; `pmk init` under a broken policy exits 2 with a machine-readable JSON error naming the file and the TOML line (live-verified in a throwaway root).  The file-*absent* first-boot default is retained and pinned by test.  (b) **Re-integration runs the gate** (`src/fleet/merge.py`): the "the worker changed nothing" early return that reported `ok` for an already-committed lease without running the gate is gone; every path now merges the lease branch (a structural no-op when it is already in main, detected by HEAD not moving — locale-proof) and runs the gate on the tree that would become canonical, so I5's promise ("nothing is promoted without a passing gate") holds on re-runs too; the already-merged case no longer misattributes the previous merge's files, and the `ORACLE_RESULT` record now carries `reintegration: true` when a promotion passes with no fresh work. | Two adjacent surfaces were deliberately **not** changed and are recorded rather than glossed: `load_agents` keeps its documented empty-profile fallback (a stated fleet posture, "must not take the Kernel down", not an accident — if the operator wants a warning event there, that is their call); and the *first-boot* default policy stays.  Gate green paths incl. `gate_cmd=""` behave as before. | **7 new regression tests** (`tests/pmk/test_policy_invalid.py` ×4, `tests/fleet/test_reintegration_gate.py` ×3): 234 pass, 0 fail; sentinel clean (I1–I16, incl. I5); pins green (source is not pinned; `.pm/` untouched — `mode = "auto"` stands from D-47).  Committed and tagged `bootstrap/18`.
+
+---
+
 ## Pending
 
 - ~~**G5's live run**~~ — **CROSSED (D-49)**: two live runs, six
   concurrent real workers, 6/6 DONE, zero failures, close-check green.
   pi never worked (hermes+kilo filled the slots) - pi is still live-unrun.
 - ~~**F7/S-W1**~~ — **PASSED (D-48)**: 100/100 DONE at peak 100 slots
-  in 105 s; `max_total_agents` may be raised 20 -> 100 (operator's edit).
+  in 105 s; ~~`max_total_agents` may be raised 20 -> 100 (operator's edit)~~
+  **DONE (D-50)**: the operator raised it themselves, 2026-10-23 23:55.
+- **The two latent defects recorded at F7/G5** ~~considered as future
+  work~~ — **FIXED (D-51)**, 2026-10-24: invalid `policy.toml` now
+  stops the line instead of silently becoming the defaults; re-integration
+  of an already-committed lease now runs the gate.  7 regression tests.
 - **QuotaGate M1** — the capture behaviour is now measured (D-38): usage yes,
   quota headers no, and the upstream has **no `/v1`**.  Still to build: the
   proxy itself, its timeout policy, and local limit declaration.
@@ -611,6 +624,8 @@ D-49 | 2026-10-23 | operator (authorised "Execute G5") + OpenCode (measured, liv
 
 ## Resolved since the last update
 
+- **`max_total_agents` 20 -> 100** — the operator's edit, recorded (D-50).
+- **The two latent defects** — fixed with regression tests (D-51).
 - **CIP Q1** — answered: OmniRoute, terms accepted (D-23).
 - **Caliber install** — approved and done; the G1 baseline is installed.
 - **Live S-A1** — approved with terms (D-24) and **run**; 13 requests, no

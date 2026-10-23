@@ -103,12 +103,22 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
     if not ok:
         result.message = f"could not commit the worktree: {detail}"
         return result
-    if not detail:
-        result.message = "the worker changed nothing"
-        result.ok = True
-        return result
 
     branch = f"pmk/{task.id}-{lease.fence}"
+
+    # Recorded defect, fixed 2026-10-24: a clean worktree used to
+    # short-circuit straight to ``ok`` here -- "the worker changed
+    # nothing".  For a *re-integration* of a lease whose work is already
+    # committed (the first merge crashed halfway, the close-out is
+    # re-run) that returned ok **without the gate ever running** --
+    # invariant I5's promise, skipped quietly.  There is no early exit
+    # any more: both cases -- an already-committed lease, and a worker
+    # that truly wrote nothing -- go through the merge stage below,
+    # where the lease branch is merged (a no-op when it is already in
+    # main) and the gate runs on the tree that would actually become
+    # canonical.  Only a green gate reaches ``ok``.
+    changed_nothing = not detail
+
     merge_dir = Path(tempfile.mkdtemp(prefix="pmk-merge-"))
     target = merge_dir / "merge"
     try:
@@ -117,6 +127,8 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
         if code != 0:
             result.message = f"could not create the merge worktree: {err or out}"
             return result
+        _, pre_head, _ = repo.git("rev-parse", "HEAD", cwd=target)
+        pre_head = pre_head.strip()
 
         code, out, err = repo.git("merge", "--no-ff", "--no-edit", branch,
                                   cwd=target)
@@ -130,9 +142,20 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
                                          "message": result.message})
             return result
 
-        _, files, _ = repo.git("diff", "--name-only", "HEAD~1", "HEAD",
-                               cwd=target)
-        result.files = [f for f in files.splitlines() if f.strip()]
+        # Structural up-to-date detection instead of parsing git's
+        # output (whose wording is locale-dependent): the merge is a
+        # no-op exactly when HEAD did not move.
+        _, post_head, _ = repo.git("rev-parse", "HEAD", cwd=target)
+        already_merged = pre_head == post_head.strip()
+
+        if already_merged:
+            # No new merge commit: without this guard the diff below
+            # would report the *previous* merge's files as this one's.
+            result.files = []
+        else:
+            _, files, _ = repo.git("diff", "--name-only", "HEAD~1", "HEAD",
+                                   cwd=target)
+            result.files = [f for f in files.splitlines() if f.strip()]
 
         if gate_cmd:
             import subprocess
@@ -155,7 +178,8 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
                                     fence=lease.fence,
                                     payload={"stage": "gate", "ok": False,
                                              "cmd": gate_cmd,
-                                             "exit": result.gate_exit})
+                                             "exit": result.gate_exit,
+                                             "reintegration": changed_nothing})
                 return result
 
         # Green: fast-forward the main branch **and** the main working
@@ -178,10 +202,16 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
 
         result.ok = True
         result.commit = merge_commit
-        result.message = "merged"
+        if changed_nothing:
+            result.message = ("the worker changed nothing (re-integration: "
+                              "the gate re-ran and passed)" if gate_cmd
+                              else "the worker changed nothing")
+        else:
+            result.message = "merged"
         kernel.record_event("ORACLE_RESULT", subject=task.id, fence=lease.fence,
                             payload={"stage": "gate", "ok": True,
-                                     "cmd": gate_cmd})
+                                     "cmd": gate_cmd,
+                                     "reintegration": changed_nothing})
         return result
     finally:
         try:
