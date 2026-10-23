@@ -562,6 +562,10 @@ D-42 | 2026-10-23 | OpenCode (measured, live) | **Quota is discoverable by stres
 
 ---
 
+D-43 | 2026-10-23 | operator (observed behaviour) + OpenCode | **The two providers limit differently, so they must be routed differently.**  The operator's experience: **OpenRouter is ACCOUNT-limited** - the ceiling is on the account, not the model, so rotating models buys nothing and merely spends the shared budget faster; **Kilo Gateway is MODEL-limited**, and `kilo/kilo-auto/free` picks a free model from the request type, which makes it the right default.  `kilo-auto` is repointed accordingly: `model = "kilo/kilo-auto/free"`, with the 13 other live free models as the `models` list, which doubles as the recovery ladder's L1 swap targets and as optional extra agents.  `-m {model}` was added to the argv because kilo's `-m` is a global flag that must precede `run`.  Verified live with `kilo models` on 2026-10-23; cross-checked against kilo.ai/landing/free-models (5 free models, plus `kilo models`' fuller live list of 15 `kilo/*:free`). | Assuming `:free` meant the same thing everywhere, or that rotating free models is free.  It is not on an account-limited provider, and the rotation is deliberately left out of `kilo/openrouter/free` for that reason. | **Open consequence, needs an operator decision:** `ALIAS_PATTERNS` in `src/fleet/profiles.py` treats the `:free` suffix as an alias because OpenRouter uses it, but Kilo uses the identical `:free` convention for concrete free-tier models.  `guess_family` therefore returns `unknown` for all of them, and fleet amendment D-L12 says an unknown family can never serve as an independent verifier.  That is safe but lossy - the fleet's best free models cannot verify work.  Narrowing the pattern is a change to a verifier-independence rule, so it is the operator's call, not an implementer's.
+
+---
+
 ## Pending
 
 - **G3's OpenCode half.**  Parked at the operator's instruction (D-37): the

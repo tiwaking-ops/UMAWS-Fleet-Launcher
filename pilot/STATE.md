@@ -84,9 +84,13 @@
      now measured (D-38, D-42): usage is capturable, quota headers do
      **not** exist, and the two upstreams disagree about `/v1`.  So M1 needs a
      timeout policy and locally declared limits.
-  2. **Verify the five cline models** — offered, not working (D-35).  Costs
+  3. **Decide the `:free` family question** (D-43).  `ALIAS_PATTERNS` makes
+     every Kilo free model family `unknown`, so none can serve as an
+     independent verifier (D-L12).  Safe, lossy, and a change to a
+     verifier-independence rule — the operator's call.
+  4. **Verify the five cline models** — offered, not working (D-35).  Costs
      live provider calls, so it is its own authorisation.
-  3. Run **S-W1** and test **F7** (100 fake workers) to replace the
+  5. Run **S-W1** and test **F7** (100 fake workers) to replace the
      `max_total_agents = 20` guess.
  - **Blocked / awaiting human**:
   1. **G3's OpenCode half** — quota `UNKNOWN` by instruction (D-37); the test
@@ -121,14 +125,20 @@
   - `V-04` `max_total_agents` — needs S-W1; 20 is a placeholder.
   - `V-05` the Overseer's ordered profile list (G-F13).
   - `V-06` OpenCode headless (S-O1) — partly measured.
-- **Decisions since last update**: `pilot/decisions.md` D-01 … D-39.
+- **Decisions since last update**: `pilot/decisions.md` D-01 … D-43.
   **D-29** is the D-19/D-20 ratification, recorded as class K queue items
   Q-001 and Q-002 in the event log. **D-32/D-33** are the queue-id collision
   and the projection that let a duplicate overwrite a decision; **D-34** is
   the gate amendment in force (class K item Q-003); **D-35** the cline
   repoint; **D-36** the H6 result; **D-37** the OpenCode quota parked as
   `UNKNOWN`; **D-38** the M1 upstream measurement; **D-39** the real-CLI
-  through a real lease, which passes; **D-40** the operator closing G3.
+  through a real lease, which passes; **D-40** the operator closing G3;
+  **D-41** the recovery ladder exercised with real CLIs, L4 and L3 for
+  real, real recovery, and the L1-labelled-but-new-mode defect; **D-42**
+  quota discovered by stress test, first measurement on solar-mini4;
+  **D-43** OpenRouter is account-limited and Kilo Gateway model-limited,
+  so `kilo-auto` defaults to `kilo/kilo-auto/free` with the free models as
+  its L1 swap targets.
 - **Last green test run**: `pytest -q` → see the commit; `pmk sentinel`
   clean and `pmk context drift` clean on 2026-10-23.
 
