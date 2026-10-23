@@ -9,7 +9,7 @@
 # amendment section 7.6.  Fleet *profiles* live in agents.toml at the repo
 # root; fleet *state* (cooling, disabled) lives in the app state directory.
 
-version = "p-2026-10-22"
+version = "p-2026-10-23"
 
 [project]
 name = "umaws-fleet"
@@ -33,7 +33,7 @@ lanes = [
 ]
 
 [context_sync]
-mode = "dry-run"                  # D-P10: auto-sync is enabled only at gate G4
+mode = "auto"                     # G4 crossed 2026-10-23, operator instruction; D-P10 satisfied
 caliber_version = "1.55.2"        # spike S1: measured 2026-10-22
 managed_paths = [
   "AGENTS.md", "CLAUDE.md", "CALIBER_LEARNINGS.md",

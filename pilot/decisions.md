@@ -570,20 +570,44 @@ D-44 | 2026-10-23 | operator (approved) + OpenCode | **Provenance first: APPROVE
 
 ---
 
+D-45 | 2026-10-23 | operator (authorised "Execute G3 if possible") + OpenCode (measured, live) | **G3's remaining condition is satisfied: the H6 handover test PASSES on the named CLI.**  Two fresh opencode processes (74.2 s and 35.0 s, exit 0), each given only `briefing.txt`, seeded with T-0001 PROPOSED / T-0002 READY / 1 incident: both named state NEW, 1 ready, next action **T-0002 - "H6-BETA: write hello.txt containing hello world"**, 1 incident, modified nothing, invented nothing (P1-P5; script `pilot/g3-opencode-handover.py`, captures `pilot/spikes/h6/g3-opencode-run-{a,b}.txt`).  The earlier NOT RUN (D-37) was the provider's daily wall, and it had reset by the time of this attempt. | A scorer defect, recorded not hidden: the first scoring pass returned FAIL on a *correct* run - the regexes matched `T-0001` and `2026` off the agent's explanation text instead of its numbered answers.  Same failure mode as H6's pair 1 (the criteria were the error, not the agent).  Repaired, run A re-scored from the preserved capture, no re-run needed.  A second defect noted: in `--reuse --runs 1` mode the in-script P5 compares one run against itself; the genuine P5 was computed across the two preserved captures. | The real-CLI half of G3 remains closed by D-39.  A G5 live run adds load evidence, not a G3 claim.
+
+---
+
+D-46 | 2026-10-23 | OpenCode (measured) | **S-W1 measured: worktree cost on this machine is time-only.**  20 worktrees in 2.0 s (0.10 s each), 100 more in 15.5 s (0.16 s each), ~0.0 MB of extra disk for the checkouts themselves (worktrees share the object store), free RAM 7988 -> 7903 MB.  Script `pilot/f7-scale-drill.py` (S-W1 part), results `pilot/spikes/scale-f7.json`. | Measuring the checkout and missing the shared object store would overstate disk; the number reported is the working-tree cost, and it is negligible for this repo.  Path length, not disk, is the real R-F3 risk on Windows - the 0.16 s figures include the deepest paths created. | F7 (100 fake workers) is the other half of the ceiling evidence; until it passes, `max_total_agents = 20` stands (fleet-launcher G-F5).
+
+---
+
+D-47 | 2026-10-23 | operator (approved exact diff, Q-004, decided "apply the diff above") + OpenCode | **G4 crossed: Caliber auto-sync is ON (`mode = "auto"`), left on per the operator's choice.**  The pinned class-K change was applied exactly as presented (two lines in `.pm/policy.toml`: `[context_sync] mode`, and the policy `version`), pins re-recorded (`pmk pins record`, `pins check` green), and one live `pmk context sync` ran: Caliber 1.55.2 executed in a Kernel worktree, hashes compared, **the generator changed nothing** - `CONTEXT_SYNC_NOOP` recorded (seq 57, 2026-10-23T08:42:22Z), nothing merged, sentinel clean.  The operator chose to leave auto-sync on rather than verify-and-revert. | The lint-reject path (recorded at the G1 baseline: the lint rejects Caliber's raw output) was not exercised by this run, because the generator produced no diff to reject.  That is stated rather than glossed: the gate is proven *from* by the G1 measurement, not by this noop.  A noop is also the correct outcome given the installed baseline - it is evidence the mechanism runs, not that it would merge. | `providers_allow = []` stays empty, so auto-sync sends nothing to any provider; G1's content-send authorisation is separate and unchanged.  V-07 (generator injection safety) is still unproven and is now load-bearing, because the next real diff will merge uncritically past dry-run - the lint and the drift check are the remaining guards.
+
+---
+
+D-48 | 2026-10-23 | OpenCode (measured, fake CLI - no provider calls) | **F7 PASSES and S-W1 is measured: the 100-slot ceiling is now evidence, not a guess.**  F7 (script `pilot/f7-scale-drill.py`, results `pilot/spikes/scale-f7.json`): **100/100 tasks DONE in 105 s**, 100/100 merged, **peak 100 concurrent slots**, min free RAM 7 491 MB (guard floor 2 048), sentinel clean, I1 chain verifies at 1 163 events, close-check green.  S-W1: 20 worktrees in 2.0 s (0.10 s each), 100 more in 15.5 s (0.16 s each), ~0 MB extra disk (worktrees share the object store), free RAM flat. | The first F7 attempts failed **three times on the tester's own bugs**, each recorded rather than skipped: (1) the project gate was written as a python one-liner with single quotes inside a TOML *literal* string - **invalid TOML, so `load_policy` silently fell back to defaults and the gate became `pytest -q`**, which exits 5 with no tests to collect - every merge was refused, which is I5 working exactly as designed; (2) the merge loop then spun for the full deadline because `SUBMITTED` is not in `(DONE, VOID)`; (3) the close-check failed with "no PDD" and then on PDD-lint sections/goal-heading format.  Re-run with a valid file-based gate, per-task gates (the merge queue is serial - a gate needing all 100 files can only pass on the last merge), and a full-format PDD: pass. | **`max_total_agents` may be raised 20 -> 100** under fleet-launcher G-F5 ("raised only after F7 passes"), and the operator asked to make that change themselves - `agents.toml` is human-edited (D-P3, and not class K per D-28), so the implementer does not edit it.  The measurement is the operator's to act on; the number is now theirs to set.  Two latent defects surfaced and are **recorded, not fixed** (no code change was in scope): (a) an invalid `policy.toml` is silently replaced by defaults - a typo'd policy changes the gate with no warning; (b) re-integrating a lease whose work is already committed reports "the worker changed nothing" as **ok**, skipping the gate. | The empty `src/console`-style directories seen in the first scratch were a PowerShell listing artifact of my own inspection, not harness writes; and no worktree in the live repository was ever touched by these drills.
+
+---
+
+D-49 | 2026-10-23 | operator (authorised "Execute G5") + OpenCode (measured, live) | **G5 crossed: the live capacity run passes, twice.**  Six real workers (3 hermes + 3 kilo, `kilo-auto/free` router) through the full mechanism in a throwaway repo: **6/6 tasks DONE, 6/6 merged through functional oracles, 6 evidence bundles, zero failures, zero UNKNOWN classes, close-check green (run 2), sentinel clean, min free RAM 5 162 MB against a 2 048 MB guard.**  Script `pilot/g5-live-capacity.py`; criteria `pilot/gate-posture-record.md` (P1–P5, all pass); record `pilot/g5-live-capacity.md`.  Free-tier only — **$0 spent**; cline excluded (rate-limited until 2026-10-24), opencode excluded (spent by the G3 attempt). | The first run's close-check failed with "no PDD" — the drill's own omission, recorded and fixed, not the mechanism.  The quota **cooldown was never exercised** (no failure occurred), so it stays synthetic-fixture-tested only; and **pi never worked** — hermes+kilo filled all six slots, so pi remains live-unrun.  Reading "zero failures" as "the cooldown works" would be exactly the overclaim the amendment's action rule exists to stop. | A real project run now reaches DONE with real agents doing real work — the F1-shaped evidence the fake-CLI demo could not give.  Combined with D-48 (F7/S-W1: 100 slots pass), the capacity story is complete on both axes: *scale* (100 fake workers) and *reality* (6 real workers).  The remaining live unknowns are narrow and named: pi, the five cline models, and any paid tier.
+
+---
+
 ## Pending
 
-- **G3's OpenCode half.**  Parked at the operator's instruction (D-37): the
-  quota is `UNKNOWN` and the handover test is to be run **together later**.
-  The real-CLI half passed (D-39).  Whether that closes G3 is the operator's
-  call.
+- ~~**G5's live run**~~ — **CROSSED (D-49)**: two live runs, six
+  concurrent real workers, 6/6 DONE, zero failures, close-check green.
+  pi never worked (hermes+kilo filled the slots) - pi is still live-unrun.
+- ~~**F7/S-W1**~~ — **PASSED (D-48)**: 100/100 DONE at peak 100 slots
+  in 105 s; `max_total_agents` may be raised 20 -> 100 (operator's edit).
 - **QuotaGate M1** — the capture behaviour is now measured (D-38): usage yes,
   quota headers no, and the upstream has **no `/v1`**.  Still to build: the
   proxy itself, its timeout policy, and local limit declaration.
 - **The recovery ladder with a real CLI** — L0-L4 have never been exercised
   against a live agent; only the fake CLI and the synthetic fixtures.
 - **Verifying the five cline models** — costs live provider calls, so it is
-  a separate authorisation.  Until then they are offered, not working.
-- **G4/G5** — held.
+  a separate authorisation.  The operator notes their rate limit resets
+  2026-10-24.  Until then they are offered, not working.
+- **V-07 generator injection safety** is now load-bearing: with auto-sync on
+  (D-47), the next real generated diff merges past dry-run, guarded only by
+  the lint and the drift check.
 
 ## Resolved since the last update
 

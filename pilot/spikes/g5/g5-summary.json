@@ -1,0 +1,10 @@
+{
+  "tasks_done": 6,
+  "peak_concurrent": 6,
+  "min_free_ram_mb": 5162,
+  "failure_classes": [],
+  "sentinel_ok": true,
+  "close_check_ok": true,
+  "evidence_bundles": 6,
+  "wall_deadline_s": 1500
+}

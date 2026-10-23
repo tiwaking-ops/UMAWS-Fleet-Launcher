@@ -14,3 +14,4 @@ _none_
 | Q-002 | D-20 — ratify the G1 baseline of the 10 class C context files, the 4 sanitised block removals, and the .gitignore change | ratify | 2026-10-22T19:35:06Z |
 | Q-001 | Amendment v2 (gates classified by action, checkpoints, class K) — approve to bring into force | VOID - duplicate id, see decisions D-32; superseded by Q-003 | 2026-10-22T19:46:52Z |
 | Q-003 | Amendment v2 (gates classified by action, checkpoints, class K) - approve to bring into force | approve | 2026-10-22T19:53:10Z |
+| Q-004 | G4: enable Caliber auto-sync (mode dry-run to auto) | apply the diff above | 2026-10-23T08:47:55Z |

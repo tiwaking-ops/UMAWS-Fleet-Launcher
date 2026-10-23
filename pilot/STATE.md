@@ -17,9 +17,9 @@
   | G1 | sync sending repo content to providers | **authorisation** | **authorised** — terms accepted, D-23 |
   | G2 | metadata capture | checkpoint | logged (`cli-matrix.md`) |
   | G2 | live S-A1 provider calls | **authorisation** | **authorised with terms** — D-24 |
-  | G3 | real CLI through a lease; restart from the briefing alone | **authorisation** | **CLOSED** by the operator, 2026-10-23 (D-40); real-CLI half passes (D-39); OpenCode half parked (D-37) |
-  | G4 | Caliber auto-sync on | **authorisation** | **HELD** — `mode = "dry-run"` |
-  | G5 | live capacity run | **authorisation** | **HELD** |
+  | G3 | real CLI through a lease; restart from the briefing alone | **authorisation** | **CLOSED** — real-CLI half passes (D-39); OpenCode handover half **PASSES** on the named CLI 2026-10-23 (D-45, `pilot/g3-opencode-handover.md`) |
+  | G4 | Caliber auto-sync on | **authorisation** | **CROSSED 2026-10-23** — operator's instruction, exact diff accepted as Q-004; `mode = "auto"` (D-47); left on per the operator's choice |
+  | G5 | live capacity run | **authorisation** | **CROSSED 2026-10-23** — two live runs, 6 concurrent real workers, 6/6 DONE, close-check green, zero failures (D-49) |
 
   **"Self-crossed" is retired** (D-34): a crossing is either authorised by a
   named decision or logged as a checkpoint. A gate is crossed **once per
@@ -74,7 +74,8 @@
     tasks → claim → worktree → order → spawn → harness-run oracles →
     evidence bundle → merge queue → close-check → **DONE**.
   - Every Phase 1 commit is tagged `bootstrap/0` … `bootstrap/16`.
-- **In progress**: nothing.
+- **In progress**: nothing.  G3's condition, G4, G5, F7 and S-W1 all
+  landed 2026-10-23.
 - **Next**:
   1. **Sweep the quota bounds** of the remaining hermes free-tier models with
      `pilot/quotadiscover.py` (D-42).  `upstage/solar-mini4` is measured:
@@ -92,23 +93,23 @@
      operator's call, not the implementer's.
   4. **Verify the five cline models** — offered, not working (D-35).  Costs
      live provider calls, so it is its own authorisation.
-  5. Run **S-W1** and test **F7** (100 fake workers) to replace the
-     `max_total_agents = 20` guess.
+  5. ~~Run **S-W1** and test **F7**~~ **DONE (D-48)**: F7 passes 100/100 at
+     peak 100 concurrent slots (105 s, RAM 7 491 MB min); S-W1 measured.
+     `max_total_agents` may be raised 20 -> 100 — the operator's edit
+     (fleet-launcher G-F5).
  - **Blocked / awaiting human**:
-  1. **G3's OpenCode half** — quota `UNKNOWN` by instruction (D-37); the test
-     is to be run **together later**.  G3 itself is **closed** (D-40); this
-     condition is still owed, and a closed gate is not a satisfied
-     condition.
+  1. **pi live-unrun** — G5 never needed it (hermes+kilo filled all
+     six slots); its first live dispatch is still unexercised.
   2. **Verifying the five cline models** — needs an authorisation for live
-     calls.
-  3. **G4/G5** — held.
+     calls; the operator reports their rate limit resets 2026-10-24.
+  3. **G4/G5** — G4 **crossed** 2026-10-23 (D-47, Q-004); G5 in progress.
 - **Open [VERIFY] items**:
   - `V-01` **mostly closed**: headless, resume and (for pi) model-switch
     are measured.  **Still open**: hermes, kilo and pi have no captured
     failure text, so their failures are `UNKNOWN`; the exit codes are only
     0 and 1; and no real CLI has been driven end to end through a lease.
-    The *briefing handover* half is now measured on kilo (D-36); OpenCode
-    itself is still unrun.
+    The *briefing handover* half is measured on kilo (D-36) and, since
+    2026-10-23, on **opencode itself** (D-45).
   - `V-02` **closed**: Caliber's overwrite semantics (S3) and determinism
     (S5) are measured.
   - `V-07` **new**: the generator has **not** been shown to be safe
@@ -124,7 +125,9 @@
     still reports a profile as `ready` without testing its model, so the
     first dispatch is where MODEL_GONE gets discovered.
   - `V-03` QuotaGate provider limits, 429 body shapes, quota headers.
-  - `V-04` `max_total_agents` — needs S-W1; 20 is a placeholder.
+  - `V-04` `max_total_agents` — **answerable (D-48)**: S-W1 and
+    F7 both pass at 100 slots on this machine; raising 20 -> 100 is
+    permitted by fleet-launcher G-F5 and is the operator's edit.
   - `V-05` the Overseer's ordered profile list (G-F13).
   - `V-06` OpenCode headless (S-O1) — partly measured.
 - **Decisions since last update**: `pilot/decisions.md` D-01 … D-43.

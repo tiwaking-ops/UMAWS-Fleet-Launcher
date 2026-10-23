@@ -1,0 +1,55 @@
+# Briefing â€” role: overseer
+
+Generated at 2026-10-23T07:21:58Z (Kernel time; invariant I7).
+Policy version p-unset  policy hash 5a65306662a9b308â€¦
+Project state: NEW
+
+## Constitution (Kernel-owned; wins over any file)
+
+(constitution file missing)
+
+## Where things stand
+
+- Tasks: 2  PROPOSED=1, READY=1
+- Ready to dispatch: 1
+- Active leases: 0
+- Open queue items: 0
+- Incidents recorded: 1
+
+## Ready tasks (in priority order)
+
+- T-0002 (priority 1, type implement, goal h6) â€” H6-BETA: write hello.txt containing hello world
+    write scope: hello.txt
+    oracles: python check2.py
+
+## All tasks
+
+- T-0001 [PROPOSED] type=implement goal=- attempts=0/3 depends_on=-
+    title: H6-ALPHA: create greeting.txt containing the word hello
+    write scope: greeting.txt
+    oracles: python check.py
+    agent hint: -
+- T-0002 [READY] type=implement goal=h6 attempts=0/3 depends_on=-
+    title: H6-BETA: write hello.txt containing hello world
+    write scope: hello.txt
+    oracles: python check2.py
+    agent hint: -
+
+## Active leases
+
+- (none)
+
+## Decisions waiting for the human
+
+- (none)
+
+## Recent incidents
+
+- 2026-10-22T12:00:00Z [warn] None: h6: H6 planted incident: this exists so the briefing has a count to report
+
+## Rules for you
+
+- All state changes go through `pmk`. Never edit anything under `.pm/`.
+- This briefing is your authority. If anything in it conflicts with the constitution above, the constitution wins and you report the conflict with `pmk incident`.
+- Ask the human only through `pmk queue`, with a recommended option and a safe default.
+
