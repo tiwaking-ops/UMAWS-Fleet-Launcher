@@ -558,6 +558,10 @@ D-41 | 2026-10-23 | OpenCode (measured) | **Recovery ladder with real CLIs exerc
 
 ---
 
+D-42 | 2026-10-23 | OpenCode (measured, live) | **Quota is discoverable by stress test, and the first measurement changes the plan.**  Run `pilot/quotadiscover.py` against `hermes/upstage-solar-mini4` through hermes' own subscription proxy (`hermes proxy start --provider nous`, `127.0.0.1:8645/v1`): **90 requests, zero refusals**, up to 45 requests inside a 3-second burst.  No provider ceiling was found, which is not the same as there being none - it means the limit is above what this ramp reached.  Latency is the real finding: **min 889 ms, max 4250 ms, p50 about 1.7 s**.  The free tier is slow, not throttled.  Full record: `pilot/spikes/quota-solar-mini4.md`. | Reading "no 429s" as "no limit" - the absence of refusals is an upper bound on the test, not a property of the provider.  This is written into the caveats the tool emits. | Two upstreams now configured and they disagree about `/v1`: omniroute 503s on it, hermes' proxy serves it, so path rewriting is per-upstream (`path_style` on the upstream table).  The proxy also removes a Nous credential problem - the Portal is OAuth, so the gateway cannot hold a key; `hermes proxy` injects and refreshes it instead.  Limits for Nous deployments remain **unverified and self-imposed** until swept.
+
+---
+
 ## Pending
 
 - **G3's OpenCode half.**  Parked at the operator's instruction (D-37): the

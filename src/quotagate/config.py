@@ -124,6 +124,9 @@ class Deployment:
     context_window: int = 0
     supports_tools: bool = False
     combo: str = ""
+    response_time_min_ms: int = 0      # minimum observed latency
+    response_time_max_ms: int = 0      # maximum observed latency
+    upstream: str = ""                 # which upstream serves it
 
     def to_dict(self) -> dict:
         return {"id": self.id, "provider": self.provider,
@@ -131,12 +134,18 @@ class Deployment:
                 "family": self.family, "free": self.free,
                 "data_class": self.data_class,
                 "context_window": self.context_window,
-                "supports_tools": self.supports_tools, "combo": self.combo}
+                "supports_tools": self.supports_tools, "combo": self.combo,
+                "response_time_min_ms": self.response_time_min_ms,
+                "response_time_max_ms": self.response_time_max_ms,
+                "upstream": self.upstream}
 
     @classmethod
     def from_dict(cls, obj: dict) -> "Deployment":
         known = set(cls.__dataclass_fields__)
-        return cls(**{k: v for k, v in obj.items() if k in known})
+        # Required fields must be present even if not in the TOML (they come from the deployment ID)
+        required = {"provider", "account", "model"}
+        obj_with_required = {k: v for k, v in obj.items() if k in known or k in required}
+        return cls(**obj_with_required)
 
 
 @dataclass(frozen=True)
@@ -163,12 +172,17 @@ class GatewayConfig:
     """The whole pinned configuration."""
 
     providers: dict = field(default_factory=dict)
+    upstreams: dict = field(default_factory=dict)
     accounts: dict = field(default_factory=dict)
     deployments: dict = field(default_factory=dict)
     combos: dict = field(default_factory=dict)
     rules: list = field(default_factory=list)
     data_classes: list = field(default_factory=lambda: ["public", "internal"])
     strategy: str = "use-it-or-lose-it"
+    #: Non-routing proxy settings (timeout, identity).  Excluded from the
+    #: config hash, because they describe how the gateway behaves rather than
+    #: what it routes.
+    gate: dict = field(default_factory=dict)
 
     # -- loading ----------------------------------------------------------
     @classmethod
@@ -186,12 +200,21 @@ class GatewayConfig:
         data = tomllib.loads(read_text(target))
 
         config = cls()
+        for key, obj in (data.get("upstream") or {}).items():
+            config.upstreams[key] = dict(obj)
         for key, obj in (data.get("provider") or {}).items():
             config.providers[key] = dict(obj)
         for key, obj in (data.get("account") or {}).items():
             config.accounts[key] = Account.from_dict({"id": key, **obj})
         for key, obj in (data.get("deployment") or {}).items():
-            config.deployments[key] = Deployment.from_dict({"id": key, **obj})
+            table = {"id": key, **obj}
+            # The provider is a property of the account, so a deployment table
+            # that names only the account still gets the provider right.
+            if "provider" not in table:
+                account = config.accounts.get(table.get("account", ""))
+                if account is not None:
+                    table["provider"] = account.provider
+            config.deployments[key] = Deployment.from_dict(table)
         for key, obj in (data.get("combo") or {}).items():
             config.combos[key] = Combo.from_dict({"name": key, **obj})
         for obj in (data.get("quota_rule") or []):
@@ -199,11 +222,13 @@ class GatewayConfig:
         config.data_classes = list(data.get("data_classes")
                                    or config.data_classes)
         config.strategy = str(data.get("strategy", config.strategy))
+        config.gate = dict(data.get("gate") or {})
         return config
 
     def to_dict(self) -> dict:
         return {
             "providers": self.providers,
+            "upstreams": self.upstreams,
             "accounts": {k: v.to_dict() for k, v in self.accounts.items()},
             "deployments": {k: v.to_dict() for k, v in self.deployments.items()},
             "combos": {k: v.to_dict() for k, v in self.combos.items()},
@@ -267,3 +292,41 @@ class GatewayConfig:
     def deployments_in_combo(self, combo: Combo) -> list[Deployment]:
         return [self.deployments[d] for d in combo.deployments
                 if d in self.deployments]
+
+    # -- upstream resolution ---------------------------------------------
+    def upstream(self, name: str) -> dict | None:
+        """The upstream table for *name*, or ``None`` if it is not declared."""
+        return self.upstreams.get(name or "")
+
+    def upstream_for(self, deployment: Deployment) -> dict:
+        """Where *deployment* lives, and how to reach it.
+
+        The two upstreams disagree about whether ``/v1`` is part of their
+        paths - omniroute 503s on ``/v1/models`` while hermes' proxy serves
+        it - so the rewrite rule has to travel with the upstream rather than
+        be assumed once for all traffic.
+        """
+        if deployment is not None:
+            if deployment.upstream and deployment.upstream in self.upstreams:
+                return self.upstreams[deployment.upstream]
+        # Fall back to the single declared upstream, which keeps a config
+        # that predates the upstream section working unchanged.
+        if len(self.upstreams) == 1:
+            return next(iter(self.upstreams.values()))
+        return {"base_url": "", "path_style": "keep", "secret_env": ""}
+
+    def upstream_url(self, deployment: Deployment) -> str:
+        return str(self.upstream_for(deployment).get("base_url", ""))
+
+    def rewrite_path(self, deployment: Deployment, path: str) -> str:
+        """Translate the client's path into the upstream's convention.
+
+        Only ``strip`` changes anything: it removes the ``/v1`` an OpenAI
+        client puts in front of everything.  Anything else passes the path
+        through, because the upstream either wants the prefix (hermes'
+        proxy) or the client did not send one.
+        """
+        up = self.upstream_for(deployment)
+        if str(up.get("path_style", "keep")) == "strip":
+            return path[3:] if path.startswith("/v1/") else path
+        return path

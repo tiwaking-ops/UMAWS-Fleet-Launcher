@@ -76,10 +76,14 @@
   - Every Phase 1 commit is tagged `bootstrap/0` … `bootstrap/16`.
 - **In progress**: nothing.
 - **Next**:
-  1. **Build QuotaGate M1** (the passthrough proxy).  Its upstream behaviour is
-     now measured (D-38): usage is capturable, quota headers do **not** exist,
-     and the upstream has no `/v1`.  So M1 needs a timeout policy and locally
-     declared limits.
+  1. **Sweep the quota bounds** of the remaining hermes free-tier models with
+     `pilot/quotadiscover.py` (D-42).  `upstage/solar-mini4` is measured:
+     no ceiling found below 45 requests per 3 s, latency 889-4250 ms.  The
+     operator said the models may be tested.
+  2. **Build QuotaGate M1** (the passthrough proxy).  Its upstream behaviour is
+     now measured (D-38, D-42): usage is capturable, quota headers do
+     **not** exist, and the two upstreams disagree about `/v1`.  So M1 needs a
+     timeout policy and locally declared limits.
   2. **Verify the five cline models** — offered, not working (D-35).  Costs
      live provider calls, so it is its own authorisation.
   3. Run **S-W1** and test **F7** (100 fake workers) to replace the
