@@ -1,71 +1,99 @@
-# QuotaGate Response Time Tracking
+# Response-Time Tracking
 
-**Status:** not yet automated — fields must be populated manually or by a future monitoring service.
+**Status: live.** Every proxied request is timed and folded into the
+deployment's `response_time_min_ms` / `response_time_max_ms` pair.
 
-## Why track response time?
+## The two fields
 
-- **Reliability monitoring:** min/max latency helps judge if a provider or model is becoming sluggish or unstable.
-- **Capacity planning:** slow models can become bottlenecks in high-throughput scenarios.
-- **SLA detection:** consistent latency spikes may indicate upstream degradation.
-
-## How to populate the fields
-
-### Method 1: Manual entry (current)
-
-Edit `src/quotagate/config.toml` for each deployment:
+Both sit on a deployment in `src/quotagate/config.toml`, in milliseconds:
 
 ```toml
-[deployment.omniroute.kilo]
-account = 'omniroute'
-model = 'omniroute/kilo'
-family = 'cohere'
-response_time_min_ms = 300   # example: 300ms observed minimum
-response_time_max_ms = 1500  # example: 1.5s observed maximum
+response_time_min_ms = 0        # or a measured value
+response_time_max_ms = 900000   # or a measured value
 ```
 
-**Values are in milliseconds.** Set to `0` if no data is available.
+They are **sentinels** for "not yet measured", and they mean opposite things:
 
-### Method 2: Future automated tracking (planned)
+| Field | Sentinel | Why |
+|---|---|---|
+| `response_time_min_ms` | `0` | The floor. No latency can be lower, so `0` is the natural "nothing observed yet". |
+| `response_time_max_ms` | `900000` | 15 minutes. There is no natural ceiling, so a practical one stands in for "nothing observed yet". |
 
-A monitoring service could:
+**The first observation sets both.** After that the minimum can only fall and
+the maximum can only rise, so the maximum changes rarely — only when something
+is genuinely slower than anything seen before. That is the behaviour wanted:
+the field answers "what is the worst this has ever been", not "what was the
+last call".
 
-1. **Measure latency per request** from the proxy to the upstream.
-2. **Aggregate per deployment** (e.g., per 24 hours).
-3. **Update config.toml** automatically (e.g., via a webhook or periodic sync).
-
-Example design:
-- A separate `quotagate/monitor.py` that runs as a cron job.
-- It queries the gateway's `/v1/quotagate/availability` endpoint.
-- It updates `config.toml` with rolling min/max values.
-- It commits the updated config to git (with review).
-
-## How to compute min/max
-
-Run a load test against a deployment and record the `x-omniroute-latency-ms` header:
-
-```bash
-curl -H "Authorization: Bearer $OMNIROUTE_API_KEY" \
-     -H "Content-Type: application/json" \
-     -d '{"model":"auto/best-free","messages":[{"role":"user","content":"ok"}],"max_tokens":5}' \
-     http://127.0.0.1:20128/chat/completions
+```python
+>>> from quotagate.latency import update, MAX_UNSET
+>>> update(0, MAX_UNSET, 938)      # first observation replaces both sentinels
+(938, 938)
+>>> update(938, 938, 300)          # faster: the minimum falls
+(300, 938)
+>>> update(300, 938, 4250)         # slower: the maximum rises
+(300, 4250)
+>>> update(300, 4250, 1200)        # ordinary: neither moves
+(300, 4250)
 ```
 
-The header `x-omniroute-latency-ms` gives the upstream's measured latency. Collect many samples and compute min/max.
+## Where they are recorded
 
-## Example values (Cohere Command)
+`src/quotagate/latency.py`:
 
-Based on S-A1 runs (2026-10-22):
-- **kilo (laguna-s-2.1):** min ~25ms, max ~120ms (local router overhead)
-- **pi (command-r):** min ~40ms, max ~150ms
+- `update(min_ms, max_ms, elapsed_ms)` — pure, testable, the whole rule.
+- `LatencyCursor` — the mutable pair for one deployment. A deployment's
+  config entry is a **frozen dataclass shared by every request**, so the
+  observed pair cannot live on it; this is the per-deployment mutable slice.
+- `LatencyLedger` — every deployment's cursor, thread-safe.
 
-These are **router-side**, not provider-side. To get provider-side latency, you'd need to measure against Cohere's API directly.
+The proxy calls `ledger.observe(deployment_id, elapsed_ms, deployment)` in
+`src/quotagate/main.py` **for every outcome, including failures**. A slow
+failure is exactly what a reliability figure needs to know about.
 
-## Default behavior
+Read the current values at `GET /v1/quotagate/availability`, which reports
+each deployment's limits, usage, cooldown state and observed latency:
 
-If `response_time_min_ms` or `response_time_max_ms` are `0`, the gateway treats them as **unknown** and does not use them for any decisions.
+```json
+{
+  "hermes/upstage-solar-mini4": {
+    "latency": {"response_time_min_ms": 889, "response_time_max_ms": 4250},
+    ...
+  }
+}
+```
 
-## Future enhancements
+Each response also carries `X-QuotaGate-Latency-Ms` for the call just served.
 
-- Add `response_time_p50_ms`, `response_time_p95_ms`, `response_time_p99_ms` for percentile tracking.
-- Add a `latency_budget_ms` field to trigger alerts when latency exceeds a threshold.
-- Integrate with Prometheus/Grafana for real-time dashboards.
+## How the values get into config.toml
+
+Two ways:
+
+1. **Measured, then written by hand** — run
+   `pilot/quotadiscover.py <deployment>` (Milestone: quota discovery), which
+   reports the observed min/max at the end. Write them into the deployment's
+   block *once you trust the sample*. This is how `solar-mini4`'s values
+   (`889` / `4250`, 90 calls, 2026-10-23) got in.
+
+2. **Live forever, written by nothing** — the in-memory ledger keeps them
+   current for the life of the process without touching the file. If a
+   persisted history is ever wanted, that is a new milestone, not a change to
+   this design: it needs a decision about whether config.toml is allowed to
+   be rewritten by the gateway at all, and right now it is not.
+
+## What the numbers are for
+
+Reliability judgement. A deployment that used to answer in 200 ms and now
+takes 8 s is sick, and the fastest and slowest observations show it without a
+time-series database.
+
+They are **not** used for routing or admission decisions, and should not be:
+latency says whether a deployment is healthy, not whether it is permitted.
+Quota and cooldowns decide permission (`engine.py`); these two numbers
+describe experience.
+
+## Related
+
+- `latency.py` — the implementation
+- `pilot/quotadiscover.py` — measures both quota bounds and latency
+- `pilot/spikes/quota-solar-mini4.md` — the first recorded measurement
