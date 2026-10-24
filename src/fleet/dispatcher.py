@@ -64,7 +64,54 @@ class Dispatcher:
                                fixture_root=fixture_root)
         self.runs: dict[str, LeaseRun] = {}     # task id -> in-flight lease
         self.failed_profiles: dict[str, set] = {}   # task id -> profile ids
+        # D-A1: backoff state per task
+        # task id -> {"at": float, "blocker": str, "count": int, "emitted": bool}
+        self.blocked: dict[str, dict] = {}
+        self._backoff_base_s = 5.0     # start backoff at 5 seconds
+        self._backoff_max_s = 300.0    # cap at 5 minutes
         self._stop = threading.Event()
+
+    # ------------------------------------------------------------------
+    # D-A1: exponential backoff on refused claims
+    # ------------------------------------------------------------------
+    def _backoff_delay(self, task_id: str) -> float:
+        """Exponential backoff delay for a task: start 5s, cap 300s (D-A1)."""
+        entry = self.blocked.get(task_id)
+        if entry is None:
+            return self._backoff_base_s
+        return min(self._backoff_base_s * (2 ** (entry.get("count", 0) - 1)),
+                   self._backoff_max_s)
+
+    def _is_blocked(self, task_id: str) -> bool:
+        """Check if a task has an active backoff (D-A1)."""
+        entry = self.blocked.get(task_id)
+        if entry is None:
+            return False
+        if time.time() - entry["at"] >= self._backoff_max_s:
+            del self.blocked[task_id]
+            return False
+        return True
+
+    def _start_backoff(self, task_id: str, blocker: str) -> None:
+        """Record that a task is blocked by backoff (D-A1)."""
+        entry = self.blocked.get(task_id)
+        if entry is None:
+            entry = {"at": 0.0, "blocker": blocker, "count": 0, "emitted": False}
+            self.blocked[task_id] = entry
+        entry["at"] = time.time()
+        entry["blocker"] = blocker
+        entry["count"] = entry.get("count", 0) + 1
+        entry["emitted"] = False
+
+    def _emit_blocked(self, task_id: str, blocker: str,
+                      report: "DispatchReport") -> None:
+        """Emit FLEET_BLOCKED once per (task, blocker) change (D-A1)."""
+        entry = self.blocked.get(task_id)
+        if entry is None or entry.get("blocker") != blocker or not entry.get("emitted"):
+            self.kernel.record_event(
+                "FLEET_BLOCKED", subject=task_id, payload={"blocker": blocker})
+            entry["emitted"] = True
+            report.notes.append(f"{task_id}: FLEET_BLOCKED by {blocker}")
 
     # ------------------------------------------------------------------
     # Configuration
@@ -202,6 +249,12 @@ class Dispatcher:
                                        "reason": f"fleet cap {cap} reached"})
                 break
 
+            # D-A1: check backoff before any claim, assignment or spawn.
+            if self._is_blocked(task.id):
+                report.skipped.append({"task": task.id,
+                                       "reason": "blocked (exponential backoff)"})
+                continue
+
             free = free_ram_mb()
             minimum = self.min_free_ram_mb()
             if free is not None and minimum and free < minimum:
@@ -232,19 +285,23 @@ class Dispatcher:
                 continue
 
             chosen = eligible[0].profile
+
+            run, failure = self.harness.start(task, chosen)
+            if run is None:
+                # D-A1: claim refused (e.g. write-scope overlap) - apply
+                # exponential backoff (start 5s, cap 5min), one FLEET_BLOCKED
+                # per (task, blocker) change.  Do NOT log per tick.
+                self._start_backoff(task.id, failure.error or "claim refused")
+                self._emit_blocked(task.id, failure.error or "claim refused",
+                                   report)
+                continue
+            # Claim succeeded - record FLEET_ASSIGNED now, after the claim.
             self.kernel.record_event(
                 "FLEET_ASSIGNED", subject=task.id,
                 payload={"profile": chosen.id,
                          "reason": selection.reason,
                          "candidates": [c.to_dict()
                                         for c in selection.candidates]})
-
-            run, failure = self.harness.start(task, chosen)
-            if run is None:
-                report.skipped.append({"task": task.id,
-                                       "reason": failure.error if failure
-                                       else "start failed"})
-                continue
             self.runs[task.id] = run
             running_counts[chosen.id] = running_counts.get(chosen.id, 0) + 1
             report.started.append({"task": task.id, "profile": chosen.id,

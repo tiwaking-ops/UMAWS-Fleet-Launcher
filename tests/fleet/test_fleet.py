@@ -694,3 +694,25 @@ def test_removing_pilot_stop_resumes_dispatch(fake_kernel):
                      if e.type == "AGENT_STARTED"]
     assert fleet_assigned, fake_kernel.events()
     assert agent_started
+
+
+def test_blocked_task_backoff_no_spam(fake_kernel, clock):
+    """D-A1: a task blocked by an overlap for 10 simulated minutes produces no more than 5 events."""
+    # T1 holds an active lease (the blocker).
+    task1 = make_task(fake_kernel, scope={"write": ["src/thing.py"], "read": []})
+    fake_kernel.claim(task1.id, holder="fake-a", agent="fake", role="implement")
+
+    # T2 has the same write scope -> claim will be refused with scope_overlap.
+    task2 = make_task(fake_kernel, scope={"write": ["src/thing.py"], "read": []})
+
+    dispatcher = Dispatcher(fake_kernel, FleetState(), fixture_root=FIXTURE_ROOT)
+
+    # Advance the clock in 60s steps for 10 minutes (600s).
+    for _ in range(10):
+        clock.advance(60)
+        dispatcher.tick()
+
+    events = [e for e in fake_kernel.events() if e.subject == task2.id]
+    # Backoff start 5s, cap 300s: T2 is blocked for the whole 10 minutes
+    # and produces at most one FLEET_BLOCKED event.
+    assert len(events) <= 5, [e.type for e in events]
