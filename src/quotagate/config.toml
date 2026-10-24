@@ -119,12 +119,11 @@ model = "upstage/solar-mini4:free"
 family = "upstage"
 upstream = "hermes"
 context_window = 524288
-# Measured, not guessed: pilot/spikes/quota-solar-mini4.md, 90 calls on
-# 2026-10-23 through the hermes proxy.  Zero refusals up to 45 requests in a
-# 3-second burst, so no provider ceiling was found - only the latency.
-# The :free tier is slow, not throttled: p50 sits near 1.7 s.
-response_time_min_ms = 889
-response_time_max_ms = 4250
+# Measured 2026-10-24: pilot/spikes/quota-solar-mini4.md, 15 calls.
+# Fully served up to 2 rps (120 RPM). No refusals observed.
+# Latency: p50 1125 ms, max 4171 ms.
+response_time_min_ms = 1125
+response_time_max_ms = 4171
 
 [deployment."hermes/meituan-longcat-2.5-preview"]
 account = "nous-portal"
@@ -168,8 +167,11 @@ model = "stepfun/step-3.7-flash:free"
 family = "stepfun"
 upstream = "hermes"
 context_window = 262144
-response_time_min_ms = 0
-response_time_max_ms = 900000
+# Measured 2026-10-24: pilot/spikes/quota-step37.md, 16 calls.
+# Fully served up to 2 rps (120 RPM). No refusals observed.
+# Latency: p50 2312 ms, max 8437 ms.
+response_time_min_ms = 2312
+response_time_max_ms = 8437
 
 # In hermes' live cache but not in the operator's list; offered rather than
 # assumed, because a model in a cache is not a model that still works.
@@ -311,33 +313,35 @@ window = "rolling_60s"
 limit = 6
 target = "omniroute/opencode"
 
-# The free-tier models: 10/min each, a fifth of the provider ceiling.
+# Free-tier models: measured ~120 RPM with no refusals (solar-mini4, step-3.7-flash).
+# Set deployment ceilings at ~1/3 of measured (40/min) to be conservative;
+# provider-wide backstop at 60/min.
 [[quota_rule]]
 scope = "deployment"
 metric = "requests"
 window = "rolling_60s"
-limit = 10
+limit = 40
 target = "hermes/upstage-solar-mini4"
 
 [[quota_rule]]
 scope = "deployment"
 metric = "requests"
 window = "rolling_60s"
-limit = 10
-target = "hermes/poolside-laguna-s-2.1"
-
-[[quota_rule]]
-scope = "deployment"
-metric = "requests"
-window = "rolling_60s"
-limit = 10
+limit = 40
 target = "hermes/stepfun-step-3.7-flash"
 
 [[quota_rule]]
 scope = "deployment"
 metric = "requests"
 window = "rolling_60s"
-limit = 10
+limit = 20
+target = "hermes/poolside-laguna-s-2.1"
+
+[[quota_rule]]
+scope = "deployment"
+metric = "requests"
+window = "rolling_60s"
+limit = 20
 target = "hermes/stealth-space-bunny-alpha"
 
 # Daily ceilings keep a long-running fleet from eating a whole tier.
@@ -382,3 +386,23 @@ metric = "requests"
 window = "rolling_24h"
 limit = 200
 target = "omniroute/opencode"
+
+# ---------------------------------------------------------------- combos
+# A combo is an ordered list of deployments with a routing strategy.
+# The client sends model="<combo-name>" and the gateway picks which
+# deployment can actually take the call now.
+
+[combo.free-coding]
+name = "free-coding"
+deployments = ["hermes/upstage-solar-mini4", "hermes/stepfun-step-3.7-flash", "hermes/poolside-laguna-s-2.1"]
+strategy = "use-it-or-lose-it"
+
+[combo.cohere]
+name = "cohere"
+deployments = ["omniroute/kilo", "omniroute/pi", "omniroute/opencode"]
+strategy = "priority"
+
+[combo.all-free]
+name = "all-free"
+deployments = ["hermes/upstage-solar-mini4", "hermes/stepfun-step-3.7-flash", "hermes/poolside-laguna-s-2.1", "hermes/meituan-longcat-2.5-preview", "hermes/reflection-beam-1.0-501b-a23b", "hermes/ornith-ornith-1.5-122b", "hermes/stepfun-step-5-preview", "hermes/inclusionai-ling-3.0-flash-sante", "hermes/stealth-space-bunny-alpha", "hermes/upstage-solar-pro4"]
+strategy = "headroom"

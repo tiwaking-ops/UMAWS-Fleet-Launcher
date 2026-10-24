@@ -1,0 +1,174 @@
+# agents.toml — Fleet profiles.
+#
+# Fleet amendment section 12.A.  Human-edited TOML (pilot v1 D-P3).
+#
+# A profile is one way to run one CLI on one model.  The operator's saved
+# entries in prompts.json are really profiles — the same prefix repeated
+# per project (fleet amendment section 6.1).  `pmk fleet import-prompts
+# prompts.json` generates profiles from that file.
+#
+# Placeholders: {prompt} {cwd} {session} {model}.  An empty argv_resume
+# means the adapter has no resume support.
+#
+# The resume templates and the `models` lists below are **measured**, from
+# spike S-A1 run live on 2026-10-22 (pilot/spikes/s1_live.py and
+# s1_live_resume.py), which ran each CLI with the prompt "print the word
+# ok and exit" in a throwaway repository and then resumed each session.
+# Nothing here is guessed.
+
+[fleet]
+max_total_agents   = 100      # [GUESS] set from spike S-W1; operator ceiling 100 Fri Oct 23 23:55:33 NZDT 2026 changed from 20 to 100 by Human Tiwa
+dispatch_tick_s    = 5       # [GUESS]
+stall_minutes      = 15      # [GUESS]
+fix_rounds         = 2       # [GUESS]
+max_restarts_per_task = 5    # [GUESS]
+min_free_ram_mb    = 2048    # [GUESS]
+net_probe_urls     = []      # operator or implementer supplies reachable URLs
+
+[overseer]
+# Ordered; names are placeholders (G-F13).  The strongest available model
+# goes first: plan quality is the largest unknown in the whole system.
+profiles = ["opencode-strongest", "opencode-fallback"]
+
+# ---------------------------------------------------------------------------
+# Profiles
+# ---------------------------------------------------------------------------
+# Priority: lower is tried first.  Hermes first because the operator
+# reports its free models are not rate limited; Cline last because its
+# models have per-model daily limits (G-F3).
+#
+# family is DECLARED, not verified (D-L11, D-L12).  A profile with
+# family = "unknown" can never serve as an independent verifier.
+#
+# `models` is the list of models the recovery ladder may swap to when it
+# resumes a session on a different model (the L1 step).  It is empty for
+# every profile except pi's, because only pi has a second model string
+# that is known to be servable — inventing one would be a guess rather
+# than a measurement.
+
+[[profile]]
+id = "hermes-oneshot"
+adapter = "hermes"
+family = "anthropic"
+priority = 10
+max_concurrent = 4
+via_gateway = false
+roles = ["implement", "review", "plan"]
+argv_new = ["hermes", "chat", "--oneshot", "-q", "{prompt}", "--yolo", "--cli", "--in", "{cwd}"]
+# Measured: `hermes --resume <session-id>` resumes, and hermes prints the
+# id in its trailer: "Resume this session with: hermes --resume <id>".
+argv_resume = ["hermes", "chat", "--oneshot", "-q", "{prompt}", "--resume", "{session}", "--yolo", "--cli", "--in", "{cwd}"]
+models = []
+
+[[profile]]
+id = "kilo-auto"
+adapter = "kilo"
+family = "google"
+priority = 20
+max_concurrent = 3
+via_gateway = false
+roles = ["implement", "review"]
+argv_new = ["kilo", "-m", "{model}", "run", "{prompt}", "--dir", "{cwd}", "--auto"]
+# Measured: `-c, --continue` continues the last session; no id is needed
+# and none is printed.
+argv_resume = ["kilo", "-m", "{model}", "run", "{prompt}", "--dir", "{cwd}", "--auto", "--continue"]
+model = "kilo/kilo-auto/free"
+# Kilo Gateway is MODEL-limited, not account-limited (operator, 2026-10-23).
+# kilo-auto/free picks a free model from the request type, which makes it the
+# right default: the gateway does the choosing, and a per-model ceiling binds
+# rather than the whole account stopping.
+#
+# The rest are the free models, callable directly.  In this profile they are
+# the L1 swap targets of the recovery ladder and the optional extra agents:
+# when one model is exhausted, the ladder moves to the next rather than
+# cooling the whole profile.
+#
+# kilo/openrouter/free is deliberately NOT in this list.  OpenRouter is
+# ACCOUNT-limited (same operator), so rotating models buys nothing and merely
+# spends the shared ceiling faster.  One model, used well.
+models = [
+  "kilo/kilo-auto/free",
+  "kilo/nvidia/nemotron-3.5-super-vl:free",
+  "kilo/poolside/laguna-s-2.1:free",
+  "kilo/poolside/laguna-xs-2.1:free",
+  "kilo/nvidia/nemotron-3-super-120b-a12b:free",
+  "kilo/nvidia/nemotron-3-ultra-550b-a55b:free",
+  "kilo/cohere/north-mini-code:free",
+  "kilo/dots-studio/dots-3-note-preview:free",
+  "kilo/reflection/beam-free",
+  "kilo/nvidia/nemotron-3.5-lightning:free",
+  "kilo/recursive/flint-v1.0:free",
+  "kilo/xingchen-agi/xing4.0-29b-a4b:free",
+  "kilo/liquid/lfm-2.5-2.6b:free",
+  "kilo/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+]
+
+[[profile]]
+id = "pi-orca-deepseek"
+adapter = "pi"
+family = "deepseek"
+priority = 30
+max_concurrent = 2
+via_gateway = false
+roles = ["implement", "review"]
+argv_new = ["pi", "--provider", "orcarouter", "--model", "deepseek/deepseek-v4-flash-free", "-p", "{prompt}"]
+# Measured: `--continue` resumes, and the model CAN be swapped on resume
+# (exit 0 with a different model).  This is the only profile where the
+# ladder's L1 step is available.
+argv_resume = ["pi", "--provider", "orcarouter", "--model", "{model}", "-p", "{prompt}", "--continue"]
+models = ["deepseek/deepseek-v4-flash-free", "z-ai/glm-5.3-flash-free", "tencent/hy3-free", "tencent/hy4-preview-free"]
+
+[[profile]]
+id = "cline-mimo"
+adapter = "cline"
+family = "minimax"
+priority = 40
+max_concurrent = 1
+via_gateway = false
+roles = ["implement"]
+argv_new = ["cline", "--provider", "cline", "--model", "cline-free/minimax-m3.1-flash", "{prompt}"]
+# Measured: `--id <session-id>` resumes an existing session.  Still untested
+# in practice -- see the note below.
+argv_resume = ["cline", "--provider", "cline", "--model", "{model}", "{prompt}", "--id", "{session}"]
+models = ["cline-free/solar-mini4", "cline-free/nemotron-3.5-super-vl", "nvidia/nemotron-3.5-lightning-free", "poolside/laguna-s-2.1:free"]
+# 2026-10-23: repointed on the operator's instruction after the previous
+# model's free promotion ended (measured 2026-10-22: "The free promotion for
+# this model has ended and it is no longer available.").  The five model
+# strings above are the operator's list of currently-free models; the first
+# is the primary.  NONE of the five has been exercised yet -- verifying them
+# costs live provider calls, which is an authorisation action, so they are
+# recorded as *offered*, not as *working*.
+#
+# The id stays `cline-mimo` although the model is no longer mimo, so that
+# references in the decision log and the docs stay valid.
+#
+# Classification note: repointing a profile is an AUTHORISATION action, not
+# class K.  Only .pm/constitution.md and .pm/policy.toml are pinned, so this
+# file is not class K by artefact.  An earlier note here said it was; that
+# was wrong and is corrected in D-28.
+
+[[profile]]
+id = "opencode-strongest"
+adapter = "opencode"
+family = "opencode"
+priority = 5
+max_concurrent = 2
+via_gateway = false
+roles = ["plan", "review", "implement"]
+argv_new = ["opencode", "run", "{prompt}"]
+# Measured: `--continue` continues the last session.  opencode has no
+# --model flag in its help, so a model swap is not available.
+argv_resume = ["opencode", "run", "{prompt}", "--continue"]
+models = []
+
+[[profile]]
+id = "opencode-fallback"
+adapter = "opencode"
+family = "opencode2"
+priority = 90
+max_concurrent = 1
+via_gateway = false
+roles = ["plan", "review"]
+argv_new = ["opencode", "run", "{prompt}"]
+argv_resume = ["opencode", "run", "{prompt}", "--continue"]
+models = []

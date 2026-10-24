@@ -1,0 +1,153 @@
+[
+  {
+    "cli": "hermes",
+    "adapter": "hermes",
+    "date": "2026-10-22T11:01:33Z",
+    "resume_syntax": "--resume, -r SESSION  Resume a previous session by ID or title",
+    "model_syntax": "-m",
+    "session_id": "20261022_235546_f8f570",
+    "resume_same_model": {
+      "attempted": true,
+      "argv": [
+        "C:\\Users\\Tiwa Pene\\AppData\\Local\\hermes\\bin\\hermes.EXE",
+        "chat",
+        "--oneshot",
+        "-q",
+        "print the word ok and exit",
+        "--yolo",
+        "--cli",
+        "--in",
+        "C:\\Users\\TIWAPE~1\\AppData\\Local\\Temp\\s1-resume-hermes-1792666893",
+        "--resume",
+        "20261022_235546_f8f570"
+      ],
+      "exit": 0,
+      "seconds": 60.6,
+      "stdout": "Query: print the word ok and exit\n\u001b[2;3mInitializing agent...\u001b[0m\n\u001b[1;38;2;255;191;0m↻ Resumed session\u001b[0m \u001b[1m20261022_235546_f8f570\u001b[0m\u001b[1;38;2;255;191;0m \"Print ok and exit\"\u001b[0m (1 user message, 2 \ntotal messages)\n↻ Working directory: \nC:\\Users\\TIWAPE~1\\AppData\\Local\\Temp\\s1-live-hermes-1792666527\n\u001b[38;2;255;191;0m────────────────────────────────────────\u001b[0m\n\n\n\u001b[1;38;2;255;215;0m╭─ ☤ Hermes ───────────────────────────────────────────────────────────────────╮\u001b[0m\n\u001b[38;2;255;248;220mok\u001b[0m\n\u001b[1;38;2;255;215;0m╰──────────────────────────────────────────────────────────────────────────────╯\u001b[0m\n\nResume this session with:\n  hermes --resume 20261022_235546_f8f570\n  hermes -c \"Print ok and exit\"\n\nSession:        20261022_235546_f8f570\nTitle:          Print ok and exit\nDuration:       25s\nMessages:       4 (2 user, 0 tool calls)\n",
+      "stderr": "",
+      "ok": true
+    },
+    "resume_different_model": {
+      "attempted": false,
+      "reason": "no second model string is known for this tool, and inventing one would be a guess rather than a measurement"
+    }
+  },
+  {
+    "cli": "kilo",
+    "adapter": "kilo",
+    "date": "2026-10-22T11:02:35Z",
+    "resume_syntax": "-c, --continue  continue the last session",
+    "model_syntax": "-m",
+    "session_id": null,
+    "resume_same_model": {
+      "attempted": true,
+      "argv": [
+        "node",
+        "C:\\Users\\Tiwa Pene\\AppData\\Roaming\\npm\\node_modules\\@kilocode\\cli\\bin\\kilo",
+        "run",
+        "print the word ok and exit",
+        "--dir",
+        "C:\\Users\\TIWAPE~1\\AppData\\Local\\Temp\\s1-resume-kilo-1792666955",
+        "--auto",
+        "--continue"
+      ],
+      "exit": 0,
+      "seconds": 86.9,
+      "stdout": "ok\n",
+      "stderr": "\u001b[0m\n> code · kilo-auto/free\n\u001b[0m\n\u001b[0m$ \u001b[0mWrite-Output \"ok\"\nok\n\u001b[0m\n",
+      "ok": true
+    },
+    "resume_different_model": {
+      "attempted": false,
+      "reason": "no second model string is known for this tool, and inventing one would be a guess rather than a measurement"
+    }
+  },
+  {
+    "cli": "pi",
+    "adapter": "pi",
+    "date": "2026-10-22T11:04:04Z",
+    "resume_syntax": "--continue, -c  Continue previous session",
+    "model_syntax": "--model",
+    "session_id": null,
+    "resume_same_model": {
+      "attempted": true,
+      "argv": [
+        "node",
+        "C:\\Users\\Tiwa Pene\\.pi\\agent\\bin\\pi-launcher.js",
+        "--provider",
+        "orcarouter",
+        "--model",
+        "deepseek/deepseek-v4-flash-free",
+        "-p",
+        "print the word ok and exit",
+        "--continue"
+      ],
+      "exit": 0,
+      "seconds": 7.2,
+      "stdout": "ok\n",
+      "stderr": "",
+      "ok": true
+    },
+    "resume_different_model": {
+      "attempted": true,
+      "argv": [
+        "node",
+        "C:\\Users\\Tiwa Pene\\.pi\\agent\\bin\\pi-launcher.js",
+        "--provider",
+        "orcarouter",
+        "--model",
+        "deepseek/deepseek-v4-flash-free",
+        "-p",
+        "print the word ok and exit",
+        "--continue",
+        "--provider",
+        "orcarouter",
+        "--model",
+        "z-ai/glm-5.3-flash-free"
+      ],
+      "exit": 0,
+      "seconds": 10.6,
+      "stdout": "ok\n",
+      "stderr": "",
+      "ok": true,
+      "model": "--provider orcarouter --model z-ai/glm-5.3-flash-free"
+    }
+  },
+  {
+    "cli": "cline",
+    "adapter": "cline",
+    "date": "2026-10-22T11:04:22Z",
+    "resume_syntax": "--id <session-id>  Resume an existing session by ID",
+    "model_syntax": "-m",
+    "resume_same_model": {
+      "attempted": false,
+      "reason": "the tool needs a session id and none could be obtained from the earlier run"
+    }
+  },
+  {
+    "cli": "opencode",
+    "adapter": "opencode",
+    "date": "2026-10-22T11:04:22Z",
+    "resume_syntax": "--continue, -c  Continue the last session",
+    "model_syntax": null,
+    "session_id": null,
+    "resume_same_model": {
+      "attempted": true,
+      "argv": [
+        "C:\\Users\\Tiwa Pene\\AppData\\Roaming\\npm\\node_modules\\@opencode\\cli\\bin\\opencode.exe",
+        "run",
+        "print the word ok and exit",
+        "--continue"
+      ],
+      "exit": 1,
+      "seconds": 99.9,
+      "stdout": "",
+      "stderr": "\u001b[0m\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n> build · recursive/flint-v1.0:free\n\u001b[91m\u001b[1mError: \u001b[0mRate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\n",
+      "ok": false
+    },
+    "resume_different_model": {
+      "attempted": false,
+      "reason": "no second model string is known for this tool, and inventing one would be a guess rather than a measurement"
+    }
+  }
+]

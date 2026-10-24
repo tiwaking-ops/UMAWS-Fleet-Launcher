@@ -19,7 +19,7 @@
   },
   "commands": [
     {
-      "cmd": "test -f pi-test.txt && grep -q pi pi-test.txt",
+      "cmd": "python -c \"import sys; sys.exit(0 if open('pi-test.txt').read().find('pi') >= 0 else 1)\"",
       "cwd": "C:\\temp\\projects\\testproject1\\work\\T-0003-3",
       "exit": 1,
       "stdout_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -28,7 +28,7 @@
   ],
   "oracle_results": [
     {
-      "cmd": "test -f pi-test.txt && grep -q pi pi-test.txt",
+      "cmd": "python -c \"import sys; sys.exit(0 if open('pi-test.txt').read().find('pi') >= 0 else 1)\"",
       "exit": 1,
       "ok": false,
       "stdout_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",

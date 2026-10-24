@@ -4,17 +4,15 @@ Upstream: `http://127.0.0.1:8645/v1/chat/completions`
 
 | rps | sent | ok | limited | p50 ms | max ms |
 |---|---|---|---|---|---|
-| 1 | 3 | 3 | 0 | 1734 | 1906 |
-| 2 | 6 | 6 | 0 | 1851 | 3889 |
-| 4 | 12 | 12 | 0 | 1679 | 3391 |
-| 8 | 24 | 24 | 0 | 1585 | 3280 |
-| 16 | 45 | 45 | 0 | 1656 | 4250 |
+| 1 | 3 | 3 | 0 | 1516 | 1671 |
+| 2 | 6 | 6 | 0 | 1602 | 4171 |
+| 4 | 7 | 6 | 0 | 3155 | 4125 |
 
 ## Reading
 
-Fully served up to **16 rps**, i.e. about **960 requests/minute**.  Treat that as an upper bound on what this test proved, not as the provider's real ceiling.
+Fully served up to **2 rps**, i.e. about **120 requests/minute**.  Treat that as an upper bound on what this test proved, not as the provider's real ceiling.
 
-Observed latency across 90 calls: min **889 ms**, max **4250 ms**.
+Observed latency across 15 calls: min **1125 ms**, max **4171 ms**.
 
 
 ### Caveats

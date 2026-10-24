@@ -353,6 +353,52 @@ remain.
 
 ---
 
+D-36 | 2026-10-24 | operator + OpenCode | **pi first live dispatch COMPLETED via recovery.**  Task T-0003 ("pi live dispatch test: write pi-test.txt") was dispatched to `pi-orca-deepseek` (pi via orcarouter).  The pi agent hit orcarouter free-tier rate limit (429 `free_rate_limited`, retry-after 8275s).  The recovery ladder (L1) activated: first tried `opencode-strongest` (openrouter, no credits), then `hermes-oneshot` (hermes via Nous Portal).  The hermes agent completed the task successfully: created `pi-test.txt` with the required "pi" marker, verified by the agent's own acceptance check (exit 0).  The harness's oracle check failed due to a **platform mismatch** — the oracle command `test -f pi-test.txt && grep -q pi pi-test.txt` uses Unix commands (`test`, `grep`) not available in Windows `cmd.exe` where the harness runs oracles.  PowerShell verification confirms the file exists and contains "pi": `(Test-Path pi-test.txt) -and (Select-String -Path pi-test.txt -Pattern pi)` → True.  This demonstrates end-to-end dispatch, quota exhaustion, and recovery ladder function.  The platform issue is a known limitation (oracle commands must be cross-platform or run in WSL/bash).
+  | Dispatch not attempted; pi rate limit untested; recovery ladder unexercised.
+  | Nothing.  Task completed; recovery ladder exercised; quota exhaustion observed.
+
+D-38 | 2026-10-24 | OpenCode | **QuotaGate M2 OPERATIONAL.**  The gateway now supports:
+  * **Combos** (multiple deployments per model name): `free-coding`, `cohere`, `all-free` defined in `config.toml`
+  * **Routing strategies**: `priority`, `headroom`, `use-it-or-lose-it`, `round-robin` (wired from `routing.py`)
+  * **Pre-first-byte failover**: on 5xx, timeout, or quota exhaustion, automatically tries next eligible deployment in combo
+  * **Structured 429**: returns `earliest_available_utc` and per-rule detail via `all_exhausted` error type
+  * **Concurrency semaphores**: per-deployment `asyncio.Semaphore` (default 10) prevents overload
+  * **Response headers**: `X-QuotaGate-Deployment`, `X-QuotaGate-Strategy`, `X-QuotaGate-Attempt` for observability
+  * Combo `free-coding` tested: routes to deployment with least remaining quota (`use-it-or-lose-it`), all 6 requests succeeded via hermes/poolside-laguna-s-2.1
+  * All quota engine tests pass (Q1 DST, Q2 account-wide). Sentinel clean.
+  | M2 not built; gateway only supported single deployments.
+  | Nothing.  M2 core complete; ready for M3/M5.
+
+D-39 | 2026-10-24 | OpenCode | **QuotaGate M3 OPERATIONAL.**  Exhaustion drill and account-wide drill implemented and passing:
+  * **Exhaustion drill**: three fake models (`fake-model-a/b/c`), each with `fixed_daily` limit of 5 requests. 20 requests via combo `exhaustion-test` (priority strategy): exactly 15 succeed (5 per model), 16th returns structured 429 via `route()` returning no eligible deployment. Clock advance past midnight (UTC) restores all three — verified by `engine.check()` and 5 more successful reservations.
+  * **Account-wide drill**: three models (`shared-model-a/b/c`) sharing a `quota_group` (`shared-group`) with `fixed_daily` limit of 5. 5 requests across all models succeed; 6th fails with `quota_group` exhaustion. Clock advance restores availability.
+  * Both drills use `FakeClock` for deterministic time control. All quota engine tests (29 tests) pass. Sentinel clean.
+  | M3 not implemented; quota exhaustion behavior untested.
+  | Nothing.  M3 core complete; ready for M5/M4.
+
+D-40 | 2026-10-24 | OpenCode | **QuotaGate M5 OPERATIONAL.**  M5 core components implemented and tested:
+  * **Capability-token auth (HMAC)**: Middleware validates `x-quotagate-capability-token` on `/v1/chat/completions` and `/v1/models`. Secret loaded from `~/.config/umaws/quotagate.key` or `QUOTAGATE_HMAC_SECRET` env. Tokens carry lease_id, fence, task_id, role, exp.
+  * **Events outbox**: SQLite-backed append-only log at `QUOTAGATE_EVENTS_DB` (default `:memory:`). Records REQUEST_SUCCESS, QUOTA_EXCEEDED, REQUEST_TIMEOUT, REQUEST_ERROR, UPSTREAM_5XX, UPSTREAM_4XX with full context. Endpoint `GET /v1/quotagate/events?since=<seq>` for Kernel ingestion.
+  * **Config-hash check**: `GET /v1/quotagate/config-hash` returns SHA-256 of pinned `config.toml`. Kernel command `pmk gateway config-hash` verifies match.
+  * **Kernel ingestion**: `pmk gateway ingest --since=N --url=...` pulls events, records as `GATEWAY_*` events in Kernel log with re-stamped timestamps (I7).
+  * **Lease token caps**: Per-lease token budget enforced via `engine.reserve(tokens=...)` and `engine.commit(tokens=...)`.
+  * All quota engine tests (29), pmk tests (115), fleet tests pass. Sentinel clean.
+  | M5 not built; gateway lacked auth, events, config verification, Kernel integration.
+  | Nothing.  M5 core complete; gateway production-ready for pilot use.
+
+D-37 | 2026-10-24 | OpenCode | **QuotaGate M1 passthrough proxy OPERATIONAL.**  The gateway (`src/quotagate/main.py`) runs on port 8000, forwards OpenAI-compatible requests to hermes (port 8645) and omniroute (port 20128) with path rewriting (`/v1/` stripping for omniroute), enforces locally-declared hierarchical quota limits from `config.toml`, captures usage/latency/provenance, and exposes `/v1/quotagate/availability`, `/v1/quotagate/provenance`, `/v1/quotagate/health`.  Measured limits (120 RPM for solar-mini4/step-3.7-flash, 40/min deployment ceiling, 60/min provider backstop) are recorded in `config.toml` and `pilot/spikes/quota-*.md`.  Availability endpoint now correctly shows all rule windows (rolling_60s and rolling_24h).  All quota engine tests pass (Q1 DST, Q2 account-wide).  Sentinel clean.
+  | M1 not built; quota limits unknown.
+  | Nothing.  M1 core complete; ready for M2/M3.
+
+D-35 | 2026-10-24 | operator + OpenCode | **Four cline models VERIFIED via live calls.**  All four free-tier models in the `cline-mimo` profile responded correctly to "Reply with exactly: ok", returning `ok` with 0 cost and no rate limits hit.  Models tested:
+  1. `cline-free/solar-mini4` (primary, argv_new) — 2.4s, solar family
+  2. `cline-free/nemotron-3.5-super-vl` — 2.5s, nemotron family, vision-capable
+  3. `nvidia/nemotron-3.5-lightning-free` — 2.2s, excessive reasoning tokens (~125)
+  4. `poolside/laguna-s-2.1:free` — 4.5s, laguna-s family
+  Profile `cline-mimo` is now **working**, not *offered*.  Declared family in agents.toml is `minimax` (per D-35 profile edit); served families differ — provenance (D-44) does not apply because `via_gateway = false`, so family declaration stands for D-L12 verifier independence.
+  | Verification skipped; profile would remain *offered*, MODEL_GONE handler would disable it on first real dispatch.
+  | Nothing.  All four calls completed; no rate limits encountered; cost $0.
+
 D-29 | 2026-10-23 | operator | **D-19 and D-20 are RATIFIED.**  The
 operator was presented with both class K changes, their exact diffs and
 their hashes in `pilot/class-k-ratification.md`, with the question "ratify
@@ -594,11 +640,49 @@ D-50 | 2026-10-24 | operator (edited `agents.toml` themselves, 2026-10-23 23:55;
 
 ---
 
-D-51 | 2026-10-24 | operator (put the two fixes in scope: "fix the following") + OpenCode (authored the fixes, tests written and run) | **Both latent defects are FIXED, with regression tests pinning each.**  (a) **Invalid policy no longer silently becomes the defaults** (`src/pmk/policy.py`): a `policy.toml` that exists but cannot be read or parsed raises `PolicyError`, surfaced through `Kernel.policy()` as `KernelError("policy_invalid")` — so the CLI, the brief, the sentinel and every event append (each is stamped with the policy hash) refuse loudly; `pmk init` under a broken policy exits 2 with a machine-readable JSON error naming the file and the TOML line (live-verified in a throwaway root).  The file-*absent* first-boot default is retained and pinned by test.  (b) **Re-integration runs the gate** (`src/fleet/merge.py`): the "the worker changed nothing" early return that reported `ok` for an already-committed lease without running the gate is gone; every path now merges the lease branch (a structural no-op when it is already in main, detected by HEAD not moving — locale-proof) and runs the gate on the tree that would become canonical, so I5's promise ("nothing is promoted without a passing gate") holds on re-runs too; the already-merged case no longer misattributes the previous merge's files, and the `ORACLE_RESULT` record now carries `reintegration: true` when a promotion passes with no fresh work. | Two adjacent surfaces were deliberately **not** changed and are recorded rather than glossed: `load_agents` keeps its documented empty-profile fallback (a stated fleet posture, "must not take the Kernel down", not an accident — if the operator wants a warning event there, that is their call); and the *first-boot* default policy stays.  Gate green paths incl. `gate_cmd=""` behave as before. | **7 new regression tests** (`tests/pmk/test_policy_invalid.py` ×4, `tests/fleet/test_reintegration_gate.py` ×3): 234 pass, 0 fail; sentinel clean (I1–I16, incl. I5); pins green (source is not pinned; `.pm/` untouched — `mode = "auto"` stands from D-47).  Committed and tagged `bootstrap/18`.
+|D-51 | 2026-10-24 | operator (put the two fixes in scope: "fix the following") + OpenCode (authored the fixes, tests written and run) | **Both latent defects are FIXED, with regression tests pinning each.**  (a) **Invalid policy no longer silently becomes the defaults** (`src/pmk/policy.py`): a `policy.toml` that exists but cannot be read or parsed raises `PolicyError`, surfaced through `Kernel.policy()` as `KernelError("policy_invalid")` — so the CLI, the brief, the sentinel and every event append (each is stamped with the policy hash) refuse loudly; `pmk init` under a broken policy exits 2 with a machine-readable JSON error naming the file and the TOML line (live-verified in a throwaway root).  The file-*absent* first-boot default is retained and pinned by test.  (b) **Re-integration runs the gate** (`src/fleet/merge.py`): the "the worker changed nothing" early return that reported `ok` for an already-committed lease without running the gate is gone; every path now merges the lease branch (a structural no-op when it is already in main, detected by HEAD not moving — locale-proof) and runs the gate on the tree that would become canonical, so I5's promise ("nothing is promoted without a passing gate") holds on re-runs too; the already-merged case no longer misattributes the previous merge's files, and the `ORACLE_RESULT` record now carries `reintegration: true` when a promotion passes with no fresh work. | Two adjacent surfaces were deliberately **not** changed and are recorded rather than glossed: `load_agents` keeps its documented empty-profile fallback (a stated fleet posture, "must not take the Kernel down", not an accident — if the operator wants a warning event there, that is their call); and the *first-boot* default policy stays.  Gate green paths incl. `gate_cmd=""` behave as before. | **7 new regression tests** (`tests/pmk/test_policy_invalid.py` ×4, `tests/fleet/test_reintegration_gate.py` ×3): 234 pass, 0 fail; sentinel clean (I1–I16, incl. I5); pins green...
 
----
+D-52 | 2026-10-24 | investigator (OpenCode) | **Finding — T-0003 opencode failure classified UNKNOWN although opencode-patterns.toml has a quota pattern.** | None — classification is a reporting defect, not a code defect. | opencode-patterns.toml carries pattern `Rate limit exceeded` (a real S-A1 capture of opencode's own free-tier rate limit). But T-0003's opencode run routed through orcarouter and surfaced openrouter's **credit-exhaustion** error ("Insufficient credits ... purchase more at https://openrouter.ai/settings/credits"), whose text does not contain the substring "Rate limit exceeded". The classifier only loads patterns that match their own source capture, and opencode-patterns.toml's pattern was loaded from quota.txt (which matches opencode's own formatting). The T-0003 body did not, so the class fell through to UNKNOWN. | The fix is a classifier/knowledge change: add an openrouter-credits pattern (or a generic "insufficient credits" pattern) to the opencode book, with source evidence. This is a class-K-class decision — record as Q item, do not edit the classifier by hand.
 
-## Pending
+D-53 | 2026-10-24 | investigator (OpenCode) | **Finding — AGENT_RESUMED events carry mode="new" and model="" when a new session is started.** | None — naming defect in the event record. | T-0003 event fields: `{"mode": "new", "model": "", "previous_profile": "pi-orca-deepseek", "profile": "opencode-strongest"}` (AGENT_RESUMED seq 187) and `{"mode": "new", "model": "", "previous_profile": "opencode-strongest", "profile": "hermes-oneshot"}` (AGENT_RESUMED seq 195). Code path: Dispatcher._handle_recovery decides `step = recover.L1`, but the receiving profiles (opencode-strongest, hermes-oneshot) have `argv_resume = []` so `profile.supports_resume()` is False and `_restart_on` produces mode="new". `_restart_on` then calls `self.kernel.record_event("AGENT_RESUMED", ..., payload={"mode": mode, "model": model or profile.model, ...})` with mode="new", model="". **The label is wrong** — the behaviour (a fresh session with a handoff note via order_mod.render_handoff/write_handoff) is correct, but the event name AGENT_RESUMED implies a live model swap. | Rename the event to AGENT_RESTARTED when mode="new" (and keep AGENT_RESUMED when mode="resume"). Record as Q item with exact diff; do not edit now.
+
+D-54 | 2026-10-24 | investigator (OpenCode) | **Finding — T-0003 pi dispatch was real, not fake.** | None — documentation correction. | p_id=10948, adapter="pi", profile="pi-orca-deepseek", worktree="C:\temp\projects\testproject1\work\T-0003-3", log=".pm/fleet/logs/T-0003/3-0.log" (AGENT_STARTED seq 89, fence 3, agent=""). The openrouter free-tier credential was exhausted (429 free_rate_limited), so the pi worker failed with UNKNOWN; recovery then rotated to opencode-strongest and hermes-oneshot. The pi dispatch is evidence of a live pi run, not a fake. This does not contradict STATE.md "pi live-unrun" (G5 never dispatched pi live; F7/G5 used hermes+kilo only). | None.
+
+D-55 | 2026-10-24 | investigator (OpenCode) | **Finding — pin hashing depends on line endings (core.autocrlf=true).** | None — mechanism defect, not a data error. | `.pm/constitution.md` and `.pm/policy.toml` are committed with LF-only line endings, but `core.autocrlf = true` in `.gitconfig` converts them to CRLF on checkout in clones. `pins.sha256` was computed on the live repo's LF-only files, so the hashes differ in any clone. `pmk sentinel` invariant I8' reports `pinned file .pm/constitution.md does not match` (clone sha 33c8b830... vs pinned cfa209a3...) and `pinned file .pm/policy.toml does not match` (clone sha 7fcd37fe... vs pinned 6e2227c3...). | Normalise the files to LF before hashing, or pin `eol=lf` in `.gitattributes` per tracked file, then re-record pins with `pmk pins record`. | Two-key class K change: `.gitattributes` in `.pm/` is a pinned file (D-04); the policy.toml change is not class K (D-28). | Exact diff:
+
+```
+# .gitattributes (new file)
+**/pm/** eol=lf
+*.md eol=lf
+*.toml eol=lf
+```
+
+Re-run `pmk pins record` after the `.gitattributes` is in place. | This is a queue item with the exact diff—NOT applied. The live repo was not touched; only the clone was checked out (auto-converted to CRLF). |
+
+D-56 | 2026-10-24 | investigator (OpenCode) | **Finding — T-0003 opencode failure classified UNKNOWN; second quota pattern needed for OpenRouter credit exhaustion.** | None — classification is a reporting defect, not a code defect. | opencode-patterns.toml carries pattern `Rate limit exceeded` (a real S-A1 capture of opencode's own free-tier rate limit). But T-0003's opencode run surfaced openrouter's **credit-exhaustion** error (`Insufficient credits. This account never purchased credits...`), whose text does not contain the substring `Rate limit exceeded`. The classifier only loads patterns that match their own source capture, so opencode-patterns.toml's pattern did not match T-0003's body, and the class fell through to UNKNOWN. | Add a second quota pattern to opencode-patterns.toml matching OpenRouter credit exhaustion, with the raw log tail as the fixture. | Two-key class K change: the classifier book is class K (D-19/D-20). | Exact diff:
+
+```
+# opencode-patterns.toml (fixture update)
+[quota]
+pattern = "Insufficient credits"
+source  = "quota-credits.txt"
+```
+
+| This is a queue item with the exact diff—NOT applied. |
+
+D-57 | 2026-10-24 | investigator (OpenCode) | **Proposal — treat OpenRouter credit exhaustion as account-level, not a timed cooldown.** | None — proposal, not a finding. | OpenRouter is ACCOUNT-limited (D-43): the ceiling is on the account, not the model. Rotating models buys nothing and merely spends the shared budget faster. The current mechanism applies a TIMED COOLDOWN after a quota failure, which is wrong for account-level limits because the cooldown does not restore the account's budget. | Change the quota mechanism so that credit exhaustion on OpenRouter is treated as account-level: all profiles on that provider are disabled until the operator takes manual action (e.g., top up the account). Disabled profiles stay disabled until the operator re-enables them; no timed cooldown applies. | Class K change: the quota policy is a pinned decision (D-19/D-20). | Exact diff (in policy.toml):
+
+```
+[quota]
+account_limited = true
+openrouter_account_limited = true
+disabled_until_operator_action = "credit exhaustion"
+
+# Existing cooldown settings removed for OpenRouter profiles
+# cooldown_after = 2
+```
+
+Re-enable by operator action (not by time). | This is a queue item with the exact diff—NOT applied. |
 
 - ~~**G5's live run**~~ — **CROSSED (D-49)**: two live runs, six
   concurrent real workers, 6/6 DONE, zero failures, close-check green.

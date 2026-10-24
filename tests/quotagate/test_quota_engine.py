@@ -370,3 +370,168 @@ def test_the_all_exhausted_response_carries_the_earliest_available_time():
     body = error.to_obj()
     assert body["error"]["type"] == "rate_limit_error"
     assert body["error"]["earliest_available_utc"] == "2026-10-23T04:00:00Z"
+
+
+# ---------------------------------------------------------------------------
+# M3: Exhaustion drill and account-wide drill
+# ---------------------------------------------------------------------------
+
+def build_exhaustion_config(*rules) -> GatewayConfig:
+    """Configuration with three fake models, each with a daily limit of 5."""
+    config = GatewayConfig()
+    config.providers = {"fake-provider": {"name": "Fake Provider"}}
+    config.accounts = {
+        "acct-fake-1": Account.from_dict({"id": "acct-fake-1", "provider": "fake-provider",
+                                          "quota_group": "", "secret_env": "FAKE_KEY_1",
+                                          "data_class": "public"}),
+        "acct-fake-2": Account.from_dict({"id": "acct-fake-2", "provider": "fake-provider",
+                                          "quota_group": "", "secret_env": "FAKE_KEY_2",
+                                          "data_class": "public"}),
+        "acct-fake-3": Account.from_dict({"id": "acct-fake-3", "provider": "fake-provider",
+                                          "quota_group": "", "secret_env": "FAKE_KEY_3",
+                                          "data_class": "public"}),
+    }
+    config.deployments = {
+        "fake-model-a": Deployment.from_dict({"id": "fake-model-a", "provider": "fake-provider",
+                                              "account": "acct-fake-1", "model": "fake-a",
+                                              "family": "fake"}),
+        "fake-model-b": Deployment.from_dict({"id": "fake-model-b", "provider": "fake-provider",
+                                              "account": "acct-fake-2", "model": "fake-b",
+                                              "family": "fake"}),
+        "fake-model-c": Deployment.from_dict({"id": "fake-model-c", "provider": "fake-provider",
+                                              "account": "acct-fake-3", "model": "fake-c",
+                                              "family": "fake"}),
+    }
+    config.combos = {
+        "exhaustion-test": Combo.from_dict({"name": "exhaustion-test",
+                                            "deployments": ["fake-model-a", "fake-model-b", "fake-model-c"],
+                                            "strategy": "priority"}),
+    }
+    config.rules = []
+    for rule in rules:
+        config.rules.append(QuotaRule.from_dict(rule))
+    return config
+
+
+def test_exhaustion_drill_three_models_daily_limit_5(clock):
+    """M3 exhaustion drill: three fake models, daily limit 5, 20 requests.
+
+    Exactly 15 succeed (5 per model), the 16th returns structured 429.
+    Advancing the clock past midnight restores service.
+    """
+    config = build_exhaustion_config(
+        {"scope": "deployment", "metric": "requests", "window": "fixed_daily",
+         "limit": 5, "target": "fake-model-a", "timezone": "UTC"},
+        {"scope": "deployment", "metric": "requests", "window": "fixed_daily",
+         "limit": 5, "target": "fake-model-b", "timezone": "UTC"},
+        {"scope": "deployment", "metric": "requests", "window": "fixed_daily",
+         "limit": 5, "target": "fake-model-c", "timezone": "UTC"},
+    )
+    engine = QuotaEngine(config, Ledger(), clock)
+
+    # Use the combo to route through all three models
+    combo = config.combo("exhaustion-test")
+
+    # 15 requests should succeed (5 per model)
+    success_count = 0
+    for i in range(20):
+        result = route(engine, config, combo, strategy="priority")
+        if result.chosen is None:
+            # Exhausted
+            assert i == 15, f"Expected exhaustion at request 16, got it at {i + 1}"
+            break
+        engine.reserve(result.chosen)
+        success_count += 1
+
+    assert success_count == 15, f"Expected 15 successes, got {success_count}"
+
+    # The 16th request (index 15) should get a structured 429 via route()
+    result = route(engine, config, combo, strategy="priority")
+    assert result.chosen is None, "Expected no eligible deployment after 15 requests"
+    assert "no eligible deployment" in result.reason
+
+    # Check the structured 429 from the engine directly
+    # All three deployments should be exhausted
+    for dep_id in ["fake-model-a", "fake-model-b", "fake-model-c"]:
+        dep = config.deployment(dep_id)
+        check = engine.check(dep)
+        assert not check.allowed, f"{dep_id} should be exhausted"
+        assert check.rule is not None
+
+    # Advance clock past midnight (next day)
+    # Fixed daily window in UTC: midnight = 00:00 UTC
+    next_day = datetime(2026, 10, 24, 0, 0, 1, tzinfo=timezone.utc)
+    clock.set(next_day)
+
+    # After clock advance, all deployments should be available again
+    for dep_id in ["fake-model-a", "fake-model-b", "fake-model-c"]:
+        dep = config.deployment(dep_id)
+        check = engine.check(dep)
+        assert check.allowed, f"{dep_id} should be available after midnight"
+
+    # 5 more requests should succeed
+    for _ in range(5):
+        result = route(engine, config, combo, strategy="priority")
+        assert result.chosen is not None
+        engine.reserve(result.chosen)
+
+
+def test_account_wide_drill_three_models_one_pool(clock):
+    """M3 account-wide drill: three models sharing account limit of 5/day = one pool of 5.
+
+    This uses a quota_group at the account level to simulate a shared upstream counter.
+    """
+    config = GatewayConfig()
+    config.providers = {"fake-provider": {"name": "Fake Provider"}}
+    config.accounts = {
+        "acct-shared-1": Account.from_dict({"id": "acct-shared-1", "provider": "fake-provider",
+                                            "quota_group": "shared-group", "secret_env": "KEY1",
+                                            "data_class": "public"}),
+        "acct-shared-2": Account.from_dict({"id": "acct-shared-2", "provider": "fake-provider",
+                                            "quota_group": "shared-group", "secret_env": "KEY2",
+                                            "data_class": "public"}),
+        "acct-shared-3": Account.from_dict({"id": "acct-shared-3", "provider": "fake-provider",
+                                            "quota_group": "shared-group", "secret_env": "KEY3",
+                                            "data_class": "public"}),
+    }
+    config.deployments = {
+        "shared-model-a": Deployment.from_dict({"id": "shared-model-a", "provider": "fake-provider",
+                                                "account": "acct-shared-1", "model": "shared-a",
+                                                "family": "fake"}),
+        "shared-model-b": Deployment.from_dict({"id": "shared-model-b", "provider": "fake-provider",
+                                                "account": "acct-shared-2", "model": "shared-b",
+                                                "family": "fake"}),
+        "shared-model-c": Deployment.from_dict({"id": "shared-model-c", "provider": "fake-provider",
+                                                "account": "acct-shared-3", "model": "shared-c",
+                                                "family": "fake"}),
+    }
+    config.combos = {
+        "shared-test": Combo.from_dict({"name": "shared-test",
+                                        "deployments": ["shared-model-a", "shared-model-b", "shared-model-c"],
+                                        "strategy": "priority"}),
+    }
+    # Quota group rule: 5 requests per day across ALL three accounts
+    config.rules.append(QuotaRule.from_dict({
+        "scope": "quota_group", "metric": "requests", "window": "fixed_daily",
+        "limit": 5, "target": "shared-group", "timezone": "UTC"}))
+    engine = QuotaEngine(config, Ledger(), clock)
+    combo = config.combo("shared-test")
+
+    # 5 requests total across all three models should succeed
+    for i in range(5):
+        result = route(engine, config, combo, strategy="priority")
+        assert result.chosen is not None
+        engine.reserve(result.chosen)
+
+    # 6th request should fail - quota_group exhausted
+    result = route(engine, config, combo, strategy="priority")
+    assert result.chosen is None
+    assert "quota_group" in result.reason or "no eligible deployment" in result.reason
+
+    # Advance clock past midnight
+    next_day = datetime(2026, 10, 24, 0, 0, 1, tzinfo=timezone.utc)
+    clock.set(next_day)
+
+    # Should be available again
+    result = route(engine, config, combo, strategy="priority")
+    assert result.chosen is not None

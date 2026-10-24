@@ -13,6 +13,7 @@ refusal (pilot v1 section 9.3).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 import time
@@ -621,6 +622,76 @@ def cmd_project_run(args) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# Gateway commands (M5)
+# ---------------------------------------------------------------------------
+
+def cmd_gateway_ingest(args) -> int:
+    """Pull events from the gateway and record them in the Kernel's event log."""
+    import httpx
+    kernel = _kernel(args)
+    url = f"{args.url.rstrip('/')}/v1/quotagate/events"
+    params = {"since": args.since}
+    try:
+        r = httpx.get(url, params=params, timeout=30)
+        r.raise_for_status()
+    except httpx.HTTPError as exc:
+        print(f"Failed to fetch events: {exc}", file=sys.stderr)
+        return 1
+    data = r.json()
+    events = data.get("events", [])
+    if not events:
+        print("No new events")
+        return 0
+    for ev in events:
+        ev_type = ev.get("type", "UNKNOWN")
+        kernel.record_event(
+            f"GATEWAY_{ev_type}",
+            actor={"kind": "gateway", "agent": "quotagate", "model": "",
+                   "session": ev.get("profile_id", ""), "role": "gateway"},
+            subject=ev.get("task_id") or ev.get("deployment_id", ""),
+            fence=ev.get("fence"),
+            payload=ev.get("payload", {}),
+        )
+    print(f"Ingested {len(events)} events (since seq {args.since})")
+    return 0
+
+
+def cmd_gateway_config_hash(args) -> int:
+    """Verify the gateway's config hash matches the pinned hash."""
+    import httpx
+    url = f"{args.url.rstrip('/')}/v1/quotagate/config-hash"
+    try:
+        r = httpx.get(url, timeout=10)
+        r.raise_for_status()
+    except httpx.HTTPError as exc:
+        print(f"Failed to fetch config hash: {exc}", file=sys.stderr)
+        return 1
+    data = r.json()
+    remote_hash = data.get("config_hash")
+    if not remote_hash:
+        print("No config_hash in response", file=sys.stderr)
+        return 1
+    # Compute local hash
+    import tomllib
+    from pmk.plat import read_text
+    config_path = Path("src/quotagate/config.toml")
+    if not config_path.is_file():
+        config_path = Path(args.root) / "src/quotagate/config.toml" if args.root else None
+    if not config_path or not config_path.is_file():
+        print("Local config.toml not found", file=sys.stderr)
+        return 1
+    local_content = read_text(config_path)
+    local_hash = hashlib.sha256(local_content.encode("utf-8")).hexdigest()
+    print(f"Gateway config hash: {remote_hash}")
+    print(f"Local config hash:   {local_hash}")
+    if remote_hash == local_hash:
+        print("MATCH")
+    else:
+        print("MISMATCH")
+    return 0
+
+
 def _fixture_root(kernel):
     return Path(kernel.repo.root) / "tests" / "fleet" / "fixtures"
 
@@ -888,6 +959,20 @@ def build_parser() -> argparse.ArgumentParser:
     project_run = project.add_parser("run", help="run the project unattended")
     project_run.add_argument("--seconds", type=float, default=60)
     project_run.set_defaults(func=cmd_project_run)
+
+    # -- gateway (M5) ------------------------------------------------------
+    gateway = sub.add_parser("gateway", help="QuotaGate integration") \
+        .add_subparsers(dest="gateway_command", required=True)
+    gateway_ingest = gateway.add_parser("ingest", help="pull events from the gateway")
+    gateway_ingest.add_argument("--since", type=int, default=0,
+                                help="sequence number to start from")
+    gateway_ingest.add_argument("--url", default="http://127.0.0.1:8000",
+                                help="gateway base URL")
+    gateway_ingest.set_defaults(func=cmd_gateway_ingest)
+    gateway_hash = gateway.add_parser("config-hash", help="verify gateway config hash")
+    gateway_hash.add_argument("--url", default="http://127.0.0.1:8000",
+                              help="gateway base URL")
+    gateway_hash.set_defaults(func=cmd_gateway_config_hash)
 
     sub.add_parser("stop", help="stop-the-line: freeze promotion and leases") \
         .set_defaults(func=cmd_stop)

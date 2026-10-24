@@ -1,0 +1,77 @@
+{
+  "S2": {
+    "exit": 0,
+    "added": [
+      ".caliber\\.caliber-state.json",
+      ".caliber\\cache\\fingerprint.json",
+      ".caliber\\manifest.json",
+      ".caliber\\score-history.jsonl",
+      ".claude\\hooks\\caliber-check-sync.sh",
+      ".claude\\hooks\\caliber-session-freshness.sh",
+      ".claude\\rules\\cli-conventions.md",
+      ".claude\\rules\\testing-patterns.md",
+      ".claude\\settings.json",
+      ".claude\\skills\\cli-tooling\\SKILL.md",
+      ".claude\\skills\\csv-processing\\SKILL.md",
+      ".claude\\skills\\find-skills\\SKILL.md",
+      ".claude\\skills\\python-testing\\SKILL.md",
+      ".claude\\skills\\save-learning\\SKILL.md",
+      ".claude\\skills\\setup-caliber\\SKILL.md",
+      ".gitignore",
+      ".opencode\\skills\\cli-tooling\\SKILL.md",
+      ".opencode\\skills\\find-skills\\SKILL.md",
+      ".opencode\\skills\\python-testing\\SKILL.md",
+      ".opencode\\skills\\save-learning\\SKILL.md",
+      ".opencode\\skills\\setup-caliber\\SKILL.md",
+      "AGENTS.md",
+      "CLAUDE.md"
+    ],
+    "removed": [],
+    "changed": [],
+    "managed_paths": [
+      ".claude\\hooks\\caliber-check-sync.sh",
+      ".claude\\hooks\\caliber-session-freshness.sh",
+      ".claude\\rules\\cli-conventions.md",
+      ".claude\\rules\\testing-patterns.md",
+      ".claude\\settings.json",
+      ".claude\\skills\\cli-tooling\\SKILL.md",
+      ".claude\\skills\\csv-processing\\SKILL.md",
+      ".claude\\skills\\find-skills\\SKILL.md",
+      ".claude\\skills\\python-testing\\SKILL.md",
+      ".claude\\skills\\save-learning\\SKILL.md",
+      ".claude\\skills\\setup-caliber\\SKILL.md",
+      ".opencode\\skills\\cli-tooling\\SKILL.md",
+      ".opencode\\skills\\find-skills\\SKILL.md",
+      ".opencode\\skills\\python-testing\\SKILL.md",
+      ".opencode\\skills\\save-learning\\SKILL.md",
+      ".opencode\\skills\\setup-caliber\\SKILL.md",
+      "AGENTS.md",
+      "CLAUDE.md"
+    ]
+  },
+  "S3": {
+    "exit": 0,
+    "file": "AGENTS.md",
+    "edit_preserved": true,
+    "changed": false
+  },
+  "S5": {
+    "first_pass": {
+      "added": [],
+      "removed": [],
+      "changed": []
+    },
+    "second_pass": {
+      "added": [],
+      "removed": [],
+      "changed": []
+    },
+    "stable": true
+  },
+  "score": {
+    "score": 87,
+    "max": 100,
+    "grade": "A",
+    "checks": 22
+  }
+}

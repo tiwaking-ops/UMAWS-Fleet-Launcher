@@ -1,0 +1,408 @@
+# QuotaGate configuration - M1 (passthrough proxy + live capture)
+#
+# ============================================================================
+# TWO UPSTREAMS, OPPOSITE PATH CONVENTIONS
+# ============================================================================
+# omniroute   http://127.0.0.1:20128   NO  /v1  -> path_style = "strip"
+#             Measured: GET /models is 200 (10230 models) but GET /v1/models is
+#             503; POST /chat/completions is 200 but POST /v1/chat/completions
+#             hangs.  A client that assumes the OpenAI /v1 prefix breaks.
+#             Auth: Bearer $OMNIROUTE_API_KEY.
+#
+# hermes      http://127.0.0.1:8645/v1 WITH /v1  -> path_style = "keep"
+#             `hermes proxy start` serves an OpenAI-compatible endpoint that
+#             injects the Portal OAuth credential and refreshes it itself, so
+#             the gateway never needs a Nous API key.  Any bearer is accepted.
+#
+# The same request path therefore needs different rewriting depending on which
+# upstream serves it, which is why path_style lives on the upstream.
+#
+# ============================================================================
+# WHAT LIMITS ARE KNOWN, AND WHAT IS ONLY DECLARED
+# ============================================================================
+# Cohere (behind omniroute) - PUBLISHED, from Cohere's own rate-limits page:
+#
+#   Endpoint / model                 Trial key         Production key
+#   ----------------------------     ---------------   ----------------
+#   Command A / R / R+ / R7B         20 req/min        500 req/min
+#   Command A+, Reasoning,           20 req/min        contact sales
+#     Translate, Vision
+#   Rerank                           10 req/min        1000 req/min
+#   Embed (text)                     2000 inputs/min   2000 inputs/min
+#   Embed (images)                   5 inputs/min      400 inputs/min
+#   EmbedJob                         5 req/min         50 req/min
+#   Tokenize                         100 req/min       2000 req/min
+#   Parse                            500 req/min       500 req/min
+#   Audio Transcriptions             5 req/min         contact sales
+#   Trial monthly cap                1000 calls/month  unlimited
+#
+# Nous Portal (behind hermes) - NOT PUBLISHED ANYWHERE REACHABLE:
+#   * portal.nousresearch.com/models sits behind a Vercel anti-bot JS challenge
+#   * `hermes portal info` reports auth and routing but no quotas
+#   * the shipped model catalog carries no pricing or limit data
+#   * the free tier is the operator's Nous subscription, sized only by them
+#   Limits for these deployments below are therefore SELF-IMPOSED and marked
+#   unverified.  They protect the deployment from the gateway's own mistakes;
+#   they are not a claim about what Nous actually permits.
+
+[gate]
+timeout_s = 60
+
+[identity]
+sender = "quotagate"
+
+# ------------------------------------------------------------------ upstreams
+
+[upstream.omniroute]
+base_url = "http://127.0.0.1:20128"
+path_style = "strip"                  # the client's /v1 must be removed
+secret_env = "OMNIROUTE_API_KEY"      # the variable NAME, never the value
+
+[upstream.hermes]
+base_url = "http://127.0.0.1:8645"     # NO /v1: the client's path carries it
+path_style = "keep"                   # this upstream does serve /v1
+secret_env = ""                       # OAuth; hermes' proxy injects it
+
+# ------------------------------------------------------------------ providers
+
+# Cohere is the provider the omniroute capture reached.  Hermes' own proxy
+# resolves model -> backend per request, so the provider serving a hermes
+# deployment is only knowable after the call.
+[provider.cohere]
+name = "cohere"
+
+[provider.nous]
+name = "nous"
+
+# ------------------------------------------------------------------- accounts
+
+# An API-key account.  The key lives in the environment; only its variable
+# name is recorded here, and that name is all that ever reaches the log.
+[account.omniroute]
+provider = "cohere"
+quota_group = ""
+secret_env = "OMNIROUTE_API_KEY"
+
+# The Portal account carries no key at all: it is authenticated by hermes'
+# OAuth refresh token, which the gateway neither holds nor sees.
+[account.nous-portal]
+provider = "nous"
+quota_group = ""
+secret_env = ""
+
+# ---------------------------------------------------------------- deployments
+# One per model-id.  `model` is the string sent upstream; the enclosing
+# quoted key is what a Fleet profile asks the gateway for.
+#
+# RESPONSE TIME FIELDS - the sentinels mean "not yet measured":
+#   response_time_min_ms = 0        the floor; nothing can be faster, so 0
+#                                   is the natural "no observation yet"
+#   response_time_max_ms = 900000   15 minutes, the ceiling; there is no
+#                                   natural ceiling, so a practical one
+#                                   stands in for "no observation yet"
+# The first observation sets both.  Afterwards the minimum can only fall and
+# the maximum can only rise, so the maximum changes rarely - only when
+# something is genuinely slower than anything seen before.
+#
+# context_window values are measured from hermes' own live cache
+# (~/.hermes/context_length_cache.yaml), not guessed.
+
+# --- Nous Portal, free tier: available only through the hermes agent -------
+# The eight the operator named.  The `:free` suffix is required: the
+# context-length cache shows `stepfun/step-3.7-flash:free` and, separately,
+# `upstage/solar-mini4` - the suffix is a pricing tier, not a different
+# model.  Without it these are paid-tier ids.
+
+[deployment."hermes/upstage-solar-mini4"]
+account = "nous-portal"
+model = "upstage/solar-mini4:free"
+family = "upstage"
+upstream = "hermes"
+context_window = 524288
+# Measured 2026-10-24: pilot/spikes/quota-solar-mini4.md, 15 calls.
+# Fully served up to 2 rps (120 RPM). No refusals observed.
+# Latency: p50 1125 ms, max 4171 ms.
+response_time_min_ms = 1125
+response_time_max_ms = 4171
+
+[deployment."hermes/meituan-longcat-2.5-preview"]
+account = "nous-portal"
+model = "meituan/longcat-2.5-preview:free"
+family = "meituan"
+upstream = "hermes"
+context_window = 1048576
+response_time_min_ms = 0
+response_time_max_ms = 900000
+
+[deployment."hermes/poolside-laguna-s-2.1"]
+account = "nous-portal"
+model = "poolside/laguna-s-2.1:free"
+family = "poolside"
+upstream = "hermes"
+context_window = 262144
+response_time_min_ms = 0
+response_time_max_ms = 900000
+
+[deployment."hermes/reflection-beam-1.0-501b-a23b"]
+account = "nous-portal"
+model = "reflection/beam-1.0-501b-a23b:free"
+family = "reflection"
+upstream = "hermes"
+context_window = 262144
+response_time_min_ms = 0
+response_time_max_ms = 900000
+
+[deployment."hermes/ornith-ornith-1.5-122b"]
+account = "nous-portal"
+model = "ornith/ornith-1.5-122b:free"
+family = "ornith"
+upstream = "hermes"
+context_window = 262144
+response_time_min_ms = 0
+response_time_max_ms = 900000
+
+[deployment."hermes/stepfun-step-3.7-flash"]
+account = "nous-portal"
+model = "stepfun/step-3.7-flash:free"
+family = "stepfun"
+upstream = "hermes"
+context_window = 262144
+# Measured 2026-10-24: pilot/spikes/quota-step37.md, 16 calls.
+# Fully served up to 2 rps (120 RPM). No refusals observed.
+# Latency: p50 2312 ms, max 8437 ms.
+response_time_min_ms = 2312
+response_time_max_ms = 8437
+
+# In hermes' live cache but not in the operator's list; offered rather than
+# assumed, because a model in a cache is not a model that still works.
+[deployment."hermes/upstage-solar-pro4"]
+account = "nous-portal"
+model = "upstage/solar-pro4:free"
+family = "upstage"
+upstream = "hermes"
+context_window = 524288
+response_time_min_ms = 0
+response_time_max_ms = 900000
+
+[deployment."hermes/stepfun-step-5-preview"]
+account = "nous-portal"
+model = "stepfun/step-5-preview:free"
+family = "stepfun"
+upstream = "hermes"
+context_window = 1048576
+response_time_min_ms = 0
+response_time_max_ms = 900000
+
+[deployment."hermes/inclusionai-ling-3.0-flash-sante"]
+account = "nous-portal"
+model = "inclusionai/ling-3.0-flash-sante:free"
+family = "inclusionai"
+upstream = "hermes"
+context_window = 262144
+response_time_min_ms = 0
+response_time_max_ms = 900000
+
+[deployment."hermes/stealth-space-bunny-alpha"]
+account = "nous-portal"
+model = "stealth/space-bunny-alpha"
+family = "stealth"
+upstream = "hermes"
+context_window = 1000000
+response_time_min_ms = 0
+response_time_max_ms = 900000
+
+# --- OmniRoute / Cohere: the fleet's existing workhorse models -------------
+[deployment."omniroute/kilo"]
+account = "omniroute"
+model = "auto/best-coding"
+family = "cohere"
+upstream = "omniroute"
+response_time_min_ms = 0
+response_time_max_ms = 900000
+
+[deployment."omniroute/pi"]
+account = "omniroute"
+model = "auto/best-coding"
+family = "cohere"
+upstream = "omniroute"
+response_time_min_ms = 0
+response_time_max_ms = 900000
+
+[deployment."omniroute/opencode"]
+account = "omniroute"
+model = "auto/best-coding"
+family = "cohere"
+upstream = "omniroute"
+response_time_min_ms = 0
+response_time_max_ms = 900000
+
+# ------------------------------------------------------------- quota rules
+# A request must satisfy EVERY applicable rule at EVERY scope.  Note that
+# scope = "provider" on an account-level rule is the one deliberate
+# difference from the v1.1 model, and it is what makes "cohere" and "nous"
+# ceilings independent.
+
+# Cohere, as published.  The trial tier is the honest assumption, so 20 req/min
+# is the binding limit and 1000/month is the trial cap.
+[[quota_rule]]
+scope = "provider"
+metric = "requests"
+window = "rolling_60s"
+limit = 20
+target = "cohere"
+
+[[quota_rule]]
+scope = "provider"
+metric = "requests"
+window = "fixed_monthly"
+limit = 1000
+target = "cohere"
+
+[[quota_rule]]
+scope = "provider"
+metric = "tokens"
+window = "rolling_24h"
+limit = 50000
+target = "cohere"
+
+# Nous: UNVERIFIED, self-imposed.  Generous because nothing here is measured
+# and a wrong ceiling would silently break working agents.
+[[quota_rule]]
+scope = "provider"
+metric = "requests"
+window = "rolling_60s"
+limit = 60
+target = "nous"
+
+[[quota_rule]]
+scope = "provider"
+metric = "requests"
+window = "rolling_24h"
+limit = 600
+target = "nous"
+
+[[quota_rule]]
+scope = "provider"
+metric = "tokens"
+window = "rolling_24h"
+limit = 200000
+target = "nous"
+
+# Per-deployment ceilings, so one noisy model cannot take the whole gateway
+# down and the provider-wide limit stays a backstop rather than the brake.
+
+# Cohere trial is 20/min total, so each deployment gets a third of that.
+[[quota_rule]]
+scope = "deployment"
+metric = "requests"
+window = "rolling_60s"
+limit = 6
+target = "omniroute/kilo"
+
+[[quota_rule]]
+scope = "deployment"
+metric = "requests"
+window = "rolling_60s"
+limit = 6
+target = "omniroute/pi"
+
+[[quota_rule]]
+scope = "deployment"
+metric = "requests"
+window = "rolling_60s"
+limit = 6
+target = "omniroute/opencode"
+
+# Free-tier models: measured ~120 RPM with no refusals (solar-mini4, step-3.7-flash).
+# Set deployment ceilings at ~1/3 of measured (40/min) to be conservative;
+# provider-wide backstop at 60/min.
+[[quota_rule]]
+scope = "deployment"
+metric = "requests"
+window = "rolling_60s"
+limit = 40
+target = "hermes/upstage-solar-mini4"
+
+[[quota_rule]]
+scope = "deployment"
+metric = "requests"
+window = "rolling_60s"
+limit = 40
+target = "hermes/stepfun-step-3.7-flash"
+
+[[quota_rule]]
+scope = "deployment"
+metric = "requests"
+window = "rolling_60s"
+limit = 20
+target = "hermes/poolside-laguna-s-2.1"
+
+[[quota_rule]]
+scope = "deployment"
+metric = "requests"
+window = "rolling_60s"
+limit = 20
+target = "hermes/stealth-space-bunny-alpha"
+
+# Daily ceilings keep a long-running fleet from eating a whole tier.
+[[quota_rule]]
+scope = "deployment"
+metric = "requests"
+window = "rolling_24h"
+limit = 300
+target = "hermes/upstage-solar-mini4"
+
+[[quota_rule]]
+scope = "deployment"
+metric = "requests"
+window = "rolling_24h"
+limit = 300
+target = "hermes/poolside-laguna-s-2.1"
+
+[[quota_rule]]
+scope = "deployment"
+metric = "requests"
+window = "rolling_24h"
+limit = 300
+target = "hermes/stepfun-step-3.7-flash"
+
+[[quota_rule]]
+scope = "deployment"
+metric = "requests"
+window = "rolling_24h"
+limit = 200
+target = "omniroute/kilo"
+
+[[quota_rule]]
+scope = "deployment"
+metric = "requests"
+window = "rolling_24h"
+limit = 200
+target = "omniroute/pi"
+
+[[quota_rule]]
+scope = "deployment"
+metric = "requests"
+window = "rolling_24h"
+limit = 200
+target = "omniroute/opencode"
+
+# ---------------------------------------------------------------- combos
+# A combo is an ordered list of deployments with a routing strategy.
+# The client sends model="<combo-name>" and the gateway picks which
+# deployment can actually take the call now.
+
+[combo.free-coding]
+name = "free-coding"
+deployments = ["hermes/upstage-solar-mini4", "hermes/stepfun-step-3.7-flash", "hermes/poolside-laguna-s-2.1"]
+strategy = "use-it-or-lose-it"
+
+[combo.cohere]
+name = "cohere"
+deployments = ["omniroute/kilo", "omniroute/pi", "omniroute/opencode"]
+strategy = "priority"
+
+[combo.all-free]
+name = "all-free"
+deployments = ["hermes/upstage-solar-mini4", "hermes/stepfun-step-3.7-flash", "hermes/poolside-laguna-s-2.1", "hermes/meituan-longcat-2.5-preview", "hermes/reflection-beam-1.0-501b-a23b", "hermes/ornith-ornith-1.5-122b", "hermes/stepfun-step-5-preview", "hermes/inclusionai-ling-3.0-flash-sante", "hermes/stealth-space-bunny-alpha", "hermes/upstage-solar-pro4"]
+strategy = "headroom"

@@ -1,0 +1,567 @@
+---
+# Structured claims for the UMAWS completion report (v1.1)
+# One claim per row. For every table and Appendix D, count each claim once.
+# Evidence_strength: raw_artefact | agent_authorship | code_read
+#
+# Verdict vocabulary (single source of truth):
+#   VERIFIED-NOW  | the claim holds against the artefact (RAN-NOW or raw evidence)
+#   VERIFIED-EARLIER | the claim held against earlier evidence; re-run would need the same artefact
+#   UNVERIFIED    | no artefact exists, or only prose/decision-log evidence
+#   FAILED        | the claim was tested and did not hold
+#   NOT-BUILT     | the mechanism the claim describes does not exist
+#   DIVERGES      | the claim conflicts with measured behaviour on a named point
+#   WRONG-DOC     | the claim misstates a file, number, table or command in the manual
+#
+# Per-claim evidence_strength downgrade rule:
+#   - raw_artefact: a file the operator supplied or I generated and can open
+#   - agent_authorship: a summary written by an LLM/author, not a primary artefact
+#   - code_read: the evidence is a code review / inspection of source
+# Any claim whose only evidence is prose in decisions.md / the log gets downgraded
+# one step.
+
+claims:
+  - id: M-001
+    section: manual
+    verdict: WRONG-DOC
+    evidence_strength: agent_authorship
+    evidence: "Manual endlines 'Tier C achieved' and 'production-ready for supervised use'; pilot-report.md §1 says 'Tier reached: A'."
+    note: "Manual claims Tier C; actual is Tier A (F7/S-W1 passed at 100 slots; real capacity was 6 workers)."
+
+  - id: M-002
+    section: manual
+    verdict: VERIFIED-NOW
+    evidence_strength: raw_artefact
+    evidence: "sentinel-after-console-ran-now.txt: ok=true; 11 invariants listed (I1, I3, I4, I5, I6, I7, I8', I13, I14, I15, I16)."
+    note: "Count is 11, not 16; the manual itself lists 11. Appendix B's '16 invariants' is a counting error."
+
+  - id: M-003
+    section: manual
+    verdict: WRONG-DOC
+    evidence_strength: agent_authorship
+    evidence: "Manual status line: 'Pilot P-01 — production-ready for supervised use'."
+    note: "Tier A reached; 2 live defects found and fixed (D-A1 spam, D-A2 STOP)."
+
+  - id: M-004
+    section: manual
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "scale-f7.json: 100/100 DONE (fake workers) in 104.8 s, peak 100 slots, RAM 7491 MB. Real capacity was G5 (6 real workers)."
+    note: "F7 was fake workers, not real agents. '100-agent test complete' is VERIFIED-EARLIER with this caveat."
+
+  - id: M-005
+    section: manual
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "Manual endlines 'quota-limit tests are complete'. quota-solar-mini4.md + quota-step37.md show ramp tests only; full Q3 drill and Q4 not done."
+    note: "No artefact for the full structured 429 drill or account-wide pool."
+
+  - id: M-006
+    section: manual
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "Manual endlines 'all 400+ models tested and work'. S-A1 used 13 requests across 5 CLIs. No supporting artefact."
+    note: "Manual overclaims the model census. Read-only."
+
+  - id: M-007
+    section: manual
+    verdict: WRONG-DOC
+    evidence_strength: code_read
+    evidence: "Manual §5: Console on port 8080. src/console/app.py DEFAULT_PORT = 8765."
+    note: "Console bound to 127.0.0.1:8765 by default."
+
+  - id: M-008
+    section: manual
+    verdict: WRONG-DOC
+    evidence_strength: code_read
+    evidence: "Manual §9: tabs Overview, Tasks, Leases, Profiles, Events, Gateway, Sentinel. src/console/static/index.html:93-99: Projects, Fleet, Tasks, Queue, Overseer, Manual launcher, Metrics."
+    note: "Seven tabs, all different names."
+
+  - id: M-009
+    section: manual
+    verdict: WRONG-DOC
+    evidence_strength: code_read
+    evidence: "Manual §5: Gateway on port 8000. policy.toml base_url=8766, enabled=false."
+    note: "Gateway disabled in policy; base_url is 8766, not 8000."
+
+  - id: M-010
+    section: manual
+    verdict: WRONG-DOC
+    evidence_strength: code_read
+    evidence: "Manual §2: WSL2 required; repo must live on Linux FS. s-p1-platform.md D-02: native Windows."
+    note: "Platform decision D-02 overrode v1's WSL2 default."
+
+  - id: M-011
+    section: manual
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "Manual §5: Gateway health returns {ok, service, milestone: m1}. Gateway not started (policy enabled=false)."
+    note: "No live gateway; health endpoint never exercised."
+
+  - id: M-012
+    section: manual
+    verdict: WRONG-DOC
+    evidence_strength: code_read
+    evidence: "Manual §5: pmk gateway ingest --url http://127.0.0.1:8000. CLI has gateway ingest; port should be 8766."
+    note: "Command exists; URL port wrong."
+
+  - id: M-013
+    section: manual
+    verdict: VERIFIED-NOW
+    evidence_strength: raw_artefact
+    evidence: "cli-help-sweep-ran-now.txt: pmk gateway config-hash exists (exit 0)."
+    note: "Command confirmed to exist."
+
+  - id: M-014
+    section: manual
+    verdict: VERIFIED-NOW
+    evidence_strength: raw_artefact
+    evidence: "CLI has pmk views subcommand; views regenerated and compared (views-check-ran-now.txt)."
+    note: "Views regeneration confirmed."
+
+  - id: M-015
+    section: manual
+    verdict: VERIFIED-NOW
+    evidence_strength: raw_artefact
+    evidence: "CLI has pmk sweep subcommand; leases expired past TTL (test_tasks.py)."
+    note: "Sweep confirmed."
+
+  - id: M-016
+    section: manual
+    verdict: VERIFIED-NOW
+    evidence_strength: raw_artefact
+    evidence: "CLI has pmk stop / pmk resume (Phase 2: freeze promotions + leases)."
+    note: "Stop/resume confirmed."
+
+  - id: M-017
+    section: manual
+    verdict: VERIFIED-NOW
+    evidence_strength: raw_artefact
+    evidence: "CLI has pmk brief --role overseer|worker (deterministic briefing)."
+    note: "Briefing confirmed."
+
+  - id: M-018
+    section: manual
+    verdict: FAILED
+    evidence_strength: raw_artefact
+    evidence: "a93da888: Dispatcher.tick() ignored pilot/STOP; console auto-started dispatch. FIXED in this session (D-A2)."
+    note: "M-018 was FAILED at a93da888. Now fixed: Dispatcher.tick() checks STOP + dispatch_paused before any claim; Console starts paused. Regression tests added (2 dispatcher + 2 console)."
+
+  - id: M-019
+    section: manual
+    verdict: WRONG-DOC
+    evidence_strength: code_read
+    evidence: "Manual §9: policy base_url = 'http://127.0.0.1:8000/v1'. policy.toml: base_url = 'http://127.0.0.1:8766/v1'."
+    note: "Port 8000 vs 8766."
+
+  - id: M-020
+    section: manual
+    verdict: DIVERGES
+    evidence_strength: code_read
+    evidence: "Manual §9: policy project = { data_class = 'internal' } (inline table). policy.toml: [project] section with separate keys."
+    note: "Inline table vs section format diverge."
+
+  - id: M-021
+    section: manual
+    verdict: WRONG-DOC
+    evidence_strength: code_read
+    evidence: "Manual §3: venv activation . .venv/bin/activate (Linux-first). Agents.toml/.venv: native Windows."
+    note: "Shows Linux first; Windows is the platform."
+
+  - id: M-022
+    section: manual
+    verdict: WRONG-DOC
+    evidence_strength: code_read
+    evidence: "Manual TOC p.4 has two '6.' entries (two Section 6s)."
+    note: "Duplicated TOC entry."
+
+  - id: T1
+    section: acceptance
+    verdict: VERIFIED-NOW
+    evidence_strength: raw_artefact
+    evidence: "full-suite-ran-now.txt: 234 passed; demo_one_click.py green (pilot-report.md)."
+    note: "Full task lifecycle (claim → submit → merge → DONE) verified."
+
+  - id: T2
+    section: acceptance
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "T-0003 REWORK in event log; fence bumped, task back to READY."
+    note: "Stale fence quarantined."
+
+  - id: T3
+    section: acceptance
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "event-counts: 2 CONTEXT_SYNCED; calibrate-spike-results.json."
+    note: "CONTEXT_SYNCED with hashes."
+
+  - id: T4
+    section: acceptance
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "t4-canary.md: T4 inconclusive (0/3 injected); T4b 3/3 caught; t4-results.json, t4b-results.json."
+    note: "T4 inconclusive: generator did not copy injections; T4b (direct poison) caught 3/3."
+
+  - id: T5
+    section: acceptance
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "Policy has exclude_author_family; gateway not running (enabled=false)."
+    note: "Needs M5 gateway with V2 enforcement."
+
+  - id: T6
+    section: acceptance
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "t4b-results.json: sentinel_i16 = 2 for all variants."
+    note: "Out-of-band edit → sentinel I16 finding."
+
+  - id: Q1
+    section: acceptance
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "No artefact. Not run."
+    note: "DST test across 1 Nov 2026 — needs FakeClock across the boundary."
+
+  - id: Q2
+    section: acceptance
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "No artefact. Not run."
+    note: "Account-wide rule (quota_group) drill not run."
+
+  - id: Q3
+    section: acceptance
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "quota-solar-mini4.md, quota-step37.md: ramp tests only; full drill (structured 429, FakeClock advance) not done."
+    note: "Ramp tests prove 'no ceiling below X rps' but not the structured 429 contract."
+
+  - id: Q4
+    section: acceptance
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "No artefact. Not run."
+    note: "Account-wide pool drill not run."
+
+  - id: Q5
+    section: acceptance
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "No artefact. Not run."
+    note: "Kernel-down/gateway-down → tasks stay READY not tested."
+
+  - id: H6
+    section: acceptance
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "D-36 (kilo handover PASSES); D-45 (opencode handover PASSES)."
+    note: "Handover from briefing alone confirmed on two CLIs."
+
+  - id: C1
+    section: acceptance
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "g5-summary.json (6 real workers, peak 6); scale-f7.json (100 fake workers, peak 100). Neither matches the 10-30 target exactly."
+    note: "Capacity report vs 10-30 target: neither matches exactly."
+
+  - id: F1
+    section: fleet
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "demo_one_click.py green (fake CLI); needs real LLM (Tier B)."
+    note: "One-click run to done not executed with real LLM."
+
+  - id: F2
+    section: fleet
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "tests-fleet-ran-now.txt: test_fleet.py covers kill scenarios."
+    note: "Fake CLI only."
+
+  - id: F3
+    section: fleet
+    verdict: VERIFIED-EARLIER
+    evidence_strength: code_read
+    evidence: "T-0003 event log shows PROFILE_COOLING + resume. But T-0003 failures were all UNKNOWN (quota-like, no pattern matched)."
+    note: "FAKE-CLI ONLY: T-0003 failures were all UNKNOWN; the quota pattern in opencode-patterns.toml did not match the openrouter credit-exhaustion error. Downgraded from raw_artefact."
+
+  - id: F4
+    section: fleet
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "No artefact. Network circuit breaker not tested."
+    note: "Applied to 3 profiles for 2 min and paused? Not tested."
+
+  - id: F5
+    section: fleet
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "test_fleet.py selection tests pass."
+    note: "Selection deterministic; priority + utilisation."
+
+  - id: F6
+    section: fleet
+    verdict: VERIFIED-NOW
+    evidence_strength: raw_artefact
+    evidence: "cli-help-sweep confirms pmk agent list/show/tail; Console SSE live."
+    note: "Inspection commands confirmed."
+
+  - id: F7
+    section: fleet
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "scale-f7.json: 100/100 DONE in 104.8 s, peak 100 slots, RAM 7491 MB, sentinel clean, I1 chain at 1163 events."
+    note: "Fake workers only; ran 104.8 s not 10 min. s_w1 field in scale-f7.json is {} (empty)."
+
+  - id: F8
+    section: fleet
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "No artefact. App restart → no duplicate exec not tested."
+    note: "Reconciliation not tested live."
+
+  - id: F9
+    section: fleet
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "prompts.json exists; import-prompts command exists. Smoke run needs real CLIs."
+    note: "Manual launcher parity not fully tested."
+
+  - id: F10
+    section: fleet
+    verdict: VERIFIED-NOW
+    evidence_strength: raw_artefact
+    evidence: "test_tasks.py scope_overlaps tests pass; T-0003 blocked by D-L6."
+    note: "Scope overlap → never leased together."
+
+  - id: F11
+    section: fleet
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "No real CLI test. Fake CLI doesn't exercise shell quoting."
+    note: "Quoting (quotes, %, &, ^, non-ASCII) untested with real CLIs."
+
+  - id: F12
+    section: fleet
+    verdict: VERIFIED-EARLIER
+    evidence_strength: code_read
+    evidence: "test_fleet.py + T-0003: 2 unknown failures → 900 s cooling."
+    note: "FAKE-CLI ONLY: T-0003 failures were all UNKNOWN; the classification of the openrouter credit-exhaustion error was UNKNOWN, not QUOTA. Downgraded."
+
+  - id: F13
+    section: fleet
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "test_fleet.py covers stall scenarios."
+    note: "Stall detection → kill as tree → recover (fake CLI)."
+
+  - id: F14
+    section: fleet
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "No artefact. Overseer wake bounds not tested."
+    note: "Debounce and per-hour limit not tested live."
+
+  - id: FR1
+    section: fleet_requirement
+    verdict: VERIFIED-NOW
+    evidence_strength: raw_artefact
+    evidence: "src/console/ exists, 7 tabs, FastAPI; console-smoke-ran-now.txt."
+    note: "One-window / one-app GUI confirmed."
+
+  - id: FR2
+    section: fleet_requirement
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "Code exists (src/fleet/overseer.py:50-78). Not live-tested."
+    note: "Overseer sends prompts autonomously — needs real LLM dispatch."
+
+  - id: FR3
+    section: fleet_requirement
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "Recovery ladder L0-L4 in code; tested with fake CLI; T-0003 exercised L1-L2."
+    note: "Automated recovery on exhaustion confirmed (fake CLI only)."
+
+  - id: FR4
+    section: fleet_requirement
+    verdict: VERIFIED-EARLIER
+    evidence_strength: agent_authorship
+    evidence: "Pilot report covers entire scope."
+    note: "Whole pilot in scope."
+
+  - id: FR5
+    section: fleet_requirement
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "agents.toml: opencode-strongest profile; D-45 handover test."
+    note: "OpenCode is Overseer."
+
+  - id: FR6
+    section: fleet_requirement
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "src/fleet/select.py; test_fleet.py selection tests."
+    note: "Assign by availability + utilization."
+
+  - id: FR7
+    section: fleet_requirement
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "cli-matrix.md S-A1: pi has swap=True; others swap=False."
+    note: "Check CLI state; resume with different model — only pi supports model swap."
+
+  - id: FR8
+    section: fleet_requirement
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "cli-matrix.md: all 5 CLIs headless=True."
+    note: "Headless preferred."
+
+  - id: FR9
+    section: fleet_requirement
+    verdict: VERIFIED-EARLIER
+    evidence_strength: code_read
+    evidence: "agents.toml max_total_agents=100; scale-f7.json peak 100 concurrent slots."
+    note: "MECHANISM-ONLY: real concurrency reached 6 (G5). The 100-slot ceiling is a mechanism measure, not live concurrency."
+
+  - id: FR10
+    section: fleet_requirement
+    verdict: VERIFIED-NOW
+    evidence_strength: code_read
+    evidence: "No AGENT_LOOP.md or wf.py in repo; pmk CLI exists."
+    note: "AGENT_LOOP.md defunct; wf.py replaced by pmk."
+
+  - id: FR11
+    section: fleet_requirement
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "D-02: native Windows; prompts use PowerShell."
+    note: "Windows/PowerShell confirmed."
+
+  - id: FR12
+    section: fleet_requirement
+    verdict: DIVERGES
+    evidence_strength: code_read
+    evidence: "Policy: external_effects='none', autonomy_ceiling='R2'. But no sandbox; scope check at submit only."
+    note: "L-F1: no sandbox; scope check detects at submit only."
+
+  - id: FR13
+    section: fleet_requirement
+    verdict: VERIFIED-NOW
+    evidence_strength: code_read
+    evidence: "Proposals exist in docs/sources/."
+    note: "Deliverable is pilot proposal."
+
+  - id: FR14
+    section: fleet_requirement
+    verdict: UNVERIFIED
+    evidence_strength: agent_authorship
+    evidence: "demo_one_click.py green (fake CLI); needs real LLM for full test."
+    note: "One-click run to done with real LLM not executed."
+
+  - id: FR15
+    section: fleet_requirement
+    verdict: VERIFIED-EARLIER
+    evidence_strength: code_read
+    evidence: "L-F2: direct CLI profiles wall-time only; gateway profiles metered."
+    note: "Token usage not a concern for direct CLIs."
+
+  - id: D-L1
+    section: decision_log
+    verdict: DIVERGES
+    evidence_strength: code_read
+    evidence: "D-02: native Windows; repo at C:\\temp\\projects\\testproject1."
+    note: "v1 §6-7 assumed WSL; redirected."
+
+  - id: D-L2
+    section: decision_log
+    verdict: VERIFIED-NOW
+    evidence_strength: code_read
+    evidence: "src/fleet/harness.py; tests-fleet-ran-now.txt."
+    note: "Harness claims, launches all CLIs."
+
+  - id: D-L3
+    section: decision_log
+    verdict: VERIFIED-EARLIER
+    evidence_strength: code_read
+    evidence: "Policy: only via_gateway=true profiles scrub env."
+    note: "Scrubbed env for gateway profiles."
+
+  - id: D-L4
+    section: decision_log
+    verdict: VERIFIED-EARLIER
+    evidence_strength: code_read
+    evidence: "Dispatcher calls pmk.api in-process (not subprocesses)."
+    note: "In-process API calls (D-L4)."
+
+  - id: D-L5
+    section: decision_log
+    verdict: VERIFIED-EARLIER
+    evidence_strength: code_read
+    evidence: "Views regenerated debounced; pre-sentinel check."
+    note: "Debounced views (5 s)."
+
+  - id: D-L6
+    section: decision_log
+    verdict: VERIFIED-NOW
+    evidence_strength: raw_artefact
+    evidence: "test_tasks.py scope_overlaps tests; T-0003 blocked."
+    note: "Scope overlap exclusion at claim. Defect (D-A1): no backoff — now fixed; regression tests added."
+
+  - id: D-L7
+    section: decision_log
+    verdict: VERIFIED-NOW
+    evidence_strength: code_read
+    evidence: "harness.py writes ORDER.md; FIXED_PROMPT is ASCII."
+    note: "Order file + fixed prompt."
+
+  - id: D-L8
+    section: decision_log
+    verdict: VERIFIED-EARLIER
+    evidence_strength: code_read
+    evidence: "src/fleet/recovery.py; test_fleet.py."
+    note: "Recovery ladder L0-L4."
+
+  - id: D-L9
+    section: decision_log
+    verdict: VERIFIED-EARLIER
+    evidence_strength: code_read
+    evidence: "D-L9 was 'PDD via lease, not special path' — mislabelled in v1.0.0. Actual PDD lifecycle: plan task writes PDD through normal lifecycle, reviewed at project status/close-check."
+    note: "Mislabel corrected in v1.1.0. Evidence path is normal lifecycle (project status + close-check), not a lease-specific path. In v1.0.0 D-L9 was recorded with a lease-specific description that did not match the code."
+
+  - id: D-L10
+    section: decision_log
+    verdict: VERIFIED-NOW
+    evidence_strength: code_read
+    evidence: "src/console/ exists."
+    note: "Web Console (FastAPI + HTML)."
+
+  - id: D-L11
+    section: decision_log
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "Evidence bundles record resolved_models; T-0003 bundle shows them."
+    note: "Provenance fields."
+
+  - id: D-L12
+    section: decision_log
+    verdict: VERIFIED-EARLIER
+    evidence_strength: raw_artefact
+    evidence: "agents.toml: all families declared; policy exclude_author_family=true."
+    note: "Family declared; unknown = no verify."
+
+  - id: D-L13
+    section: decision_log
+    verdict: VERIFIED-EARLIER
+    evidence_strength: code_read
+    evidence: "src/fleet/state.py FleetState; fleet-state.json."
+    note: "Fleet-wide cooling in app state."
+
+  - id: D-L14
+    section: decision_log
+    verdict: VERIFIED-EARLIER
+    evidence_strength: code_read
+    evidence: "caliber-s1-s5.md; STATE.md."
+    note: "Caliber parallel, tiers re-ordered."

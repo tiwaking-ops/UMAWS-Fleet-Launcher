@@ -1,0 +1,8 @@
+﻿# cline's classifier pattern, derived from a real capture.
+#
+# The capture is cline's own output when the free promotion for
+# cline-free/mimo-v2.6-flash ended, on 2026-10-22.
+
+[model_gone]
+pattern = "free promotion for this model has ended"
+source  = "model_gone.txt"

@@ -1,0 +1,551 @@
+﻿=== UMAWS Console smoke test (RAN-NOW) ===
+when: 2026-10-24T14:47:25.0634726+13:00  |  server: uvicorn console.app:app on 127.0.0.1:8765 (code default port)  |  cwd: clone repo
+safety holds: pilot/STOP created; agents.toml held aside (no profiles => no dispatch possible)
+### GET /
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UMAWS Fleet</title>
+<style>
+  :root {
+    --bg: #14161a; --panel: #1c1f26; --panel2: #232733; --line: #2e3340;
+    --fg: #dfe3ec; --dim: #8b93a7; --accent: #6ea8fe; --ok: #4ec98b;
+    --warn: #e3b341; --bad: #e2564d; --mono: ui-monospace, "Cascadia Mono",
+      "Consolas", monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:14px/1.5 system-ui, "Segoe UI", sans-serif; }
+  header { display:flex; align-items:center; gap:16px; padding:10px 18px;
+           background:var(--panel); border-bottom:1px solid var(--line);
+           position:sticky; top:0; z-index:5; }
+  header h1 { font-size:16px; margin:0; letter-spacing:.4px; }
+  .pill { font-size:12px; padding:2px 9px; border-radius:11px;
+          background:var(--panel2); color:var(--dim); border:1px solid var(--line); }
+  .pill.ok { color:var(--ok); border-color:#24503c; }
+  .pill.warn { color:var(--warn); border-color:#5b4a1c; }
+  .pill.bad { color:var(--bad); border-color:#5e2b28; }
+  nav { display:flex; gap:4px; padding:0 14px; background:var(--panel);
+        border-bottom:1px solid var(--line); }
+  nav button { background:none; border:none; color:var(--dim); padding:9px 14px;
+               cursor:pointer; font-size:14px; border-bottom:2px solid transparent; }
+  nav button.active { color:var(--fg); border-bottom-color:var(--accent); }
+  nav button:hover { color:var(--fg); }
+  main { padding:18px; }
+  .tab { display:none; }
+  .tab.active { display:block; }
+  .grid { display:grid; gap:14px; }
+  .g2 { grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); }
+  .g3 { grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+  .card { background:var(--panel); border:1px solid var(--line);
+          border-radius:8px; padding:14px 16px; }
+  .card h2 { font-size:13px; margin:0 0 10px; text-transform:uppercase;
+             letter-spacing:.7px; color:var(--dim); font-weight:600; }
+  .kpis { display:flex; gap:22px; flex-wrap:wrap; }
+  .kpi b { display:block; font-size:24px; font-family:var(--mono); }
+  .kpi span { color:var(--dim); font-size:12px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line);
+           vertical-align:top; }
+  th { color:var(--dim); font-weight:600; font-size:11px; text-transform:uppercase;
+       letter-spacing:.6px; }
+  td.mono, .mono { font-family:var(--mono); font-size:12px; }
+  button.act { background:var(--panel2); color:var(--fg); border:1px solid var(--line);
+               border-radius:6px; padding:5px 11px; cursor:pointer; font-size:13px; }
+  button.act:hover { border-color:var(--accent); }
+  button.act.danger:hover { border-color:var(--bad); color:var(--bad); }
+  button.act.primary { background:#25406e; border-color:#3b5f9e; }
+  input, textarea, select {
+    background:var(--panel2); color:var(--fg); border:1px solid var(--line);
+    border-radius:6px; padding:7px 9px; font-size:13px; font-family:inherit;
+    width:100%; }
+  textarea { min-height:120px; font-family:var(--mono); }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+         margin-bottom:12px; }
+  .row > * { flex:0 0 auto; }
+  .grow { flex:1 1 220px; }
+  .log { background:#0e1014; border:1px solid var(--line); border-radius:6px;
+         padding:10px; font-family:var(--mono); font-size:12px; white-space:pre-wrap;
+         max-height:420px; overflow:auto; }
+  .muted { color:var(--dim); }
+  .small { font-size:12px; }
+  .s-READY { color:var(--accent); } .s-DONE { color:var(--ok); }
+  .s-LEASED,.s-SUBMITTED,.s-VERIFYING,.s-INTEGRATING { color:var(--warn); }
+  .s-BLOCKED,.s-VOID { color:var(--bad); }
+  .banner { padding:9px 14px; border-radius:6px; margin-bottom:14px;
+            background:#3a2320; border:1px solid #6b3730; color:#ffb4ab; }
+  .banner.ok { background:#1d3327; border-color:#2f6047; color:#a6e9c6; }
+</style>
+</head>
+<body>
+<header>
+  <h1>UMAWS Fleet</h1>
+  <span class="pill" id="pill-state">ÔÇª</span>
+  <span class="pill" id="pill-slots">ÔÇª</span>
+  <span class="pill" id="pill-dispatch">ÔÇª</span>
+  <span class="pill" id="pill-chain">ÔÇª</span>
+  <span style="flex:1"></span>
+  <span class="pill" id="pill-clock">ÔÇª</span>
+  <button class="act danger" onclick="killAll()">KILL ALL</button>
+  <button class="act" onclick="stopAll()">STOP ALL</button>
+  <button class="act" onclick="resume()">RESUME</button>
+</header>
+
+<nav>
+  <button class="active" data-tab="projects" onclick="show('projects')">Projects</button>
+  <button data-tab="fleet" onclick="show('fleet')">Fleet</button>
+  <button data-tab="tasks" onclick="show('tasks')">Tasks</button>
+  <button data-tab="queue" onclick="show('queue')">Queue</button>
+  <button data-tab="overseer" onclick="show('overseer')">Overseer</button>
+  <button data-tab="launcher" onclick="show('launcher')">Manual launcher</button>
+  <button data-tab="metrics" onclick="show('metrics')">Metrics</button>
+</nav>
+
+<main>
+  <div id="banner"></div>
+
+  <section class="tab active" id="tab-projects">
+    <div class="grid g2">
+      <div class="card">
+        <h2>Run a project</h2>
+        <div class="row">
+          <input class="grow" id="brief" placeholder="Paste the brief (free text)">
+        </div>
+        <div class="row">
+          <button class="act primary" onclick="projectInit()">Create project</button>
+          <button class="act" onclick="projectAction('run')">Run</button>
+          <button class="act" onclick="projectAction('pause')">Pause</button>
+          <button class="act" onclick="projectAction('resume')">Resume</button>
+          <button class="act" onclick="closeCheck()">Close-check</button>
+        </div>
+        <div class="mono small muted" id="project-detail"></div>
+      </div>
+      <div class="card">
+        <h2>Lifecycle</h2>
+        <div class="kpis" id="project-kpis"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-fleet">
+    <div class="grid g2">
+      <div class="card">
+        <h2>Slots</h2>
+        <div id="slots"></div>
+      </div>
+      <div class="card">
+        <h2>Profiles</h2>
+        <div id="profiles"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-tasks">
+    <div class="card"><h2>Task ledger</h2><div id="tasks"></div></div>
+  </section>
+
+  <section class="tab" id="tab-queue">
+    <div class="card"><h2>Decisions</h2><div id="queue"></div></div>
+  </section>
+
+  <section class="tab" id="tab-overseer">
+    <div class="grid g2">
+      <div class="card"><h2>Overseer</h2><div id="overseer"></div></div>
+      <div class="card"><h2>Wake log</h2><div class="log" id="wake-log"></div></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-launcher">
+    <div class="card">
+      <h2>Manual launcher</h2>
+      <div class="row">
+        <input class="grow" id="l-search" placeholder="Search" oninput="loadLauncher()">
+        <select id="l-group" style="width:180px" onchange="loadLauncher()"></select>
+        <button class="act" onclick="lSelectVisible()">Select visible</button>
+        <button class="act" onclick="lClearVisible()">Clear visible</button>
+        <button class="act" onclick="lClearAll()">Clear all</button>
+        <button class="act" onclick="lNew()">New</button>
+        <button class="act" onclick="lDuplicate()">Duplicate</button>
+        <button class="act danger" onclick="lDelete()">Delete</button>
+        <button class="act" onclick="lImport()">Import from text file</button>
+        <button class="act primary" onclick="lLaunch()">Launch selected</button>
+      </div>
+      <div id="launcher-table"></div>
+      <div class="row" style="margin-top:12px">
+        <span class="small muted">Delay between launches (s)</span>
+        <input id="l-delay" style="width:80px" value="1.0">
+        <span class="small muted"><label><input type="checkbox" id="l-keep" style="width:auto" checked> keep terminal open</label></span>
+        <span class="small muted">Mode</span>
+        <select id="l-mode" style="width:180px">
+          <option value="legacy">Legacy (unmanaged)</option>
+          <option value="managed">Managed (task + profile)</option>
+        </select>
+        <input class="grow" id="l-task" placeholder="task id (managed mode)">
+        <input class="grow" id="l-profile" placeholder="profile id (managed mode)">
+      </div>
+      <div class="log" id="launcher-log"></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-metrics">
+    <div class="grid g2">
+      <div class="card"><h2>Live metrics</h2><div class="kpis" id="metrics"></div></div>
+      <div class="card"><h2>Per profile</h2><div id="metric-profiles"></div></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let checked = new Set();
+let launcherEntries = [];
+
+/* ---------- helpers ---------- */
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"]/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+}
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const t = await r.text();
+  try { return JSON.parse(t); } catch { return { error: t }; }
+}
+function post(path, body) {
+  const init = { method: "POST", headers: {"Content-Type": "application/json"} };
+  if (body !== undefined) init.body = JSON.stringify(body);
+  return api(path, init);
+}
+function show(name) {
+  document.querySelectorAll(".tab").forEach(t =>
+    t.classList.toggle("active", t.id === "tab-" + name));
+  document.querySelectorAll("nav button").forEach(b =>
+    b.classList.toggle("active", b.dataset.tab === name));
+  if (name === "launcher") loadLauncher();
+  if (name === "tasks") loadTasks();
+  if (name === "queue") loadQueue();
+  if (name === "overseer") loadOverseer();
+  if (name === "metrics") loadMetrics();
+}
+
+/* ---------- live stream ---------- */
+function connect() {
+  const es = new EventSource("/api/events");
+  es.onmessage = ev => {
+    const d = JSON.parse(ev.data);
+    updateHeader(d);
+    updateSlots(d.slots || []);
+    updateProfiles(d.fleet || {});
+    updateProject(d.status || {});
+  };
+  es.onerror = () => { setTimeout(connect, 3000); };
+}
+function updateHeader(d) {
+  const st = d.status || {};
+  $("pill-state").textContent = "state: " + (st.state || "?");
+  $("pill-slots").textContent = (d.slots || []).length + " slots";
+  const p = $("pill-dispatch");
+  p.textContent = d.fleet && d.fleet.dispatch_paused ? "dispatch PAUSED" : "dispatch ok";
+  p.className = "pill " + (d.fleet && d.fleet.dispatch_paused ? "bad" : "ok");
+}
+function updateProject(st) {
+  $("project-kpis").innerHTML = [
+    ["state", st.state], ["tasks", st.tasks_done + "/" + st.tasks],
+    ["goals", st.goals_done + "/" + st.goals_total],
+    ["pdd", st.pdd ? "yes" : "no"],
+  ].map(([k, v]) =>
+    `<div class="kpi"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join("");
+  $("project-detail").textContent =
+    `brief: ${st.brief || "-"}   report: ${st.report || "-"}`;
+}
+function updateSlots(slots) {
+  if (!slots.length) { $("slots").innerHTML = '<p class="muted">no slots</p>'; return; }
+  $("slots").innerHTML = `<table><tr><th>task</th><th>profile</th><th>pid</th>
+    <th>runtime</th><th>last output</th><th></th></tr>` +
+    slots.map(s => `<tr>
+      <td class="mono">${esc(s.task)}</td>
+      <td class="mono">${esc(s.profile)}${s.degraded ? " <span class='pill warn'>degraded</span>" : ""}</td>
+      <td class="mono">${esc(s.pid)}</td>
+      <td class="mono">${s.runtime_s}s</td>
+      <td class="mono">${s.last_output_age_s}s</td>
+      <td><button class="act" onclick="tail('${esc(s.task)}')">log</button></td>
+    </tr>`).join("") + "</table>";
+}
+function updateProfiles(fleet) {
+  const rows = fleet.profiles || [];
+  $("profiles").innerHTML = `<table><tr><th>id</th><th>state</th><th>run/max</th>
+    <th>cooldown</th><th>last failure</th><th></th></tr>` +
+    rows.map(p => `<tr>
+      <td class="mono">${esc(p.id)}</td>
+      <td>${esc(p.state)}</td>
+      <td class="mono">${p.running}/${p.max_concurrent}</td>
+      <td class="mono">${p.cooldown_remaining_s}s</td>
+      <td class="mono">${esc(p.last_failure_class || "-")}</td>
+      <td>
+        <button class="act" onclick="fleetAct('enable','${esc(p.id)}')">on</button>
+        <button class="act" onclick="fleetAct('disable','${esc(p.id)}')">off</button>
+        <button class="act" onclick="fleetAct('cool','${esc(p.id)}')">cool</button>
+      </td></tr>`).join("") + "</table>";
+}
+
+/* ---------- actions ---------- */
+async function projectInit() {
+  const brief = $("brief").value;
+  const r = await post("/api/project/init?brief=" + encodeURIComponent(brief));
+  log("project init: " + JSON.stringify(r));
+}
+async function projectAction(a) {
+  const r = await post("/api/project/" + a);
+  log("project " + a + ": " + JSON.stringify(r));
+}
+async function closeCheck() {
+  const r = await post("/api/project/close-check");
+  $("launcher-log").textContent = JSON.stringify(r, null, 2);
+  log("close-check: " + (r.ok ? "green" : "not green"));
+}
+async function fleetAct(a, id) {
+  let url = `/api/fleet/${a}?profile=${encodeURIComponent(id)}`;
+  if (a === "cool") url += "&minutes=15";
+  await post(url);
+}
+async function tail(task) {
+  const r = await api(`/api/agent/${task}/log`);
+  $("launcher-log").textContent = (r.log || []).join("\n");
+  show("launcher");
+}
+async function stopAll() {
+  const r = await post("/api/stop-all");
+  log("stop all: " + JSON.stringify(r));
+}
+async function killAll() {
+  const r = await post("/api/kill-all");
+  log("kill all: " + JSON.stringify(r));
+}
+async function resume() {
+  const r = await post("/api/resume");
+  log("resume: " + JSON.stringify(r));
+}
+function log(msg) {
+  const el = $("launcher-log");
+  el.textContent = (msg + "\n" + el.textContent).slice(0, 20000);
+}
+
+/* ---------- tasks / queue / overseer / metrics ---------- */
+async function loadTasks() {
+  const tasks = await api("/api/tasks");
+  $("tasks").innerHTML = tasks.length ? `<table><tr><th>id</th><th>state</th>
+    <th>type</th><th>title</th><th>goal</th><th>attempts</th><th>scope</th></tr>` +
+    tasks.map(t => `<tr>
+      <td class="mono">${esc(t.id)}</td>
+      <td class="s-${esc(t.state)}">${esc(t.state)}</td>
+      <td>${esc(t.type)}</td>
+      <td>${esc(t.title)}</td>
+      <td class="mono">${esc(t.goal_ref)}</td>
+      <td class="mono">${t.attempt}/${esc(t.attempts.max)}</td>
+      <td class="mono small">${esc((t.scope.write || []).join(", "))}</td>
+    </tr>`).join("") + "</table>" : '<p class="muted">no tasks</p>';
+}
+async function loadQueue() {
+  const items = await api("/api/queue");
+  const open = items.filter(i => i.state === "open");
+  $("queue").innerHTML = open.length ? `<table><tr><th>id</th><th>kind</th>
+    <th>topic</th><th>options</th><th>recommended</th><th>safe default</th><th></th></tr>` +
+    open.map(i => `<tr>
+      <td class="mono">${esc(i.id)}</td>
+      <td>${i.class_k ? "<span class='pill warn'>class K</span>" : "normal"}</td>
+      <td>${esc(i.topic)}</td>
+      <td class="small">${esc((i.options || []).join(", "))}</td>
+      <td class="small">${esc(i.recommended)}</td>
+      <td class="small">${esc(i.safe_default)}</td>
+      <td><button class="act" onclick="decide('${esc(i.id)}','${esc(i.recommended || (i.options||[])[0] || "")}')">decide</button></td>
+    </tr>`).join("") + "</table>" : '<p class="muted">nothing waiting</p>';
+}
+async function decide(id, choice) {
+  await post(`/api/queue/decide?item_id=${encodeURIComponent(id)}&choice=${encodeURIComponent(choice)}`);
+  loadQueue();
+}
+async function loadOverseer() {
+  const r = await api("/api/overseer");
+  const s = r.status || {};
+  $("overseer").innerHTML = `<div class="kpis">
+    <div class="kpi"><b>${esc(s.session || "-")}</b><span>session</span></div>
+    <div class="kpi"><b>${esc(s.last_wake_reason || "-")}</b><span>last wake</span></div>
+    <div class="kpi"><b>${s.wakes_this_hour || 0}/${s.per_hour || 0}</b><span>wakes this hour</span></div>
+    <div class="kpi"><b>${s.wakes || 0}</b><span>wakes total</span></div>
+  </div><p class="small muted">profiles: ${esc((s.profiles || []).join(", ") || "none configured")}</p>`;
+  $("wake-log").textContent = (s.recent || []).map(w =>
+    `${new Date(w.at * 1000).toLocaleTimeString()}  ${w.reason}  ${w.started ? "started" : "skipped: " + (w.error || "")}`
+  ).join("\n") || "(no wakes yet)";
+}
+async function loadMetrics() {
+  const m = await api("/api/metrics");
+  $("metrics").innerHTML = [
+    ["uptime s", m.uptime_s], ["tasks", m.task_total], ["active leases", m.active_leases],
+    ["incidents", m.incidents], ["queue open", m.queue_open],
+    ["slots", m.slots_in_use + "/" + m.fleet_cap], ["replan rounds", m.replan_rounds],
+    ["wakes", m.wakes],
+  ].map(([k, v]) => `<div class="kpi"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join("");
+  $("metric-profiles").innerHTML = `<table><tr><th>profile</th><th>runs</th>
+    <th>failures</th><th>last failure</th><th>state</th></tr>` +
+    (m.per_profile || []).map(p => `<tr><td class="mono">${esc(p.id)}</td>
+      <td class="mono">${p.runs}</td><td class="mono">${p.failures}</td>
+      <td class="mono">${esc(p.last_failure_class || "-")}</td>
+      <td>${esc(p.state)}</td></tr>`).join("") + "</table>";
+}
+
+/* ---------- manual launcher ---------- */
+async function loadLauncher() {
+  const d = await api("/api/launcher");
+  launcherEntries = d.entries || [];
+  $("l-delay").value = (d.settings && d.settings.delay_seconds) || 1.0;
+  $("l-keep").checked = !!(d.settings && d.settings.keep_open);
+  const groups = ["All groups", ...new Set(launcherEntries.map(e => e.group).filter(Boolean))].sort();
+  const sel = $("l-group");
+  const current = sel.value;
+  sel.innerHTML = groups.map(g => `<option>${esc(g)}</option>`).join("");
+  sel.value = groups.includes(current) ? current : "All groups";
+  renderLauncher();
+}
+function renderLauncher() {
+  const q = $("l-search").value.toLowerCase();
+  const g = $("l-group").value;
+  const rows = launcherEntries.filter(e =>
+    (g === "All groups" || e.group === g) &&
+    (!q || [e.name, e.group, e.prefix, e.cwd, e.prompt].join(" ").toLowerCase().includes(q)));
+  $("launcher-table").innerHTML = `<table><tr><th></th><th>name</th><th>group</th>
+    <th>prefix</th><th>cwd</th><th></th></tr>` + rows.map(e => `<tr>
+    <td><input type="checkbox" style="width:auto" ${checked.has(e.id) ? "checked" : ""}
+      onchange="toggle('${esc(e.id)}', this.checked)"></td>
+    <td>${esc(e.name)}</td><td>${esc(e.group)}</td>
+    <td class="mono small">${esc(e.prefix)}</td>
+    <td class="mono small">${esc(e.cwd)}</td>
+    <td><button class="act" onclick="editEntry('${esc(e.id)}')">edit</button></td>
+  </tr>`).join("") + "</table>";
+}
+function toggle(id, on) { on ? checked.add(id) : checked.delete(id); }
+function lSelectVisible() {
+  document.querySelectorAll("#launcher-table input[type=checkbox]").forEach(
+    c => { if (c.checked) checked.add(c.closest("tr").querySelector("button").getAttribute("onclick").match(/'([^']+)'/)[1]); });
+  renderLauncher();
+}
+function lClearVisible() {
+  document.querySelectorAll("#launcher-table input[type=checkbox]").forEach(
+    c => { if (c.checked) checked.delete(c.closest("tr").querySelector("button").getAttribute("onclick").match(/'([^']+)'/)[1]); });
+  renderLauncher();
+}
+function lClearAll() { checked.clear(); renderLauncher(); }
+function lNew() {
+  const e = { id: "new-" + Date.now(), name: "", group: "", prefix: "",
+              prompt: "", suffix: "", cwd: "" };
+  launcherEntries.push(e);
+  editEntry(e.id);
+}
+function lDuplicate() {
+  const copies = [];
+  launcherEntries.forEach(e => { if (checked.has(e.id)) {
+    const c = { ...e, id: "dup-" + Date.now() + Math.random(), name: e.name + " (copy)" };
+    launcherEntries.push(c); copies.push(c.id); } });
+  if (copies.length) { copies.forEach(id => checked.add(id)); renderLauncher(); }
+}
+function lDelete() {
+  launcherEntries = launcherEntries.filter(e => !checked.has(e.id));
+  checked.clear(); renderLauncher(); saveLauncher();
+}
+function editEntry(id) {
+  const e = launcherEntries.find(x => x.id === id);
+  if (!e) return;
+  const p = prompt("name", e.name), g = prompt("group", e.group),
+        pre = prompt("command prefix", e.prefix), pr = prompt("prompt", e.prompt),
+        su = prompt("extra args", e.suffix), cw = prompt("working dir", e.cwd);
+  if (p === null) return;
+  Object.assign(e, { name: p, group: g, prefix: pre, prompt: pr, suffix: su, cwd: cw });
+  renderLauncher(); saveLauncher();
+}
+function saveLauncher() {
+  post("/api/launcher/save", { entries: launcherEntries,
+    settings: { delay_seconds: parseFloat($("l-delay").value) || 1.0,
+                keep_open: $("l-keep").checked } });
+}
+function lImport() {
+  const path = prompt("path to a text file of command lines");
+  if (!path) return;
+  post("/api/launcher/import?path=" + encodeURIComponent(path))
+    .then(r => { log("import: " + JSON.stringify(r)); loadLauncher(); });
+}
+function lLaunch() {
+  const ids = [...checked];
+  if (!ids.length) { log("tick at least one entry first"); return; }
+  const mode = $("l-mode").value;
+  const task = $("l-task").value, profile = $("l-profile").value;
+  (async () => {
+    for (const id of ids) {
+      const r = await post(`/api/launcher/launch?entry_id=${encodeURIComponent(id)}` +
+        `&mode=${mode}&keep_open=${$("l-keep").checked}&task=${encodeURIComponent(task)}` +
+        `&profile=${encodeURIComponent(profile)}`);
+      log("launch " + id + ": " + JSON.stringify(r));
+      if (mode === "legacy") {
+        const d = (parseFloat($("l-delay").value) || 1.0) * 1000;
+        await new Promise(res => setTimeout(res, d));
+      }
+    }
+  })();
+}
+
+/* ---------- boot ---------- */
+connect();
+setInterval(() => {
+  $("pill-clock").textContent = new Date().toLocaleTimeString();
+  const es = document.querySelector("#api-chain");
+}, 1000);
+loadLauncher();
+</script>
+</body>
+</html>
+
+[HTTP_STATUS:200]
+
+
+### GET /api/project/status
+{"state":"NEW","tasks":3,"tasks_done":0,"by_state":{"LEASED":1,"READY":1,"REWORK":1},"goals_done":0,"goals_total":0,"pdd":null,"report":null,"brief":null,"stopped":true}
+[HTTP_STATUS:200]
+
+
+### GET /api/tasks
+[{"id":"T-0001","title":"pi live dispatch test: write hello.txt","type":"implement","goal_ref":"G-TEST-PI","risk_floor":"R2","scope":{"read":[],"write":["hello.txt"]},"acceptance":{"evidence_required":["oracle_results","diff_scope"],"oracles":["test -f hello.txt && grep -q hello hello.txt"]},"premises":[],"budget":{"tokens":5000,"wall_min":5},"depends_on":[],"attempts":{"max":3},"created_by":{"agent":"","kind":"overseer","model":"","role":"","session":""},"priority":100,"agent_hint":"","state":"LEASED","attempt":2,"fence":2,"block_reason":"","stop_conditions":[]},{"id":"T-0002","title":"pi live dispatch test: write hello.txt","type":"implement","goal_ref":"G-TEST-PI","risk_floor":"R2","scope":{"read":[],"write":["hello.txt"]},"acceptance":{"evidence_required":["oracle_results","diff_scope"],"oracles":["test -f hello.txt && grep -q hello hello.txt"]},"premises":[],"budget":{"tokens":5000,"wall_min":5},"depends_on":[],"attempts":{"max":3},"created_by":{"agent":"","kind":"overseer","model":"","role":"","session":""},"priority":100,"agent_hint":"pi-orca-deepseek","state":"READY","attempt":0,"fence":0,"block_reason":"","stop_conditions":[]},{"id":"T-0003","title":"pi live dispatch test: write pi-test.txt","type":"implement","goal_ref":"G-TEST-PI","risk_floor":"R2","scope":{"read":[],"write":["pi-test.txt"]},"acceptance":{"evidence_required":["oracle_results","diff_scope"],"oracles":["test -f pi-test.txt && grep -q pi pi-test.txt"]},"premises":[],"budget":{"tokens":5000,"wall_min":5},"depends_on":[],"attempts":{"max":3},"created_by":{"agent":"","kind":"overseer","model":"","role":"","session":""},"priority":100,"agent_hint":"pi-orca-deepseek","state":"REWORK","attempt":1,"fence":3,"block_reason":"","stop_conditions":[]}]
+[HTTP_STATUS:200]
+
+
+### GET /api/fleet
+{"status":{"profiles":[],"fleet_cap":20,"slots_in_use":0,"dispatch_paused":false,"pause_reason":"","free_ram_mb":7737,"min_free_ram_mb":2048},"slots":[]}
+[HTTP_STATUS:200]
+
+
+### GET /api/queue
+[{"id":"Q-001","topic":"D-19 ÔÇö ratify the .pm/policy.toml change (Caliber command, managed_paths, managed_exclude, caliber_version)","options":["ratify","revert"],"recommended":"ratify","safe_default":"revert: pmk context sync stops working, managed_paths reverts to three files that do not match what Caliber writes","class_k":true,"state":"decided","created":"2026-10-22T19:34:46Z","choice":"ratify","decided_at":"2026-10-22T19:35:05Z"},{"id":"Q-002","topic":"D-20 ÔÇö ratify the G1 baseline of the 10 class C context files, the 4 sanitised block removals, and the .gitignore change","options":["ratify","revert"],"recommended":"ratify","safe_default":"revert: the repository's agent instructions lose the generated context; lint/drift/sync still work but have nothing to manage","class_k":true,"state":"decided","created":"2026-10-22T19:34:46Z","choice":"ratify","decided_at":"2026-10-22T19:35:06Z"},{"id":"Q-001","topic":"Amendment v2 (gates classified by action, checkpoints, class K) ÔÇö approve to bring into force","options":["approve","edit again","discard"],"recommended":"approve","safe_default":"stays NOT IN FORCE: the finding at report 4.4 stands with no remedy, and the gate record keeps the inaccurate 'self-crossed' labels","class_k":true,"state":"decided","created":"2026-10-22T19:46:09Z","choice":"VOID - duplicate id, see decisions D-32; superseded by Q-003","decided_at":"2026-10-22T19:46:52Z"},{"id":"Q-003","topic":"Amendment v2 (gates classified by action, checkpoints, class K) - approve to bring into force","options":["approve","edit again","discard"],"recommended":"approve","safe_default":"stays NOT IN FORCE: the finding at report 4.4 stands with no remedy, and the gate record keeps the inaccurate 'self-crossed' labels","class_k":true,"state":"decided","created":"2026-10-22T19:46:53Z","choice":"approve","decided_at":"2026-10-22T19:53:10Z"},{"id":"Q-004","topic":"G4: enable Caliber auto-sync (mode dry-run to auto)","options":["apply the diff above","hold: stay dry-run"],"recommended":"apply the diff above","safe_default":"hold: stay dry-run","class_k":true,"state":"decided","created":"2026-10-23T08:28:20Z","choice":"apply the diff above","decided_at":"2026-10-23T08:47:55Z"}]
+[HTTP_STATUS:200]
+
+
+### GET /api/overseer
+{"status":{"session":"","last_wake_reason":"periodic","wakes":1,"wakes_this_hour":1,"per_hour":6,"debounce_s":60.0,"periodic_s":600.0,"last_wake_at":1792806428.7245123,"profiles":[],"recent":[{"reason":"periodic","at":1792806428.7245123,"session":"","profile":"","started":false,"error":"no Overseer profile is configured"}]},"wake_reason":""}
+[HTTP_STATUS:200]
+
+
+### GET /api/metrics
+{"uptime_s":17,"tasks":{"LEASED":1,"READY":1,"REWORK":1},"task_total":3,"active_leases":1,"incidents":1,"queue_open":0,"slots_in_use":0,"fleet_cap":20,"dispatch_paused":false,"pause_reason":"","per_profile":[],"replan_rounds":0,"wakes":1}
+[HTTP_STATUS:200]
+
+
+### GET /api/launcher
+{"entries":[{"id":"24baf263b111446b861176e1d2270cf7","name":"hermes ┬À TiwasProjectsv3","group":"TiwasProjectsv3","prefix":"hermes chat --oneshot -q","prompt":"Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"--yolo --cli --in \"C:\\temp\\projects\\TiwasProjectsv3\"","cwd":"C:\\temp\\projects\\TiwasProjectsv3"},{"id":"5e93002c8b9b451db278570f2395bffa","name":"hermes ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"hermes chat --oneshot -q","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"--yolo --cli --in \"C:\\temp\\projects\\Babylon5CCGGameDesign\"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"54058dfb4c154cacbf21cb25f94c0fa8","name":"kilo ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"kilo run","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"--dir \"C:\\temp\\projects\\Babylon5CCGGameDesign\" --auto","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"cf5927cf4e4f40d499df5a40acfd4790","name":"kilo ┬À TiwasProjectsv3","group":"TiwasProjectsv3","prefix":"kilo run","prompt":"Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"--dir \"C:\\temp\\projects\\TiwasProjectsv3\" --auto","cwd":"C:\\temp\\projects\\TiwasProjectsv3"},{"id":"a21f816649894b87b1e1729c6facb5d3","name":"cline ┬À cline-free/muse-spark-1.3-contributor","group":"wf-workflow","prefix":"cline --provider cline --model cline-free/muse-spark-1.3-contributor","prompt":"Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":""},{"id":"e52b42fdd0e447879d4d513a0c6e383d","name":"cline ┬À cline-free/mimo-v2.6-flash","group":"wf-workflow","prefix":"cline --provider cline --model cline-free/mimo-v2.6-flash","prompt":"Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":""},{"id":"b82786ec72a3439a970f98d9aa1b6528","name":"cline ┬À cline-free/nemotron-3.5-super-vl:free","group":"wf-workflow","prefix":"cline --provider cline --model cline-free/nemotron-3.5-super-vl","prompt":"Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":""},{"id":"1918b5eb75e14ad7976545d9215e91ed","name":"cline ┬À cline-free/solar-mini4","group":"wf-workflow","prefix":"cline --provider cline --model cline-free/solar-mini4","prompt":"Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":""},{"id":"d9399796054d4a12923700dd9631c4fe","name":"cline ┬À cline-free/muse-spark-1.3-contributor ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"cline --provider cline --model cline-free/muse-spark-1.3-contributor","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"38b572e2f98f450eb9742f56a6611166","name":"cline ┬À cline-free/mimo-v2.6-flash ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"cline --provider cline --model cline-free/mimo-v2.6-flash","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"9c8ead27df1f40389b577199cf788c4d","name":"cline ┬À cline-free/nemotron-3.5-super-vl:free ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"cline --provider cline --model cline-free/nemotron-3.5-super-vl","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"180658474b4840009a5301729d8ebb11","name":"cline ┬À cline-free/solar-mini4 ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"cline --provider cline --model cline-free/solar-mini4","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"0be0d82b915b40ebb3e7456ff1ec95dc","name":"pi ┬À free ┬À TiwasProjectsv3","group":"TiwasProjectsv3","prefix":"pi --provider openrouter --model free -p","prompt":"You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":"C:\\temp\\projects\\TiwasProjectsv3"},{"id":"c23cf245ab77439f93424a4ae9d9987b","name":"pi ┬À zai/glm-4.5-flash ┬À TiwasProjectsv3","group":"TiwasProjectsv3","prefix":"pi --provider zai --model glm-4.5-flash -p","prompt":"You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":"C:\\temp\\projects\\TiwasProjectsv3"},{"id":"dc192cfcab294e8eb5d6b3cc17bf6e96","name":"pi ┬À claude-3-opus-20240229 ┬À TiwasProjectsv3","group":"TiwasProjectsv3","prefix":"pi --provider omniroute --model claude-3-opus-20240229 -p","prompt":"You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":"C:\\temp\\projects\\TiwasProjectsv3"},{"id":"f7ee64e9a68b4b8c80990faa4a0a504e","name":"pi ┬À poor-claude ┬À TiwasProjectsv3","group":"TiwasProjectsv3","prefix":"pi --provider omniroute --model poor-claude -p","prompt":"You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":"C:\\temp\\projects\\TiwasProjectsv3"},{"id":"e1ccc6dc7f4f4f51ae697ac4a5239c08","name":"pi ┬À poor-codex ┬À TiwasProjectsv3","group":"TiwasProjectsv3","prefix":"pi --provider omniroute --model poor-codex -p","prompt":"You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":"C:\\temp\\projects\\TiwasProjectsv3"},{"id":"1a62cf7bd6c64afc8419c670f903e7b1","name":"pi ┬À nvidia/nemotron-3-ultra-550b-a55b ┬À TiwasProjectsv3","group":"TiwasProjectsv3","prefix":"pi --provider nvidia --model nvidia/nemotron-3-ultra-550b-a55b nvidia -p","prompt":"You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":"C:\\temp\\projects\\TiwasProjectsv3"},{"id":"1743399483024fa387be875234c544b6","name":"pi ┬À poolside/laguna-s-2.1:free ┬À TiwasProjectsv3","group":"TiwasProjectsv3","prefix":"pi --provider openrouter --model poolside/laguna-s-2.1:free -p","prompt":"You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":"C:\\temp\\projects\\TiwasProjectsv3"},{"id":"aa15d8e8070948cbb9e2965829a35903","name":"pi ┬À laguna-s-2.1 ┬À TiwasProjectsv3","group":"TiwasProjectsv3","prefix":"pi --provider poolside-api --model laguna-s-2.1 -p","prompt":"You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":"C:\\temp\\projects\\TiwasProjectsv3"},{"id":"7ee7989642254d14bfd802d85549ab0a","name":"pi ┬À poor-pi ┬À TiwasProjectsv3","group":"TiwasProjectsv3","prefix":"pi --provider omniroute --model poor-pi -p","prompt":"You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":"C:\\temp\\projects\\TiwasProjectsv3"},{"id":"841c6db3fb0043e184c14acff396d5b1","name":"pi ┬À tencent/hy4-preview-free ┬À TiwasProjectsv3","group":"TiwasProjectsv3","prefix":"pi --provider orcarouter --model tencent/hy4-preview-free -p","prompt":"You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":"C:\\temp\\projects\\TiwasProjectsv3"},{"id":"e4e0e96a4c0f4a798cef0702079aee06","name":"pi ┬À tencent/hy3-free ┬À TiwasProjectsv3","group":"TiwasProjectsv3","prefix":"pi --provider orcarouter --model tencent/hy3-free -p","prompt":"You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":"C:\\temp\\projects\\TiwasProjectsv3"},{"id":"f2506911d3a04d52883d3783d4ec5d58","name":"pi ┬À deepseek/deepseek-v4-flash-free ┬À TiwasProjectsv3","group":"TiwasProjectsv3","prefix":"pi --provider orcarouter --model deepseek/deepseek-v4-flash-free -p","prompt":"You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":"C:\\temp\\projects\\TiwasProjectsv3"},{"id":"11507bddd0aa4204a29c7e9bd2adc29b","name":"pi ┬À z-ai/glm-5.3-flash-free ┬À TiwasProjectsv3","group":"TiwasProjectsv3","prefix":"pi --provider orcarouter --model z-ai/glm-5.3-flash-free -p","prompt":"You are working in C:\\temp\\projects\\TiwasProjectsv3. Run python wf/wf.py claim, cd into the printed WORKTREE directory, do the task in the printed brief, then run the printed finish command (or park command if blocked), then stop. Work only inside the worktree.","suffix":"","cwd":"C:\\temp\\projects\\TiwasProjectsv3"},{"id":"20df14d75c0b4732ad298c52d46df720","name":"pi ┬À free ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"pi --provider openrouter --model free -p","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"c40d6694336742a281d765f54f5cb518","name":"pi ┬À zai/glm-4.5-flash ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"pi --provider zai --model glm-4.5-flash -p","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"d91dfde34bc241a782d4ec6dfa461e28","name":"pi ┬À zai/glm-4.7-flash ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"pi --provider zai --model glm-4.7-flash -p","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"d7acf3aaa5434afc986f2c4c81091f10","name":"pi ┬À laguna-s-2.1 ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"pi --provider poolside-api --model laguna-s-2.1 -p","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"56ebdd37af474cda811ae5762b234bab","name":"pi ┬À claude-3-opus-20240229 ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"pi --provider omniroute --model claude-3-opus-20240229 -p","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"c35182939eb84e2598fcd1606e7da616","name":"pi ┬À nvidia/nemotron-3-ultra-550b-a55b ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"pi --provider nvidia --model nvidia/nemotron-3-ultra-550b-a55b nvidia -p","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"45d75fac0a1e436e9af292dfff8a950d","name":"pi ┬À poolside/laguna-s-2.1:free ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"pi --provider openrouter --model poolside/laguna-s-2.1:free -p","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"755706d8c7ca4a87b3875819a77a39e1","name":"pi ┬À poor-codex ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"pi --provider omniroute --model poor-codex -p","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"681c20a528cb4156a2cc371fb7daea2c","name":"pi ┬À poor-pi ┬À Babylon5CCGGameDesign (copy)","group":"Babylon5CCGGameDesign","prefix":"pi --provider omniroute --model poor-pi -p","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"5d99e30f1313441480c2ac3acc775b49","name":"pi ┬À tencent/hy4-preview-free ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"pi --provider orcarouter --model tencent/hy4-preview-free -p","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"e8feda89d7684925a2280fbf1a2e5a21","name":"pi ┬À tencent/hy3-free ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"pi --provider orcarouter --model tencent/hy3-free -p","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"bff6fb68c59b437e8a331964af69dcdd","name":"pi ┬À deepseek/deepseek-v4-flash-free ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"pi --provider orcarouter --model deepseek/deepseek-v4-flash-free -p","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"},{"id":"cbb1c0493b80431490967b737af78e2b","name":"pi ┬À z-ai/glm-5.3-flash-free ┬À Babylon5CCGGameDesign","group":"Babylon5CCGGameDesign","prefix":"pi --provider orcarouter --model z-ai/glm-5.3-flash-free -p","prompt":"You are working in C:\\temp\\projects\\Babylon5CCGGameDesign. Read .agent/AGENT_LOOP.md and follow it as the operating procedure. Boot per .agent/00_BOOT.md (all 11 steps), including adopting one stable agent_id spelling. Then work the queue: from the shared census (run-queue.ps1 -DryRun), claim the highest OPEN row with no live claim via new-claim.ps1, heartbeat, complete it per 00_BOOT.md step 9 (report + pattern + DONE flip + claim release + idle heartbeat). Non-zero claim exit = no claim: record and stop. No commit, no push.","suffix":"","cwd":"C:\\temp\\projects\\Babylon5CCGGameDesign"}],"settings":{"delay_seconds":1.0,"keep_open":true},"path":"C:\\Users\\Tiwa Pene\\AppData\\Local\\Temp\\opencode\\clone\\repo\\prompts.json"}
+[HTTP_STATUS:200]
+
+
+### GET /api/agent/list
+[]
+[HTTP_STATUS:200]
+
+
+### GET /api/events (SSE, 4s sample)
+data: {"status": {"state": "NEW", "tasks": 3, "tasks_done": 0, "by_state": {"LEASED": 1, "READY": 1, "REWORK": 1}, "goals_done": 0, "goals_total": 0, "pdd": null, "report": null, "brief": null, "stopped": true}, "fleet": {"profiles": [], "fleet_cap": 20, "slots_in_use": 0, "dispatch_paused": false, "pause_reason": "", "free_ram_mb": 7742, "min_free_ram_mb": 2048}, "slots": [], "queue": [{"id": "Q-001", "topic": "D-19 \u2014 ratify the .pm/policy.toml change (Caliber command, managed_paths, managed_exclude, caliber_version)", "options": ["ratify", "revert"], "recommended": "ratify", "safe_default": "revert: pmk context sync stops working, managed_paths reverts to three files that do not match what Caliber writes", "class_k": true, "state": "decided", "created": "2026-10-22T19:34:46Z", "choice": "ratify", "decided_at": "2026-10-22T19:35:05Z"}, {"id": "Q-002", "topic": "D-20 \u2014 ratify the G1 baseline of the 10 class C context files, the 4 sanitised block removals, and the .gitignore change", "options": ["ratify", "revert"], "recommended": "ratify", "safe_default": "revert: the repository's agent instructions lose the generated context; lint/drift/sync still work but have nothing to manage", "class_k": true, "state": "decided", "created": "2026-10-22T19:34:46Z", "choice": "ratify", "decided_at": "2026-10-22T19:35:06Z"}, {"id": "Q-001", "topic": "Amendment v2 (gates classified by action, checkpoints, class K) \u2014 approve to bring into force", "options": ["approve", "edit ag
+exit: 28 (28 = curl timeout after sample, expected for an endless stream)

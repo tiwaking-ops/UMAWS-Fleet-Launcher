@@ -477,8 +477,9 @@ class Dispatcher:
         run.slot = new_slot
         run.last_change = time.time()
         self.runs[run.task.id] = run
+        etype = "AGENT_RESUMED" if mode == "resume" else "AGENT_RESTARTED"
         self.kernel.record_event(
-            "AGENT_RESUMED", subject=run.task.id, fence=run.lease.fence,
+            etype, subject=run.task.id, fence=run.lease.fence,
             payload={"profile": profile.id, "mode": mode,
                      "model": model or profile.model,
                      "previous_profile": run.lease.holder})

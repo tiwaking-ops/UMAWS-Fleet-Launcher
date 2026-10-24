@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import math
 import sqlite3
+import sys
 import threading
 import uuid
 from dataclasses import dataclass, field
@@ -475,7 +476,9 @@ class QuotaEngine:
         for metric in (METRIC_REQUESTS, METRIC_TOKENS):
             for rule, scope_key in self.applicable(deployment, metric):
                 used = self.used(rule, deployment)
-                out[f"{scope_key}:{metric}"] = {
+                # Include window in key to distinguish rolling_60s from rolling_24h
+                key = f"{scope_key}:{metric}:{rule.window}"
+                out[key] = {
                     "scope": rule.scope,
                     "metric": metric,
                     "window": rule.window,

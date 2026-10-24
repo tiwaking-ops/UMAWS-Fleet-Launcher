@@ -1,0 +1,9 @@
+﻿# opencode's classifier pattern, derived from a real capture.
+#
+# The capture is opencode's own output when the free model pool was rate
+# limited on 2026-10-22.  The pattern matches the error line, not the
+# ANSI trace that precedes it.
+
+[quota]
+pattern = "Rate limit exceeded"
+source  = "quota.txt"

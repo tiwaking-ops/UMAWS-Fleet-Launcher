@@ -1,0 +1,116 @@
+﻿=== pmk CLI --help doc-test sweep (RAN-NOW) ===
+when: 2026-10-24T15:12:16.9630263+13:00
+
+### pmk --help
+
+usage: pmk [-h] [--root ROOT]
+           {init,status,task,claim,renew,revoke,submit,verify,integrate,brief,sentinel,views,heartbeat,sweep,queue,incident,pins,pdd,context,fleet,dispatch,agent,project,stop,resume}
+           ...
+
+pmk ÔÇö the UMAWS Kernel-lite command line. The Kernel is the only writer of
+coordination state.
+
+positional arguments:
+  {init,status,task,claim,renew,revoke,submit,verify,integrate,brief,sentinel,views,heartbeat,sweep,queue,incident,pins,pdd,context,fleet,dispatch,agent,project,stop,resume}
+    init                create the layout, first event and pins
+    status              one-screen status
+    task                task cards
+    claim               claim a task for a lease
+    renew               renew a lease
+    revoke              revoke a lease and bump the fence
+    submit              submit work with an evidence bundle
+    verify              record a verification result
+    integrate           promote a verified task
+    brief               print a briefing from the log alone
+    sentinel            check the pilot invariants
+    views               regenerate the views
+    heartbeat           report the current state
+    sweep               expire leases past their TTL
+    queue               human decision queue
+    incident            record an incident
+    pins                pinned files
+    pdd                 PDD tooling
+    context             the generated context files
+    fleet               the fleet and its profiles
+    dispatch            the dispatch loop
+    agent               the running agents
+    project             the project lifecycle
+    stop                stop-the-line: freeze promotion and leases
+    resume              lift the stop-the-line flag
+
+options:
+  -h, --help            show this help message and exit
+  --root ROOT           repository root (default: discovered)
+exit: 0
+
+### pmk task --help
+
+usage: pmk task [-h] {create,admit,list,show} ...
+
+positional arguments:
+  {create,admit,list,show}
+    create              create a task card
+    admit               admit a proposed task
+    list                list tasks
+    show                show one task
+
+options:
+  -h, --help            show this help message and exit
+exit: 0
+
+### pmk task create --help
+
+usage: pmk task create [-h] [--type TYPE] [--goal-ref GOAL_REF]
+                       [--write WRITE] [--read READ] [--oracle ORACLE]
+                       [--evidence EVIDENCE] [--depends-on DEPENDS_ON]
+                       [--attempts ATTEMPTS] [--priority PRIORITY]
+                       [--agent-hint AGENT_HINT]
+                       [--budget-tokens BUDGET_TOKENS]
+                       [--budget-minutes BUDGET_MINUTES] [--propose]
+                       title
+
+positional arguments:
+  title
+
+options:
+  -h, --help            show this help message and exit
+  --type TYPE
+  --goal-ref GOAL_REF
+  --write WRITE         write scope (repeatable)
+  --read READ           read scope (repeatable)
+  --oracle ORACLE       acceptance command
+  --evidence EVIDENCE
+  --depends-on DEPENDS_ON
+  --attempts ATTEMPTS
+  --priority PRIORITY
+  --agent-hint AGENT_HINT
+  --budget-tokens BUDGET_TOKENS
+  --budget-minutes BUDGET_MINUTES
+  --propose             create in PROPOSED (do not admit)
+exit: 0
+
+### pmk fleet --help
+
+usage: pmk fleet [-h] {status,profiles,enable,disable,cool,import-prompts} ...
+
+positional arguments:
+  {status,profiles,enable,disable,cool,import-prompts}
+    status              profiles, slots, cap, dispatch state
+    profiles            list the profiles
+    enable              enable a profile
+    disable             disable a profile
+    cool                cool a profile for N minutes
+    import-prompts      generate profiles from prompts.json
+
+options:
+  -h, --help            show this help message and exit
+exit: 0
+
+### pmk fleet profiles --help
+
+usage: pmk fleet profiles [-h]
+
+options:
+  -h, --help  show this help message and exit
+exit: 0
+

@@ -1,0 +1,114 @@
+# .pm/policy.toml — Kernel policy.  Pinned (class K).
+#
+# Translated from CIP Appendix A.2 (which specifies YAML) per pilot v1 D-P3:
+# human-edited config is TOML, machine records are JSON.  Values marked
+# [GUESS] are placeholders from the proposals' guess registers and are
+# changed by a two-key event.
+#
+# Fleet-specific recovery and loop-protection constants live here per fleet
+# amendment section 7.6.  Fleet *profiles* live in agents.toml at the repo
+# root; fleet *state* (cooling, disabled) lives in the app state directory.
+
+version = "p-2026-10-23"
+
+[project]
+name = "umaws-fleet"
+data_class = "internal"          # [GUESS] public | internal | private
+repo_root = "."
+
+[envelopes]
+autonomy_ceiling = "R2"
+external_effects = "none"
+spend = { per_day = 0, per_task = 0 }   # free-tier first; real caps when paid providers are added
+
+[gateway]
+base_url = "http://127.0.0.1:8766/v1"
+# [VERIFY] the port is a placeholder; the Console uses 8765.
+enabled = false                   # the gateway is not required for Fleet-only operation
+lanes = [
+  { name = "work",         priority = "normal" },
+  { name = "verify",       priority = "normal", exclude_author_family = true, allow_family_fallback = false },
+  { name = "context-sync", priority = "low",   providers_allow = [] },
+  { name = "overseer",     priority = "high",  reserved_quota = true },
+]
+
+[context_sync]
+mode = "auto"                     # G4 crossed 2026-10-23, operator instruction; D-P10 satisfied
+caliber_version = "1.55.2"        # spike S1: measured 2026-10-22
+managed_paths = [
+  "AGENTS.md", "CLAUDE.md", "CALIBER_LEARNINGS.md",
+  ".claude/rules", ".claude/skills", ".opencode/skills",
+]                                # the real list, from spike S2 (2026-10-22)
+# The generator's own operational files.  These teach an agent to run
+# Caliber, so they are the generator's machinery rather than generated
+# project context: not class C, not linted, not hashed, not synced.
+managed_exclude = [
+  ".claude/skills/find-skills",
+  ".claude/skills/save-learning",
+  ".claude/skills/setup-caliber",
+  ".opencode/skills/find-skills",
+  ".opencode/skills/save-learning",
+  ".opencode/skills/setup-caliber",
+]
+# The generator, run by the Kernel in its own worktree.  Never in the
+# integration tree, never in a worker worktree.
+command = ["caliber", "refresh"]
+score_command = ["caliber", "score", "--json"]
+triggers = { nightly = "03:00", after_promotions = 20 }
+lint = true
+score_non_regression_tolerance = 1     # [GUESS]
+max_diff_lines = 400                  # above this: blind V2 review (automated)
+max_agents_md_tokens = 3000           # [GUESS]
+on_violation = "auto_revert"
+hooks_in_worker_worktrees = false
+providers_allow = []                  # filled after the operator reviews provider data terms (Q1)
+
+[gate]
+cmd = "pytest -q"                    # pilot v1 section 7.6
+
+[lease]
+heartbeat_seconds = 60               # [GUESS] pilot v1 G9
+ttl_minutes = 20                     # [GUESS] pilot v1 G9
+renew_every = 60                     # [GUESS]
+
+[worktree]
+# The proposal guesses C:\w\<project>\<task>-<fence> to stay under the
+# 260-character path limit.  The operator chose to keep everything inside the
+# repository, so the default root is <repo>/work (decision D-01).
+root = "work"
+short_root = false
+
+[harness]
+poll_seconds = 2                     # fleet amendment section 7.3 step 3
+renew_digest = true
+
+[recovery]
+# Fleet amendment section 7.6.  All [GUESS].
+network_retry_delays_s = [30, 120, 600]
+quota_cooldown_s = 3600
+quota_cooldown_max_s = 86400
+quota_cooldown_probe = true
+unknown_retry_once = true
+unknown_cooldown_s = 900
+unknown_cooldown_after = 2
+unknown_cooldown_window_s = 600
+stall_cooldown_s = 1800
+stall_window_s = 3600
+stall_after = 2
+network_circuit_breaker_providers = 3
+network_circuit_breaker_window_s = 120
+dispatch_paused_resume_urls = []     # fleet.net_probe_urls; operator may set
+fix_rounds = 2
+max_restarts_per_task = 5
+max_tasks_created_per_wake = 50
+max_replan_rounds = 3
+max_total_tasks = 500
+no_profile_minutes = 30
+
+[context]
+max_free_ram_mb = 2048              # [GUESS] fleet amendment section 7.9
+views_debounce_s = 5                 # D-L5
+
+[sentinel]
+# Sentinel-triggered stop is limited to I1, I3, I6, I8' (pilot v1 section 9.6).
+stop_on = ["I1", "I3", "I6", "I8'"]

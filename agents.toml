@@ -49,7 +49,7 @@ profiles = ["opencode-strongest", "opencode-fallback"]
 [[profile]]
 id = "hermes-oneshot"
 adapter = "hermes"
-family = "unknown"
+family = "anthropic"
 priority = 10
 max_concurrent = 4
 via_gateway = false
@@ -63,7 +63,7 @@ models = []
 [[profile]]
 id = "kilo-auto"
 adapter = "kilo"
-family = "unknown"
+family = "google"
 priority = 20
 max_concurrent = 3
 via_gateway = false
@@ -121,7 +121,7 @@ models = ["deepseek/deepseek-v4-flash-free", "z-ai/glm-5.3-flash-free", "tencent
 [[profile]]
 id = "cline-mimo"
 adapter = "cline"
-family = "unknown"
+family = "minimax"
 priority = 40
 max_concurrent = 1
 via_gateway = false
@@ -130,7 +130,7 @@ argv_new = ["cline", "--provider", "cline", "--model", "cline-free/minimax-m3.1-
 # Measured: `--id <session-id>` resumes an existing session.  Still untested
 # in practice -- see the note below.
 argv_resume = ["cline", "--provider", "cline", "--model", "{model}", "{prompt}", "--id", "{session}"]
-models = ["cline-free/minimax-m3.1-flash", "cline-free/solar-mini4", "cline-free/nemotron-3.5-super-vl", "nvidia/nemotron-3.5-lightning-free", "poolside/laguna-s-2.1:free"]
+models = ["cline-free/solar-mini4", "cline-free/nemotron-3.5-super-vl", "nvidia/nemotron-3.5-lightning-free", "poolside/laguna-s-2.1:free"]
 # 2026-10-23: repointed on the operator's instruction after the previous
 # model's free promotion ended (measured 2026-10-22: "The free promotion for
 # this model has ended and it is no longer available.").  The five model
@@ -150,7 +150,7 @@ models = ["cline-free/minimax-m3.1-flash", "cline-free/solar-mini4", "cline-free
 [[profile]]
 id = "opencode-strongest"
 adapter = "opencode"
-family = "unknown"
+family = "opencode"
 priority = 5
 max_concurrent = 2
 via_gateway = false
@@ -159,12 +159,16 @@ argv_new = ["opencode", "run", "{prompt}"]
 # Measured: `--continue` continues the last session.  opencode has no
 # --model flag in its help, so a model swap is not available.
 argv_resume = ["opencode", "run", "{prompt}", "--continue"]
+# Repointed to free model (2026-10-24): model = "poolside/laguna-s-2-1:free"
+# The previous OpenRouter models on an account that "never purchased" were
+# replaced so one-click dispatch is no longer blocked by credit exhaustion.
+model = "poolside/laguna-s-2-1:free"
 models = []
 
 [[profile]]
 id = "opencode-fallback"
 adapter = "opencode"
-family = "unknown"
+family = "opencode2"
 priority = 90
 max_concurrent = 1
 via_gateway = false

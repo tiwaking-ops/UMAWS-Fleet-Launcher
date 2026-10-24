@@ -1,0 +1,52 @@
+{
+  "task": "T-0003",
+  "fence": 3,
+  "base_commit": "a93da888831b4177c65fa62751e92c9cf7466f24",
+  "outputs": [
+    {
+      "path": "pi-test.txt",
+      "sha256": "b4785754d6103c25908ede751de732a2e90f22f99770c160824fbfeab033a682"
+    }
+  ],
+  "diff_scope_check": {
+    "changed": [
+      "pi-test.txt"
+    ],
+    "violations": [],
+    "ok": true,
+    "git_code": 0,
+    "git_err": ""
+  },
+  "commands": [
+    {
+      "cmd": "test -f pi-test.txt && grep -q pi pi-test.txt",
+      "cwd": "C:\\temp\\projects\\testproject1\\work\\T-0003-3",
+      "exit": 1,
+      "stdout_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_hash": "d8210ec8cf82ae6a954d2afb51c094201a37ef5e244bb008619a40faecc34166"
+    }
+  ],
+  "oracle_results": [
+    {
+      "cmd": "test -f pi-test.txt && grep -q pi pi-test.txt",
+      "exit": 1,
+      "ok": false,
+      "stdout_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_hash": "d8210ec8cf82ae6a954d2afb51c094201a37ef5e244bb008619a40faecc34166",
+      "note": ""
+    }
+  ],
+  "premise_check": {
+    "refuted": false
+  },
+  "budget_used": {},
+  "resolved_models": [
+    {
+      "profile": "pi-orca-deepseek",
+      "model": "",
+      "family": "hermes"
+    }
+  ],
+  "constitution_hash": "cfa209a377a1a5ba4f4744822ea15490b44cd745528c523129e06fe43bba64bf",
+  "context_hash": ""
+}

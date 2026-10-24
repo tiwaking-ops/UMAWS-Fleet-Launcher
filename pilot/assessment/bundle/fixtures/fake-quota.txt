@@ -1,0 +1,4 @@
+﻿# Synthetic evidence.  The fake CLI prints this exact text; it says nothing
+# about any real provider.
+
+SYNTHETIC-FAILURE-QUOTA: quota exhausted for this fake deployment (fake CLI; not a real provider)
