@@ -160,11 +160,20 @@ class Dispatcher:
                 self._handle_recovery(run, result, report)
 
         # -- fill ------------------------------------------------------
-        if not self.fleet_state.dispatch_paused:
-            self._fill(report)
-        else:
+        # The Dispatcher must check pilot/STOP and dispatch_paused before any
+        # claim, assignment or spawn (D-A2).  A claimed task is a *real*
+        # lease: FLEET_ASSIGNED and AGENT_STARTED must not be emitted while
+        # the operator has halted the line.  STOP wins over dispatch_paused
+        # because the stop file is the operator's hard stop, set without
+        # touching fleet state.
+        if self.fleet_state.dispatch_paused or self.kernel.stopped():
             report.notes.append(
-                f"dispatch is paused: {self.fleet_state.pause_reason}")
+                f"dispatch is paused: "
+                f"dispatch_paused={self.fleet_state.dispatch_paused}, "
+                f"stop_present={self.kernel.stopped()}, "
+                f"reason={self.fleet_state.pause_reason or 'no reason'}")
+            return report
+        self._fill(report)
 
         return report
 

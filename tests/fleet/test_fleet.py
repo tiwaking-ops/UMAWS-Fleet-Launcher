@@ -656,3 +656,41 @@ def test_a_dispatch_pause_stops_new_work(fake_kernel):
     report = dispatcher.tick()
     assert not report.started
     assert any("paused" in note for note in report.notes)
+
+
+def test_pilot_stop_file_blocks_dispatch(fake_kernel):
+    "D-A2: with pilot/STOP, zero FLEET_ASSIGNED and zero AGENT_STARTED."
+    task = make_task(fake_kernel)
+    (fake_kernel.repo.root / "pilot").mkdir(parents=True, exist_ok=True)
+    (fake_kernel.repo.root / "pilot" / "STOP").write_text(
+        "halt\n", encoding="utf-8")
+    dispatcher = Dispatcher(fake_kernel, FleetState(),
+                            fixture_root=FIXTURE_ROOT)
+    report = dispatcher.tick()
+    assert not report.started
+    fleet_assigned = [e for e in fake_kernel.events()
+                      if e.type == "FLEET_ASSIGNED"]
+    agent_started = [e for e in fake_kernel.events()
+                     if e.type == "AGENT_STARTED"]
+    assert not fleet_assigned, [e.type for e in fake_kernel.events()]
+    assert not agent_started, [e.type for e in fake_kernel.events()]
+
+
+def test_removing_pilot_stop_resumes_dispatch(fake_kernel):
+    "D-A2: removing pilot/STOP resumes and produces FLEET_ASSIGNED/AGENT_STARTED."
+    task = make_task(fake_kernel)
+    (fake_kernel.repo.root / "pilot").mkdir(parents=True, exist_ok=True)
+    (fake_kernel.repo.root / "pilot" / "STOP").write_text("halt\n",
+                                                          encoding="utf-8")
+    dispatcher = Dispatcher(fake_kernel, FleetState(),
+                            fixture_root=FIXTURE_ROOT)
+    dispatcher.tick()  # STOP present -> nothing dispatched
+    (fake_kernel.repo.root / "pilot" / "STOP").unlink()
+    report = dispatcher.tick()
+    assert report.started
+    fleet_assigned = [e for e in fake_kernel.events()
+                      if e.type == "FLEET_ASSIGNED"]
+    agent_started = [e for e in fake_kernel.events()
+                     if e.type == "AGENT_STARTED"]
+    assert fleet_assigned, fake_kernel.events()
+    assert agent_started

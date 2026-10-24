@@ -50,6 +50,15 @@ class Console:
         # nothing to check.
         self.kernel.init()
         self.fleet_state = FleetState.load()
+        # D-A2: the Console starts with dispatch PAUSED.  Work is dispatched
+        # only on an explicit action - the Run button (POST /api/project/run),
+        # `pmk dispatch run`, or a clearly named config flag set by the
+        # operator.  This default is a proposal for the operator to confirm -
+        # see pilot/decisions.md, D-52.  Dispatcher.tick() enforces the same
+        # pause and pilot/STOP before any claim (src/fleet/dispatcher.py).
+        self.fleet_state.dispatch_paused = True
+        self.fleet_state.pause_reason = ("paused by default; press Run to start"
+                                         " - operator to confirm (proposal)")
         self.fixture_root = self.repo.root / "tests" / "fleet" / "fixtures"
         self.dispatcher = Dispatcher(self.kernel, self.fleet_state,
                                     fixture_root=self.fixture_root)
