@@ -1,0 +1,17 @@
+{
+  "s_w1": {},
+  "f7": {
+    "tasks": 100,
+    "done": 100,
+    "merged": 100,
+    "peak_concurrent_slots": 100,
+    "wall_s": 104.8,
+    "min_free_ram_mb": 7491,
+    "sentinel_ok": true,
+    "close_check_ok": true,
+    "counts": {
+      "SUBMITTED": 100
+    },
+    "chain": "I1 chain verifies (1163 events)"
+  }
+}

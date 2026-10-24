@@ -1,0 +1,22 @@
+=== T-0003 Lifecycle Extract (2026-10-23) ===
+Source: .pm/events/2026-10-23.jsonl
+Total T-0003 events: 20
+=
+2026-10-23T21:41:56Z | TASK_CREATED | seq=84 | id=None title=None agent_hint=None fence=None
+2026-10-23T21:41:56Z | TASK_ADMITTED | seq=85 | subject=T-0003
+2026-10-23T21:41:59Z | FLEET_ASSIGNED | seq=87 | profile=pi-orca-deepseek reason=profile pi-orca-deepseek chosen by priority 30, utilisation 0.00
+2026-10-23T21:41:59Z | CLAIMED | seq=88 | attempt=1 fence=3 holder=pi-orca-deepseek task_id=T-0003
+2026-10-23T21:42:00Z | AGENT_STARTED | seq=89 | adapter=pi pid=10948 profile=pi-orca-deepseek log=C:\temp\projects\testproject1\.pm\fleet\logs\T-0003\3-0.log worktree=C:\temp\projects\testproject1\work\T-0003-3
+2026-10-23T21:50:01Z | AGENT_EXITED | seq=181 | class=UNKNOWN exit_code=None profile=pi-orca-deepseek log=C:\temp\projects\testproject1\.pm\fleet\logs\T-0003\3-0.log
+2026-10-23T21:50:01Z | AGENT_FAILED | seq=182 | class=UNKNOWN profile=pi-orca-deepseek reason=UNKNOWN: resume the session on the next profile restart_count=1 step=L1
+2026-10-23T21:51:59Z | AGENT_EXITED | seq=184 | class=UNKNOWN exit_code=None profile=pi-orca-deepseek log=C:\temp\projects\testproject1\.pm\fleet\logs\T-0003\3-0.log
+2026-10-23T21:51:59Z | AGENT_FAILED | seq=186 | class=UNKNOWN profile=pi-orca-deepseek reason=UNKNOWN: resume the session on the next profile restart_count=2 step=L1
+2026-10-23T21:51:59Z | AGENT_RESUMED | seq=187 | mode=new model= previous_profile=pi-orca-deepseek profile=opencode-strongest
+2026-10-23T21:52:37Z | AGENT_RESUMED | seq=189 | mode=new model= previous_profile=pi-orca-deepseek profile=opencode-strongest
+2026-10-23T21:52:39Z | AGENT_EXITED | seq=191 | class=UNKNOWN exit_code=1 profile=opencode-strongest log=C:\temp\projects\testproject1\.pm\fleet\logs\T-0003\3-8.log
+2026-10-23T21:52:39Z | AGENT_FAILED | seq=192 | class=UNKNOWN profile=opencode-strongest reason=UNKNOWN: resume the session on the next profile restart_count=3 step=L1
+2026-10-23T21:52:40Z | AGENT_RESUMED | seq=193 | mode=new model= previous_profile=pi-orca-deepseek profile=hermes-oneshot
+2026-10-23T21:53:13Z | AGENT_RESUMED | seq=195 | mode=new model= previous_profile=opencode-strongest profile=hermes-oneshot
+2026-10-23T21:57:27Z | AGENT_EXITED | seq=248 | class=UNKNOWN exit_code=None profile=hermes-oneshot log=C:\temp\projects\testproject1\.pm\fleet\logs\T-0003\3-9.log
+2026-10-23T21:57:27Z | AGENT_FAILED | seq=249 | class=UNKNOWN profile=hermes-oneshot reason=UNKNOWN: resume the session on the next profile restart_count=4 step=L1
+2026-10-23T21:58:18Z | SUBMITTED | seq=250 | subject=T-0003

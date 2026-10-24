@@ -1,0 +1,48 @@
+=== Console smoke test: complete side-effect record (RAN-NOW, 2026-10-24) ===
+
+RUNS OF THE CONSOLE ON THE CLONE:
+  run A  14:30-14:33 local (01:30-01:33Z): foreground uvicorn console.app:app, NO holds, killed at the 120 s tool timeout
+  run B  14:36-14:39 local (01:36-01:39Z): same, killed at the 120 s tool timeout
+  run C  14:47 local (01:47Z): background, WITH holds (pilot/STOP + agents.toml held aside) -> ZERO events appended;
+         the conductor returned stopped on every tick (server log); the smoke test itself was inert.
+
+EVENTS APPENDED BY RUNS A+B (2026-10-24.jsonl, 326 lines total, +325 vs the 258-event pre-console snapshot):
+  FLEET_ASSIGNED: 319
+  ORACLE_RESULT: 1
+  OVERSEER_WOKEN: 4
+  SENTINEL_RUN: 1
+  VERIFIED: 1
+
+VERIFICATION PATH EVIDENCE (run A, conductor, ~1.4 s after startup):
+  2026-10-24T01:30:06Z ORACLE_RESULT T-0003: {"message": "merge conflict: merge: pmk/T-0003-3 - not something we can merge", "ok": false, "stage": "merge"}
+  2026-10-24T01:30:07Z VERIFIED T-0003: {"class": "ORACLE_FAILED", "ok": false, "reasons": ["merge conflict: merge: pmk/T-0003-3 - not something we can merge"]}
+
+OVERSEER WAKES (all during runs A+B; sessions are spawned PIDs, all since exited):
+  2026-10-24T01:30:07Z {"at": 1792805407.3036222, "error": "", "profile": "opencode-strongest", "reason": "periodic", "session": "13924", "started": true}
+  2026-10-24T01:33:02Z {"at": 1792805582.5515218, "error": "", "profile": "opencode-strongest", "reason": "periodic", "session": "13764", "started": true}
+  2026-10-24T01:36:41Z {"at": 1792805801.3066568, "error": "", "profile": "opencode-strongest", "reason": "periodic", "session": "11376", "started": true}
+  2026-10-24T01:38:58Z {"at": 1792805938.007342, "error": "", "profile": "opencode-strongest", "reason": "periodic", "session": "7028", "started": true}
+
+OVERSEER CLI OUTCOME (clone .pm/fleet/logs/overseer/0-0.log, tail): every model call failed -
+  rate-limited (free-models-per-day) or insufficient credits (OpenRouter). NO successful provider calls.
+  The pilot's documented quota exhaustion is what prevented any real LLM usage.
+
+FLEET_ASSIGNED SPAM (defect observed live):
+  319 events for T-0002, one per ~1 s dispatch tick, 01:30:05Z..01:39:22Z, ~408 KB.
+  T-0002 write scope [hello.txt] overlaps the active lease of T-0001 (D-L6 exclusion) -> kernel.claim raises every tick
+  (0 CLAIMED, 0 AGENT_STARTED, attempts still 0/3). The exclusion rule HELD; but the dispatcher records an assignment
+  event BEFORE the claim attempt and has no backoff, so a permanently blocked task spams the log (~2.6 MB/h per task).
+  Also observed: the dispatcher does not check pilot/STOP (only the conductor does); dispatch is only quiesced by
+  dispatch_paused in fleet-state or by having no profiles.
+
+NO SIDE EFFECTS OUTSIDE THE CLONE:
+  user fleet-state %LOCALAPPDATA%\umaws\fleet-state.json mtime 14:14:57 local - predates all runs, never written.
+  live repo C:\temp\projects\testproject1 untouched; all mutations are inside the clone .pm.
+  machine-level change to disclose: pip install -e . installed umaws-fleet (editable, -> clone) into the user's
+  Python 3.12 site-packages; needed to run pmk / pytest / the console.
+
+FINAL TASK STATE (projection, post-console):
+  T-0002: state=READY attempt=0 fence=0
+  T-0003: state=REWORK attempt=1 (SUBMITTED -> REWORK via the conductor's verify path during run A)
+  project state: NEW
+  chain ok: True  repairs: []
