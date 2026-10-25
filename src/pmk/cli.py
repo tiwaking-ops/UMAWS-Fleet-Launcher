@@ -618,6 +618,7 @@ def cmd_project_run(args) -> int:
         conductor.tick()
         dispatcher.tick()
         time.sleep(1)
+    from fleet.project import project_status
     _out(project_status(kernel))
     return 0
 

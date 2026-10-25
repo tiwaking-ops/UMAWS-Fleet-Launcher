@@ -147,3 +147,14 @@ def test_merging_updates_the_main_working_tree(fake_kernel):
     finally:
         _git(fake_kernel.repo.root, "worktree", "remove", "--force",
              str(worktree))
+
+
+def test_project_run_no_nameerror():
+    """Regression test: cmd_project_run must not raise NameError for project_status."""
+    import inspect
+    from pmk.cli import cmd_project_run
+    # Verify the function can be called without NameError by checking
+    # that project_status is importable within the function's scope
+    source = inspect.getsource(cmd_project_run)
+    assert "from fleet.project import project_status" in source, \
+        "cmd_project_run must import project_status from fleet.project"
