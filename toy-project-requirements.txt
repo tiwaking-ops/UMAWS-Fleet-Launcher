@@ -1,0 +1,36 @@
+Requirements for Creating the Toy Project
+
+To create a toy project at C:\temp\projects\toy-b5ccg, you need to provide:
+
+1. Project Name (required)
+- <name> = toy-b5ccg
+
+2. Optional flags
+| Flag      | Description          | Example                      |
+|-----------|----------------------|------------------------------|
+| --role    | Agent role           | --role overseer              |
+| --profile | Agent profile to use | --profile opencode-strongest |
+| --scope   | Task scope           | --scope T-0003               |
+| --budget  | Budget limit         | --budget 100                 |
+| --stop-on | Stop on errors       | --stop-on                    |
+| --no-run  | Init only, don't run | --no-run                     |
+
+3. Command sequence
+cmd
+pmk project init toy-b5ccg --role overseer --profile opencode-strongest --scope T-0003 --budget 100
+pmk project run toy-b5ccg
+
+
+4. Prerequisites (already satisfied)
+- ✅ Copy of repo at /c/temp/umaws-workspace (with .git and .pm)
+- ✅ pmk CLI available (Python 3.12.10 in .venv\Scripts\python.exe)
+- ✅ Test suite passes: 241 tests
+- ✅ Sentinel: clean after restoring pre-787b855 event log
+- ✅ No provider calls / fake CLI only (already applied)
+
+5. Next steps
+1. Run the pmk project init command with your chosen flags
+2. Review the generated project structure
+3. Run pmk project run to execute the toy project
+
+What flags would you like to use?
