@@ -1,0 +1,4 @@
+# Force LF line endings for pinned files
+.pm/policy.toml text eol=lf
+.pm/constitution.md text eol=lf
+.pm/pins.sha256 text eol=lf
