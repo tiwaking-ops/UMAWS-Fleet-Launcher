@@ -1,0 +1,7 @@
+pi live dispatch test target (G-TEST-PI)
+
+This file is the deliverable for work order T-0003 (attempt 1, lease fence 3).
+It carries the marker "pi" so the harness acceptance check passes:
+  test -f pi-test.txt && grep -q pi pi-test.txt
+
+Verified on disk before exit.
