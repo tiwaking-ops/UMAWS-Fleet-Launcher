@@ -1,0 +1,6 @@
+# Captured from opencode on 2026-10-23 (T-0003 recovery L1).
+# CLI: opencode via OpenRouter
+# Error: credit exhaustion
+[0m
+> build · moonshotai/kimi-k3.1-pro
+[91m[1mError: [0mInsufficient credits. This account never purchased credits. Make sure your key is on the correct account or org, and if so, purchase more at https://openrouter.ai/settings/credits

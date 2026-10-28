@@ -32,7 +32,7 @@ LAYOUT = (
     "src/pmk",
     "src/fleet",
     "src/console",
-    "gateway/quotagate",
+    "src/quotagate",
     "tests/pmk",
     "tests/fleet",
     "tests/quotagate",
@@ -168,6 +168,11 @@ class Repo:
     def state_file(self) -> Path:
         return self.pilot_dir / "STATE.md"
 
+    @property
+    def fleet_state_path(self) -> Path:
+        """Project-local fleet state file (git-ignored)."""
+        return self.fleet_dir / "fleet-state.json"
+
     # -- helpers ----------------------------------------------------------
     def ensure_layout(self) -> None:
         for relative in LAYOUT:
@@ -218,6 +223,17 @@ class Repo:
         """The current HEAD commit, or ``""`` outside a git repository."""
         code, out, _ = self.git("rev-parse", "HEAD")
         return out.strip() if code == 0 else ""
+
+    def default_branch(self) -> str:
+        """The repository's current branch name (resolved from HEAD).
+
+        Handles repositories where the branch is not 'main' (e.g. 'master').
+        Falls back to 'main' if HEAD cannot be resolved.
+        """
+        code, out, _ = self.git("symbolic-ref", "--short", "HEAD")
+        if code == 0 and out.strip():
+            return out.strip()
+        return "main"
 
     def __fspath__(self) -> str:
         return str(self.root)

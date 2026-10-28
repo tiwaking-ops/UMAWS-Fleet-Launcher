@@ -1,9 +1,16 @@
-﻿# opencode's classifier pattern, derived from a real capture.
+﻿# opencode's classifier patterns, derived from real captures.
 #
-# The capture is opencode's own output when the free model pool was rate
+# The first capture is opencode's own output when the free model pool was rate
 # limited on 2026-10-22.  The pattern matches the error line, not the
 # ANSI trace that precedes it.
+#
+# The second capture is from T-0003 recovery L1 (opencode via OpenRouter)
+# showing credit exhaustion.
 
 [quota]
 pattern = "Rate limit exceeded"
 source  = "quota.txt"
+
+[quota_credits]
+pattern = "Insufficient credits"
+source  = "quota-credits.txt"

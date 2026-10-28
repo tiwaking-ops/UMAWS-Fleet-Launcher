@@ -17,11 +17,20 @@ session id, and a console window instead of a headless process.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol
 
 from ..classify import PatternBook, classify as classify_failure
+
+
+#: Hermes prints the session id on a line ``session_id: <id>`` to STDERR,
+#: which plat.spawn merges into the stdout log.  The id format is
+#: YYYYMMDD_HHMMSS_<hex6> (operator-verified, 2026-10-28).  We tighten the
+#: regex to the known format so a stray "session_id:" line from a different
+#: process cannot inject a bogus id.
+HERMES_SESSION_PATTERN = re.compile(r"session_id:\s*(\d{8}_\d{6}_[0-9a-f]+)")
 
 
 @dataclass(frozen=True)
@@ -114,16 +123,19 @@ class BaseAdapter:
 
     # -- session -----------------------------------------------------------
     def parse_session_id(self, log_text: str) -> str | None:
-        """Find a session id in the output.
+        """Find a session id in the merged stdout/stderr log.
 
-        The base implementation looks for a generic ``session ... <id>``
-        pattern.  It is a guess, and it is only used when the adapter's
-        ``reports_session_id`` capability is True — which, for every
-        unobserved adapter, it is not.
+        Returns the *last* match so a stray early match (e.g. from a
+        resumed sub-process) does not shadow the real one.  Returns
+        ``None`` when the adapter does not claim to report a session id,
+        or when the log contains no ``session_id:`` line at all.
         """
         if not self.caps.reports_session_id:
             return None
-        return None
+        last = None
+        for m in HERMES_SESSION_PATTERN.finditer(log_text or ""):
+            last = m.group(1)
+        return last
 
     # -- classification ----------------------------------------------------
     def load_patterns(self, fixture_root: str | Path | None = None) -> None:

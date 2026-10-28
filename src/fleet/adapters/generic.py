@@ -42,7 +42,7 @@ interchangeable models, which only **pi** has today.
 
 from __future__ import annotations
 
-from .base import Caps
+from .base import Caps, HERMES_SESSION_PATTERN
 
 #: The measured capabilities, from spike S-A1 (live, 2026-10-22).
 MEASURED_CAPS: dict[str, Caps] = {
@@ -102,6 +102,22 @@ class TemplateAdapter:
 
     def verified(self) -> bool:
         return self.name in MEASURED_CAPS
+
+    # -- session -----------------------------------------------------------
+    def parse_session_id(self, log_text: str) -> str | None:
+        """Parse a session id from the log.
+
+        Overrides BaseAdapter.parse_session_id so that the check against
+        ``self.caps.reports_session_id`` uses *this* adapter's measured
+        caps (which __getattr__ delegates to _base, but _base.caps returns
+        all-False, so we must short-circuit here).
+        """
+        if not self.caps.reports_session_id:
+            return None
+        last = None
+        for m in HERMES_SESSION_PATTERN.finditer(log_text or ""):
+            last = m.group(1)
+        return last
 
     def to_dict(self) -> dict:
         return {"name": self.name, "caps": self.caps.to_dict(),

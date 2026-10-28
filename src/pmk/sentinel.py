@@ -1,7 +1,10 @@
 """The sentinel — invariant checks (pilot v1 section 9.6).
 
 Sentinel-triggered stop is limited to **I1, I3, I6 and I8'**.  The other
-invariants are reported as findings but do not stop the pilot.
+invariants (I4, I5, I7, I13, I14, I15, I16) are reported as findings but do
+not stop the pilot.  I5 is a report-only finding: a failing-oracle promotion
+is visible but does not halt the pilot, per the pinned policy.toml stop_on
+list.
 
 | Invariant | Statement |
 |---|---|
@@ -82,28 +85,78 @@ def check(kernel) -> dict:
         report.findings.append(Finding("I3", detail, stops=True))
 
     # -- I4: a stale fence is never merged --------------------------------
+    # In-order replay: track each task's *current* fence as CLAIMED events
+    # set it and REVOKED events advance it (via the new_fence payload).
+    # An INTEGRATED with a fence that is not the current one at that moment
+    # means a stale fence was merged.
     report.checked.append("I4")
-    revoked: dict[str, set[int]] = {}
+    current_fences: dict[str, int] = {}
     for event in events:
-        if event.type == "REVOKED" and event.subject:
-            revoked.setdefault(event.subject, set()).add(int(event.fence or 0))
-    for event in events:
-        if event.type == "INTEGRATED" and event.subject:
-            stale = revoked.get(event.subject, set())
-            if event.fence in stale:
-                report.findings.append(Finding(
-                    "I4", f"task {event.subject} was integrated with revoked "
-                          f"fence {event.fence}", stops=False,
-                    subject=event.subject))
+        if event.subject is None:
+            continue
+        task_id = event.subject
+        if event.type == "CLAIMED":
+            f = event.fence
+            if f is not None:
+                current_fences[task_id] = int(f)
+        elif event.type == "REVOKED":
+            payload = event.payload or {}
+            new_fence = payload.get("new_fence")
+            if new_fence is not None:
+                current_fences[task_id] = int(new_fence)
+        elif event.type == "INTEGRATED":
+            f = event.fence
+            if f is not None:
+                current = current_fences.get(task_id)
+                if current is not None and int(f) != current:
+                    # This fence is stale at this moment in the log.
+                    report.findings.append(Finding(
+                        "I4", f"task {task_id} was integrated with stale "
+                              f"fence {f} (current fence was {current})",
+                        stops=False, subject=task_id))
 
     # -- I5 / I6: promotion requires a passing bundle ---------------------
+    # I5 (report-only): a DONE task whose bundle has validation problems or
+    # failing oracles.  The state machine should have refused the promotion,
+    # so this finding is visible but does not halt the pilot.
+    #
+    # I6 (stops): every DONE task must have an INTEGRATED event with a
+    # resolvable, readable bundle file.  Missing INTEGRATED, missing bundle
+    # reference, missing file, or unreadable file are all I6 breaches
+    # because a DONE task with no bundle is a structural impossibility.
+    #
+    # I5 applies only to tasks that are *currently* DONE, not to every
+    # INTEGRATED event in the historical log.  A task that was promoted and
+    # then revoked (like T-0003) is no longer DONE and should not trigger
+    # I5.  I6 (every DONE task has a bundle) likewise checks the live state.
     report.checked.extend(["I5", "I6"])
-    integrated: dict[str, int] = {}
-    for event in events:
-        if event.type == "INTEGRATED" and event.subject:
-            integrated[event.subject] = int(event.fence or 0)
-    for task_id, fence in integrated.items():
-        path = kernel.repo.evidence_dir / f"EB-{task_id}-{fence}" / "bundle.json"
+
+    for task_id, task in state.tasks.items():
+        if task.state != DONE:
+            continue
+        # Look up the bundle path recorded in the INTEGRATED event, not
+        # task.fence (which may have advanced past the integration fence if
+        # the task was re-leased after promotion).  The INTEGRATED event's
+        # payload carries the exact bundle path used at promotion time.
+        integrated = None
+        for ev in reversed(events):
+            if ev.type == "INTEGRATED" and ev.subject == task_id:
+                integrated = ev
+                break
+        if integrated is None:
+            # DONE without an INTEGRATED event — a structural breach of I6.
+            report.findings.append(Finding(
+                "I6", f"task {task_id} is DONE but has no INTEGRATED event",
+                stops=True, subject=task_id))
+            continue
+        bundle_path_str = integrated.payload.get("bundle", "")
+        if not bundle_path_str:
+            # INTEGRATED present but no bundle reference — an I6 breach.
+            report.findings.append(Finding(
+                "I6", f"task {task_id} INTEGRATED event has no bundle reference",
+                stops=True, subject=task_id))
+            continue
+        path = kernel.repo.evidence_dir / bundle_path_str / "bundle.json"
         if not path.is_file():
             report.findings.append(Finding(
                 "I6", f"task {task_id} was promoted without a bundle at {path}",
@@ -117,8 +170,12 @@ def check(kernel) -> dict:
                 "I6", f"task {task_id} has an unreadable bundle: {exc}",
                 stops=True, subject=task_id))
             continue
-        problems = bundle.validation_errors()
+        problems = bundle.validation_problems()
+        if not bundle.all_oracles_passed():
+            problems.append("one or more acceptance oracles failed")
         if problems:
+            # Bundle exists but has validation problems or failing oracles —
+            # the task was promoted against policy.  Report-only (I5).
             report.findings.append(Finding(
                 "I5", f"task {task_id} was promoted with an invalid bundle: "
                       f"{'; '.join(problems)}", stops=False, subject=task_id))

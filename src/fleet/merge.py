@@ -40,12 +40,13 @@ class MergeResult:
     conflict: bool = False
     message: str = ""
     files: list = field(default_factory=list)
+    failure_class: str = ""  # "" (ok), "GATE_FAILED", "INFRASTRUCTURE_FAILED"
 
     def to_dict(self) -> dict:
         return {"ok": self.ok, "task": self.task, "commit": self.commit,
                 "gate_cmd": self.gate_cmd, "gate_exit": self.gate_exit,
                 "conflict": self.conflict, "message": self.message,
-                "files": self.files}
+                "files": self.files, "failure_class": self.failure_class}
 
 
 def commit_worktree(repo, worktree: str | Path, message: str,
@@ -98,13 +99,64 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
                                      "violations": scope["violations"]})
         return result
 
-    message = f"feat({task.id}): {task.title}\n\nFence {lease.fence}.\n"
-    ok, detail = commit_worktree(repo, worktree, message, task.write_scope)
-    if not ok:
-        result.message = f"could not commit the worktree: {detail}"
+    # --- I5 pre-merge check: bundle must exist and all oracles pass ---
+    # Defense-in-depth: even if caller bypasses Conductor, the merge queue
+    # itself refuses a failing-oracle bundle before any fast-forward.
+    # Uses the SAME shared path as the conductor (Bundle.load_for_task +
+    # validation_problems) so Kernel.integrate and merge.py cannot disagree.
+    from pmk.bundle import Bundle
+    bundle = Bundle.load_for_task(kernel.repo.evidence_dir, task.id, lease.fence)
+    if bundle is None:
+        bundle_path = Bundle.bundle_path(kernel.repo.evidence_dir,
+                                         task.id, lease.fence)
+        kernel.record_event("MERGE_REFUSED", subject=task.id,
+                            fence=lease.fence,
+                            payload={"reason": "no_bundle",
+                                     "message": f"no evidence bundle at {bundle_path}"})
+        result.message = "no evidence bundle"
+        return result
+
+    problems = bundle.validation_problems()
+    if problems:
+        kernel.record_event("MERGE_REFUSED", subject=task.id,
+                            fence=lease.fence,
+                            payload={"reason": "oracles_failed",
+                                     "message": "acceptance oracles failed: "
+                                                + (", ".join(problems) or "unknown")})
+        result.message = "acceptance oracles failed: " + (", ".join(problems))
         return result
 
     branch = f"pmk/{task.id}-{lease.fence}"
+    main_branch = repo.default_branch()
+
+    message = f"feat({task.id}): {task.title}\n\nFence {lease.fence}.\n"
+    ok, detail = commit_worktree(repo, worktree, message, task.write_scope)
+    if not ok:
+        result.failure_class = "INFRASTRUCTURE_FAILED"
+        kernel.record_event("INFRASTRUCTURE_FAILED", subject=task.id,
+                            fence=lease.fence,
+                            payload={"stage": "commit",
+                                     "message": f"could not commit the worktree: {detail}"})
+        result.message = f"could not commit the worktree: {detail}"
+        return result
+
+    # --- pytest.ini collision cleanup (T-0009) ---
+    # ``pmk init`` writes a default ``pytest.ini`` to the repo root.  When a
+    # task's lease branch *also* adds a ``pytest.ini``, git sees two untracked
+    # files at the same path and the fast-forward refuses to overwrite the
+    # untracked working-tree copy, failing the merge.
+    #
+    # We only clean up when the incoming branch actually changes pytest.ini --
+    # either because the task's write scope declares it, or because it appears
+    # in the branch's diff against the default branch.  This check must run
+    # AFTER commit_worktree so the branch ref exists and the diff is visible.
+    # An unrelated merge (one that does not touch pytest.ini) must leave the
+    # Kernel-written root file in place.
+    #
+    # If the root-level pytest.ini is UNTRACKED and byte-identical to the
+    # Kernel's default, delete it so the incoming commit re-creates it tracked.
+    # Never delete a tracked or user-modified file.
+    _cleanup_default_pytest_ini(repo, task, branch)
 
     # Recorded defect, fixed 2026-10-24: a clean worktree used to
     # short-circuit straight to ``ok`` here -- "the worker changed
@@ -123,9 +175,15 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
     target = merge_dir / "merge"
     try:
         code, out, err = repo.git("worktree", "add", "--detach", str(target),
-                                  "main")
+                                  main_branch)
         if code != 0:
-            result.message = f"could not create the merge worktree: {err or out}"
+            result.message = (f"could not create the merge worktree: "
+                              f"{err or out}")
+            result.failure_class = "INFRASTRUCTURE_FAILED"
+            kernel.record_event("INFRASTRUCTURE_FAILED", subject=task.id,
+                                fence=lease.fence,
+                                payload={"stage": "merge-worktree",
+                                         "message": f"git worktree add failed: {err or out}"})
             return result
         _, pre_head, _ = repo.git("rev-parse", "HEAD", cwd=target)
         pre_head = pre_head.strip()
@@ -133,12 +191,19 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
         code, out, err = repo.git("merge", "--no-ff", "--no-edit", branch,
                                   cwd=target)
         if code != 0:
+            # A merge conflict is deterministic: the same branch+base will
+            # conflict every time.  It is NOT an infrastructure transient --
+            # retrying it will not help.  Classify as GATE_FAILED so the
+            # conductor does not burn INFRA_RETRY budget, and the task goes
+            # to REWORK for the worker to resolve.
             result.conflict = True
             result.message = (f"merge conflict: {err or out}").strip()
             repo.git("merge", "--abort", cwd=target)
+            result.failure_class = "GATE_FAILED"
             kernel.record_event("ORACLE_RESULT", subject=task.id,
                                 fence=lease.fence,
-                                payload={"stage": "merge", "ok": False,
+                                payload={"stage": "merge",
+                                         "ok": False,
                                          "message": result.message})
             return result
 
@@ -194,9 +259,10 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
         if code != 0:
             result.message = (f"could not fast-forward the main tree: "
                               f"{err or out}").strip()
-            kernel.record_event("ORACLE_RESULT", subject=task.id,
+            result.failure_class = "INFRASTRUCTURE_FAILED"
+            kernel.record_event("INFRASTRUCTURE_FAILED", subject=task.id,
                                 fence=lease.fence,
-                                payload={"stage": "fast-forward", "ok": False,
+                                payload={"stage": "fast-forward",
                                          "message": result.message})
             return result
 
@@ -219,3 +285,57 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
         except Exception:                       # noqa: BLE001
             pass
         shutil.rmtree(merge_dir, ignore_errors=True)
+
+
+#: The exact pytest.ini content the Kernel writes on ``pmk init``.
+#: Used to detect an untracked, byte-identical file so it can be removed
+#: before a merge (T-0009 pytest.ini collision).
+_DEFAULT_PYTEST_INI = (
+    "[pytest]\n"
+    "norecursedirs = work work/.pm/tmp .venv .git __pycache__\n"
+    "testpaths = tests\n"
+)
+
+
+def _cleanup_default_pytest_ini(repo, task, branch: str) -> None:
+    """Remove an untracked, default pytest.ini from the repo root.
+
+    ``pmk init`` writes ``pytest.ini`` to the repo root so that ``pytest``
+    run from the root does not descend into worktrees, ``.venv``, etc.
+    When a worker's merge brings in its own ``pytest.ini``, git sees two
+    untracked files at the same path and the fast-forward refuses to
+    overwrite the untracked working-tree copy (T-0009).
+
+    We only act when the incoming branch actually changes ``pytest.ini``
+    — either because the task's write scope declares it, or because it
+    appears in ``git diff --name-only <base>..<branch>``.  An unrelated
+    merge must leave the Kernel-written root file untouched.
+
+    If the root-level ``pytest.ini`` is **untracked** and **byte-identical**
+    to the Kernel default, it is deleted — the incoming commit will re-create
+    it tracked.  A file that is **tracked** or **user-modified** is left
+    untouched.
+    """
+    from pathlib import Path
+
+    # Only proceed if the incoming branch adds or modifies pytest.ini.
+    if "pytest.ini" not in task.write_scope:
+        base = repo.default_branch()
+        code, changed, _ = repo.git("diff", "--name-only", f"{base}..{branch}")
+        if code != 0 or "pytest.ini" not in changed.split():
+            return  # unrelated merge — leave the root pytest.ini alone
+
+    target = Path(repo.root) / "pytest.ini"
+    if not target.is_file():
+        return
+    # Check if it's tracked by git — never touch tracked files.
+    code, tracked, _ = repo.git("ls-files", "--", "pytest.ini")
+    if code == 0 and tracked.strip():
+        return  # tracked — leave it alone
+    # Check if it's byte-identical to the default.
+    try:
+        content = target.read_text(encoding="utf-8")
+    except OSError:
+        return
+    if content == _DEFAULT_PYTEST_INI:
+        target.unlink()

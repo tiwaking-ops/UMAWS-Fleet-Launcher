@@ -318,7 +318,7 @@ class Harness:
         # the run; the result reports the running total.
         result.fix_rounds = run.fix_rounds
         log_tail = "\n".join(spawn_mod.tail_log(run.slot, 60))
-        session = _session_from_log(log_tail)
+        session = _session_from_log(run.adapter, log_tail)
         run.session = session or run.session
 
         failure_class = run.adapter.classify(exit_code, log_tail)
@@ -626,8 +626,18 @@ class Harness:
                             error=f"lease exceeded {max_seconds}s")
 
 
-def _session_from_log(log_text: str) -> str:
-    """Find a session id in the process output."""
+def _session_from_log(adapter, log_text: str) -> str:
+    """Find a session id in the process output.
+
+    Delegates to the adapter's ``parse_session_id`` so each CLI's
+    capture format is honoured.  Returns an empty string when no
+    session id is present (the caller treats that as "no session id").
+    """
+    if adapter and getattr(adapter, "caps", None).reports_session_id:
+        result = adapter.parse_session_id(log_text or "")
+        return result or ""
+    # Fall back to the fake pattern for backward compatibility with
+    # fakes that pre-date the adapter dispatch.
     from .adapters.fake import SESSION_PATTERN
     match = SESSION_PATTERN.search(log_text or "")
     return match.group(1) if match else ""

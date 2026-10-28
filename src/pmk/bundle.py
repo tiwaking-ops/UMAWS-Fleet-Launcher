@@ -197,6 +197,39 @@ class Bundle:
             r.ok for r in self.oracle_results if isinstance(r, OracleResult))
 
     # -- storage ----------------------------------------------------------
+    @classmethod
+    def load_for_task(cls, evidence_dir: Path, task_id: str,
+                      fence: int) -> "Bundle | None":
+        """Load the bundle for *task_id* / *fence*, or None if missing.
+
+        Single read path used by the conductor's pre-merge check and by
+        ``Kernel.integrate()`` so they cannot diverge.
+        """
+        path = cls.bundle_path(evidence_dir, task_id, fence)
+        if not path.is_file():
+            return None
+        import json as _json
+        return cls.from_obj(_json.loads(path.read_text(encoding="utf-8")))
+
+    @staticmethod
+    def bundle_path(evidence_dir: Path, task_id: str, fence: int) -> Path:
+        """The canonical bundle path for a task/fence."""
+        return Path(evidence_dir) / f"EB-{task_id}-{fence}" / "bundle.json"
+
+    def validation_problems(self) -> list[str]:
+        """All problems that would block promotion (structural + oracle).
+
+        This is the single source of truth for I5: the Kernel, the
+        conductor's pre-merge check, and the sentinel all call this so they
+        cannot disagree about what a valid promotion looks like.
+        """
+        problems = list(self.validation_errors())
+        if not self.all_oracles_passed():
+            failed = [o.cmd for o in self.oracle_results
+                      if not getattr(o, "ok", False)]
+            problems.append("acceptance oracles failed: "
+                            + (", ".join(failed) or "unknown oracle"))
+        return problems
     def write(self, evidence_dir: Path) -> Path:
         """Write the bundle to ``<evidence_dir>/EB-<task>-<fence>/bundle.json``."""
         target = Path(evidence_dir) / f"EB-{self.task}-{self.fence}"

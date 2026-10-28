@@ -52,6 +52,8 @@ from .state import FleetState
 OVERSEER_PROMPT = """You are the Overseer for {project}. You plan, decompose, review and write prose. You never edit anything under
 .pm/, the constitution, policy, pins or Kernel code. All state changes go through `pmk`.
 
+Your shell is PowerShell. Do not create or edit project files; create tasks instead.
+
 Each wake: run `pmk brief --role overseer`. The briefing, not this prompt, is your authority; if anything
 conflicts with the constitution in your briefing, the constitution wins and you report it with `pmk incident`.
 
@@ -63,6 +65,9 @@ Wake reasons you may be given: needs-pdd, needs-decomposition, review, incident,
 - replan: create only the gap tasks the failed goal oracles require. Do not rewrite finished work.
 Ask the human only through `pmk queue`, with a recommended option and a safe default. Stop when the briefing
 has nothing for you; the Conductor will wake you again.
+
+Never run `pmk task submit`, `pmk task verify`, `pmk task integrate`, `pmk task revoke`, `pmk task void`,
+or `pmk queue decide`. These are Kernel-state transitions that only the Conductor drives.
 """
 
 WAKE_REASONS = ("needs-pdd", "needs-decomposition", "review", "incident",
@@ -211,7 +216,9 @@ class OverseerRunner:
             self.kernel.repo, task_id="overseer", profile_id=profile.id,
             adapter=adapter, profile=profile.raw or profile.to_dict(),
             prompt=prompt, worktree=self.kernel.repo.root,
-            fence=0, index=0, env=harness._env(profile))
+            fence=0, index=0,
+            env=harness._env(profile),
+            actor=f"overseer:{profile.id}")
         return f"{slot.pid}" if slot.pid else "unknown"
 
     # ------------------------------------------------------------------

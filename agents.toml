@@ -2,6 +2,8 @@
 #
 # Fleet amendment section 12.A.  Human-edited TOML (pilot v1 D-P3).
 #
+# Free model reference: see docs/free-models.md (Nous portal + Kenari lists).
+#
 # A profile is one way to run one CLI on one model.  The operator's saved
 # entries in prompts.json are really profiles — the same prefix repeated
 # per project (fleet amendment section 6.1).  `pmk fleet import-prompts
@@ -54,10 +56,14 @@ priority = 10
 max_concurrent = 4
 via_gateway = false
 roles = ["implement", "review", "plan"]
-argv_new = ["hermes", "chat", "--oneshot", "-q", "{prompt}", "--yolo", "--cli", "--in", "{cwd}"]
-# Measured: `hermes --resume <session-id>` resumes, and hermes prints the
-# id in its trailer: "Resume this session with: hermes --resume <id>".
-argv_resume = ["hermes", "chat", "--oneshot", "-q", "{prompt}", "--resume", "{session}", "--yolo", "--cli", "--in", "{cwd}"]
+argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}"]
+# Measured: under -Q, hermes writes a `session_id: YYYYMMDD_HHMMSS_<hex6>`
+# line to STDERR (which plat.spawn merges into the stdout log via
+# subprocess.STDOUT).  There is NO "Resume this session with" trailer.
+# The working directory is already set by the harness (cwd=worktree), so no
+# --in flag is needed.
+argv_resume = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}", "--resume", "{session}"]
+model = "reflection/beam-1.0-501b-a23b:free"
 models = []
 
 [[profile]]
@@ -155,15 +161,17 @@ priority = 5
 max_concurrent = 2
 via_gateway = false
 roles = ["plan", "review", "implement"]
-argv_new = ["opencode", "run", "{prompt}"]
-# Measured: `--continue` continues the last session.  opencode has no
-# --model flag in its help, so a model swap is not available.
-argv_resume = ["opencode", "run", "{prompt}", "--continue"]
-# Repointed to free model (2026-10-24): model = "poolside/laguna-s-2-1:free"
-# The previous OpenRouter models on an account that "never purchased" were
-# replaced so one-click dispatch is no longer blocked by credit exhaustion.
-model = "poolside/laguna-s-2-1:free"
-models = []
+argv_new = ["opencode", "run", "-m", "{model}", "{prompt}"]
+# Measured: `--continue` continues the last session.  opencode has -m flag
+# (Toy3 uses -m and it works).  Model swap available via L1 recovery.
+argv_resume = ["opencode", "run", "-m", "{model}", "{prompt}", "--continue"]
+model = "poolside/poolside/laguna-s-2.1"
+# Verified free models (from free-models.md): opencode lists beam as ollama-cloud/beam
+models = [
+  "poolside/poolside/laguna-s-2.1",
+  "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
+  "ollama-cloud/beam",
+]
 
 [[profile]]
 id = "opencode-fallback"
@@ -173,6 +181,11 @@ priority = 90
 max_concurrent = 1
 via_gateway = false
 roles = ["plan", "review"]
-argv_new = ["opencode", "run", "{prompt}"]
-argv_resume = ["opencode", "run", "{prompt}", "--continue"]
-models = []
+argv_new = ["opencode", "run", "-m", "{model}", "{prompt}"]
+argv_resume = ["opencode", "run", "-m", "{model}", "{prompt}", "--continue"]
+model = "poolside/poolside/laguna-s-2.1"
+models = [
+  "poolside/poolside/laguna-s-2.1",
+  "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
+  "ollama-cloud/beam",
+]

@@ -32,9 +32,46 @@ from .clock import Clock, parse_iso, to_iso
 from .events import Actor, Event, EventLog
 from .models import (ACTIVE_STATES, BLOCKED, DONE, INTEGRATING, LEASED,
                       PROPOSED, READY, REWORK, SUBMITTED, VERIFYING, VOID,
-                      Lease, TaskCard, next_task_id, scope_overlaps)
+                      TASK_TYPES, Lease, TaskCard, next_task_id, scope_overlaps)
 from .plat import FileLock, LockTimeout, atomic_write_text
 from .state import State, rebuild
+
+
+def _actor_from_env() -> Actor | None:
+    """Resolve the actor from ``PMK_ACTOR`` (advisory attribution).
+
+    Formats:
+      - ``PMK_ACTOR=human:<name>``      -> a human operator
+      - ``PMK_ACTOR=worker:<profile>``  -> a fleet-spawned worker (sets
+        kind="worker", agent=profile_id)
+      - ``PMK_ACTOR=agent:<profile>:<session>`` -> a generic agent
+      - ``PMK_ACTOR=overseer:<profile>`` -> an overseer-triggered run
+        (kind="overseer", agent=<profile>)
+
+    This is advisory only — it records who *claims* to have done an action,
+    but cannot be trusted as an authentication boundary.  Only ``task_void``
+    checks this (human-only); ``submit``, ``verify``, ``integrate`` and
+    ``revoke`` accept any actor.  Any caller can set the env var.
+    """
+    raw = os.environ.get("PMK_ACTOR")
+    if not raw:
+        return None
+    parts = raw.split(":", 2)
+    kind = parts[0]
+    if kind == "human":
+        return Actor.human(parts[1] if len(parts) > 1 else "operator")
+    if kind == "worker":
+        profile = parts[1] if len(parts) > 1 else "unknown"
+        return Actor(kind="worker", agent=profile, role="worker")
+    if kind == "overseer":
+        profile = parts[1] if len(parts) > 1 else "unknown"
+        return Actor(kind="overseer", agent=profile, role="overseer")
+    if kind == "agent":
+        agent = parts[1] if len(parts) > 1 else "unknown"
+        session = parts[2] if len(parts) > 2 else ""
+        return Actor(kind="worker", agent=agent, session=session,
+                     role="worker")
+    return Actor(kind=kind, agent=parts[0] if parts else "")
 
 
 class KernelError(RuntimeError):
@@ -124,6 +161,10 @@ class Kernel:
                 payload: dict | None = None) -> Event:
         """Append an event.  The caller must hold the lock."""
         self._check_not_stopped()
+        # PMK_ACTOR: if no explicit actor was given, resolve from the env var
+        # so events are attributed to the spawning profile/session.
+        if actor is None:
+            actor = _actor_from_env() or Actor.kernel()
         event = self.log.append(
             event_type,
             actor=actor,
@@ -166,6 +207,7 @@ class Kernel:
         """Create the layout, the first event, and the pins."""
         with self._locked():
             self.repo.ensure_layout()
+            self._write_pytest_config()
             events, _ = self.log.read_all(repair=True)
             if not events:
                 self._append("BOOTSTRAP_IMPORTED", actor=Actor.kernel(),
@@ -176,6 +218,24 @@ class Kernel:
             self._render_views(force=True)
         return {"ok": True, "root": str(self.repo.root),
                 "events": len(self.events())}
+
+    def _write_pytest_config(self) -> None:
+        """Write a default pytest.ini at the repo root if none exists.
+
+        The file is written to ``repo.root / "pytest.ini"``.  If the file
+        already exists and has content, it is left untouched — a user's
+        custom pytest.ini is never overwritten.  The atomic write (temp file
+        + rename) prevents partial writes from concurrent ``init()`` calls.
+        """
+        from .plat import atomic_write_text
+        target = self.repo.root / "pytest.ini"
+        if target.is_file() and target.read_text(encoding="utf-8").strip():
+            return
+        atomic_write_text(target,
+            "[pytest]\n"
+            "norecursedirs = work work/.pm/tmp .venv .git __pycache__\n"
+            "testpaths = tests\n"
+        )
 
     def status(self) -> dict:
         state = self.state()
@@ -228,6 +288,17 @@ class Kernel:
                 agent_hint=agent_hint,
                 created_by=(actor or Actor(kind="overseer")).to_dict(),
             )
+            # Reject unknown task types: the six recognised roles are
+            # implement, review, verify, plan, maintain, research.  This is
+            # a structural check (is the type known?), not an access-control
+            # gate.  Profile roles in agents.toml cover implement/review/plan
+            # only; verify/maintain/research are valid task kinds with no
+            # enabled profile role, so they will not be dispatched until one
+            # is added.
+            if card.type not in TASK_TYPES:
+                raise KernelError("invalid_task_type", task=card.id,
+                                  type=card.type,
+                                  valid=list(TASK_TYPES))
             problems = card.admission_errors()
             self._append("TASK_CREATED", actor=actor, subject=card.id,
                          payload={"card": card.to_obj(),
@@ -246,6 +317,14 @@ class Kernel:
             card = state.tasks.get(task_id)
             if card is None:
                 raise KernelError("unknown_task", task=task_id)
+            # Reject unknown task types at admit time.  TASK_TYPES lists the
+            # six recognised roles: implement, review, verify, plan, maintain,
+            # research.  Profile roles in agents.toml cover implement/review/plan
+            # only; verify/maintain/research are valid kinds but have no enabled
+            # profile role, so they will not be dispatched until one is added.
+            if card.type not in TASK_TYPES:
+                raise KernelError("invalid_task_type", task=task_id,
+                                  type=card.type, valid=list(TASK_TYPES))
             problems = card.admission_errors()
             if problems:
                 raise KernelError("admission_failed", task=task_id,
@@ -284,6 +363,50 @@ class Kernel:
             if task_id not in self.state().tasks:
                 raise KernelError("unknown_task", task=task_id)
             self._append("TASK_READY", actor=actor, subject=task_id, payload={})
+
+    def task_void(self, task_id: str, *, reason: str = "",
+                  actor: Actor | None = None) -> dict:
+        """Permanently retire a task (fleet amendment section 10.B).
+
+        Unlike REWORK (which returns a task to READY for re-dispatch), VOID
+        permanently retires a task.  This is the operator's tool for tasks
+        whose oracle cannot pass on the current platform — e.g. T-0003, whose
+        oracle ``test -f pi-test.txt && grep -q pi pi-test.txt`` is a POSIX
+        shell builtin unavailable on Windows.
+
+        .. note::
+           The human-only check is *advisory*, not a security boundary: it
+           prevents the CLI and the Conductor from accidentally voiding tasks,
+           but any caller with access to the Kernel can pass ``actor=Actor.human()``.
+        """
+        with self._locked():
+            state = self.state()
+            card = state.tasks.get(task_id)
+            if card is None:
+                raise KernelError("unknown_task", task=task_id)
+            if card.state in (DONE, VOID):
+                raise KernelError("bad_transition", task=task_id,
+                                  current=card.state, target=VOID)
+            # Advisorily operator-only: a missing actor fails closed (not a
+            # security boundary — see docstring).
+            actor = actor or _actor_from_env() or Actor.kernel()
+            if actor.kind != "human":
+                raise KernelError("not_authorized", task=task_id,
+                                  actor=actor.kind,
+                                  msg="only a human may void a task")
+            fence = card.fence
+            # If the task is leased, revoke the lease first.
+            lease = state.leases.get(task_id)
+            if lease:
+                fence = lease.fence
+                new_fence = self._next_fence()
+                self._append("REVOKED", actor=actor, subject=task_id,
+                             fence=fence,
+                             payload={"reason": f"voided: {reason}",
+                                      "new_fence": new_fence})
+            self._append("TASK_VOIDED", actor=actor, subject=task_id,
+                         fence=fence, payload={"reason": reason})
+            return {"ok": True, "task": task_id, "state": VOID}
 
     # ------------------------------------------------------------------
     # Leases
@@ -440,6 +563,9 @@ class Kernel:
             current = self._current_fence(state, task_id)
             if fence != current:
                 # I4: stale fence never merges.  Quarantine it.
+                # This check comes before the state guard so that a revoked
+                # task (no longer LEASED) can still be quarantined with its
+                # stale fence, rather than being blocked by the transition.
                 path = self._quarantine(task_id, fence,
                                         f"stale fence {fence} != {current}")
                 self._append("QUARANTINED", actor=actor, subject=task_id,
@@ -448,6 +574,10 @@ class Kernel:
                                       "stale fence", "path": str(path)})
                 raise KernelError("stale_fence", task=task_id, fence=fence,
                                   current=current, quarantined=str(path))
+            # State guard: submissions are only valid from a leased state.
+            if card.state not in (LEASED,):
+                raise KernelError("bad_transition", task=task_id,
+                                  current=card.state, target=SUBMITTED)
             lease = state.leases.get(task_id)
             if lease is None:
                 raise KernelError("no_lease", task=task_id)
@@ -475,6 +605,19 @@ class Kernel:
         """
         with self._locked():
             state = self.state()
+            card = state.tasks.get(task_id)
+            if card is None:
+                raise KernelError("unknown_task", task=task_id)
+            # State guard: verify is only valid from SUBMITTED or VERIFYING.
+            # The conductor's REWORK path calls verify(ok=False) while the
+            # task is still in VERIFYING; the old code allowed that but the
+            # guard must not block it.  DONE and every other state are refused.
+            # A VERIFIED event on a DONE task used to flip it to VERIFYING
+            # (the old state.py handler was unconditional) -- T-0009 was
+            # integrated twice.  Guard prevents this.
+            if card.state not in (SUBMITTED, VERIFYING):
+                raise KernelError("bad_transition", task=task_id,
+                                  current=card.state, target=VERIFYING)
             current = self._current_fence(state, task_id)
             if fence != current:
                 raise KernelError("stale_fence", task=task_id, fence=fence,
@@ -486,7 +629,16 @@ class Kernel:
 
     def integrate(self, task_id: str, fence: int, *, commit: str = "",
                   actor: Actor | None = None) -> dict:
-        """Promote a verified task to DONE (invariant I5)."""
+        """Promote a verified task to DONE (invariant I5).
+
+        The promotion is refused unless the evidence bundle on disk is
+        **structurally valid and every acceptance oracle passed**.  This
+        is the enforcement point for I5: "oracles decide".  Without this
+        check a task could reach DONE carrying a bundle whose oracles
+        failed, which is exactly what happened to T-0003 (the bundle
+        recorded ``ok: false, exit: 1`` and the task was still
+        promoted).
+        """
         with self._locked():
             state = self.state()
             card = state.tasks.get(task_id)
@@ -500,6 +652,22 @@ class Kernel:
             if card.state not in (SUBMITTED, VERIFYING, INTEGRATING):
                 raise KernelError("bad_transition", task=task_id,
                                   current=card.state, target=DONE)
+
+            # -- I5: the bundle decides, not the caller --------------------
+            try:
+                bundle = Bundle.load_for_task(self.repo.evidence_dir, task_id, fence)
+            except (OSError, ValueError) as exc:
+                raise KernelError("invalid_bundle", task=task_id,
+                                  problems=[f"unreadable bundle: {exc}"])
+            if bundle is None:
+                raise KernelError("no_bundle", task=task_id,
+                                  bundle=str(Bundle.bundle_path(
+                                      self.repo.evidence_dir, task_id, fence)))
+            problems = bundle.validation_problems()
+            if problems:
+                raise KernelError("invalid_bundle", task=task_id,
+                                  problems=problems)
+
             self._append("INTEGRATING", actor=actor, subject=task_id, fence=fence,
                          payload={"commit": commit})
             self._append("INTEGRATED", actor=actor, subject=task_id, fence=fence,

@@ -60,6 +60,10 @@ KNOWN_EVENT_TYPES = frozenset({
     # the request, not a guess about the model string, so it can outrank a
     # declared family when D-L12 decides who may verify.
     "MODEL_SERVED",
+    # --- merge queue (pre-merge I5 enforcement) -------------------------
+    "MERGE_REFUSED",
+    # --- git infrastructure failures (not an oracle failure) ------------
+    "INFRASTRUCTURE_FAILED", "INFRA_RETRY",
 })
 
 

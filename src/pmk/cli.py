@@ -90,6 +90,37 @@ def cmd_task_create(args) -> int:
     return 0
 
 
+def cmd_task_void(args) -> int:
+    """Void a task: mark it VOID so it is never dispatched again.
+
+    Unlike REWORK (which returns a task to READY for re-dispatch), VOID
+    permanently retires a task.  This is the operator's tool for tasks
+    whose oracle cannot pass on the current platform — e.g. T-0003, whose
+    oracle ``test -f pi-test.txt && grep -q pi pi-test.txt`` is a POSIX
+    shell builtin unavailable on Windows.
+    """
+    from pmk.api import _actor_from_env
+    from pmk.events import Actor
+    kernel = _kernel(args)
+    # PMK_ACTOR takes precedence; --actor only fills in when it is unset.
+    actor = _actor_from_env()
+    if actor is None:
+        actor = Actor.human(args.actor)
+    # The human-only check is advisory, not a security boundary — a worker
+    # that sets PMK_ACTOR=human: can bypass it.  But the default path
+    # (worker spawned with "worker:<profile>") is correctly refused.
+    if actor.kind != "human":
+        return _fail(KernelError(
+            "not_authorized",
+            msg=f"task_void requires a human actor; got kind={actor.kind!r}"))
+    try:
+        result = kernel.task_void(args.task_id, reason=args.reason, actor=actor)
+        _out(result)
+        return 0
+    except KernelError as exc:
+        return _fail(exc)
+
+
 def cmd_task_admit(args) -> int:
     kernel = _kernel(args)
     card = kernel.task_admit(args.task_id)
@@ -347,7 +378,11 @@ def cmd_sweep(args) -> int:
 
 def _fleet_state(kernel, path=None):
     from fleet.state import FleetState
-    return FleetState.load(Path(path) if path else None)
+    # Default to project-specific fleet-state.json in .pm/fleet/ rather than shared
+    # %LOCALAPPDATA%\umaws\fleet-state.json
+    if path is None:
+        path = kernel.repo.fleet_state_path
+    return FleetState.load(Path(path))
 
 
 def cmd_fleet_status(args) -> int:
@@ -746,6 +781,13 @@ def build_parser() -> argparse.ArgumentParser:
     show = task.add_parser("show", help="show one task")
     show.add_argument("task_id")
     show.set_defaults(func=cmd_task_show)
+
+    void = task.add_parser("void", help="permanently retire a task (operator-only)")
+    void.add_argument("task_id")
+    void.add_argument("--reason", required=True)
+    void.add_argument("--actor", default="operator",
+                      help="who is voiding (default: operator)")
+    void.set_defaults(func=cmd_task_void)
 
     claim = sub.add_parser("claim", help="claim a task for a lease")
     claim.add_argument("task_id")

@@ -39,7 +39,7 @@ from fleet.dispatcher import Dispatcher  # noqa: E402
 from fleet.merge import integrate  # noqa: E402
 from fleet.project import (CLOSING, DONE, PLANNING, RUNNING, close_check,  # noqa: E402
                            init_project, set_state)
-from fleet.state import FleetState  # noqa: E402
+from fleet.state import FleetState, state_path  # noqa: E402
 from pmk.api import Kernel  # noqa: E402
 from pmk.clock import FakeClock  # noqa: E402
 
@@ -226,7 +226,9 @@ def main() -> int:
     print(f"    voided the plan task {plan.id} (the PDD was hand-written here)")
 
     # -- step 4: run them --------------------------------------------------
-    fleet_state = FleetState()
+    # Use a temp fleet-state.json so we don't pollute the shared %LOCALAPPDATA%\umaws\fleet-state.json
+    demo_fleet_state_path = base / "fleet-state.json"
+    fleet_state = FleetState(path=demo_fleet_state_path)
     dispatcher = Dispatcher(kernel, fleet_state,
                             fixture_root=ROOT / "tests" / "fleet" / "fixtures")
     kernel.project_set_state(RUNNING, reason="task cards exist")

@@ -58,6 +58,37 @@ def git_repo(tmp_path: Path) -> Repo:
     return repo
 
 
+@pytest.fixture()
+def git_repo_master(tmp_path: Path) -> Repo:
+    """A git repository whose branch is 'master', not 'main'.
+
+    Tests that hard-code 'main' fail here; the fix uses repo.default_branch().
+    """
+    root = tmp_path / "repo"
+    root.mkdir()
+    _git(root, "init", "-b", "master")
+    _git(root, "config", "user.name", "umaws-pilot")
+    _git(root, "config", "user.email", "umaws-pilot@localhost")
+    _git(root, "config", "extensions.worktreeConfig", "true")
+    _git(root, "config", "core.longpaths", "true")
+
+    (root / "src").mkdir()
+    (root / "src" / "thing.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (root / "README.md").write_text("# test repo\n", encoding="utf-8")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-m", "initial")
+
+    repo = Repo(root)
+    repo.ensure_layout()
+    constitution = ROOT / ".pm" / "constitution.md"
+    if constitution.is_file():
+        repo.constitution_path.write_text(
+            constitution.read_text(encoding="utf-8"), encoding="utf-8")
+    else:
+        repo.constitution_path.write_text("# Constitution\n", encoding="utf-8")
+    return repo
+
+
 def write_agents(repo: Repo, profiles: list[dict], fleet: dict | None = None,
                  overseer: dict | None = None) -> None:
     """Write an ``agents.toml`` with the given profiles."""

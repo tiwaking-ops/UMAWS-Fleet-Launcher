@@ -181,7 +181,8 @@ def spawn_slot(repo, *, task_id: str, profile_id: str, adapter,
                profile: dict, prompt: str, worktree: str | Path,
                fence: int, index: int = 0,
                env: dict | None = None,
-               mode: str = "new", session: str | None = None) -> Slot:
+               mode: str = "new", session: str | None = None,
+               actor: str | None = None) -> Slot:
     """Spawn one worker.
 
     A headless adapter runs without a console.  An adapter whose
@@ -190,6 +191,11 @@ def spawn_slot(repo, *, task_id: str, profile_id: str, adapter,
 
     *mode* is ``"new"`` or ``"resume"``.  In resume mode the adapter uses
     the profile's ``argv_resume`` template and is given the session id.
+
+    *actor* sets the ``PMK_ACTOR`` environment variable.  When ``None``
+    (the default) it is ``"worker:<profile>"`` for fleet-spawned workers.
+    Callers that spawn under a different identity (e.g. the Overseer) pass
+    an explicit value such as ``"overseer:<profile>"``.
     """
     import time
 
@@ -204,6 +210,24 @@ def spawn_slot(repo, *, task_id: str, profile_id: str, adapter,
         real_argv = plat.argv_for_executable(resolved, argv[1:])
     else:
         real_argv = argv
+
+    # Fleet amendment D-L3: set PMK_ACTOR so every event the worker records
+    # (via pmk CLI or api) carries advisory attribution.
+    #
+    # *actor* defaults to "worker:<profile>" for fleet-spawned leases.
+    # The Overseer passes "overseer:<profile>" explicitly.
+    #
+    # Env: when env is None, inherit os.environ verbatim.  When env is provided
+    # (via_gateway = true), use that scrubbed dict as-is — do NOT layer it on
+    # top of os.environ, or provider secrets from the parent env leak through.
+    # PMK_ACTOR is always set last so a stale inherited value never reaches
+    # the worker.
+    pmk_actor = actor or f"worker:{profile_id}"
+    if env is None:
+        env = dict(os.environ)
+    else:
+        env = dict(env)
+    env["PMK_ACTOR"] = pmk_actor
 
     headless = adapter.caps.headless
     slot = Slot(task_id=task_id, profile_id=profile_id,
@@ -222,11 +246,12 @@ def spawn_slot(repo, *, task_id: str, profile_id: str, adapter,
 
     # Terminal fallback: a console window that writes its exit code to
     # "<log>.exit" when it finishes.  Output capture is best-effort.
-    return _spawn_with_console(repo, slot, real_argv, log_file)
+    return _spawn_with_console(repo, slot, real_argv, log_file, env)
 
 
 def _spawn_with_console(repo, slot: Slot, argv: list[str],
-                         log_file: Path) -> Slot:
+                         log_file: Path,
+                         env: dict | None = None) -> Slot:
     """Launch in a console window, recording the exit code afterwards.
 
     This is the degraded path for an adapter whose headless behaviour has
@@ -257,12 +282,14 @@ def _spawn_with_console(repo, slot: Slot, argv: list[str],
             [shell_path, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass",
              "-File", str(script)],
             cwd=slot.worktree, creationflags=creationflags,
+            env=env if env is not None else None,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except OSError:
         # No console available (a service session, or Windows blocked it).
         # Fall back to a headless launch so the task still runs.
-        result = plat.spawn(argv, cwd=slot.worktree, log_path=log_file)
+        result = plat.spawn(argv, cwd=slot.worktree, log_path=log_file,
+                            env=env)
         slot.pid = result.pid
         slot.creation_time = result.creation_time
         return slot

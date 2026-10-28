@@ -41,7 +41,8 @@ LOOPBACK = "127.0.0.1"
 class Console:
     """The app process's state: one Kernel, one Dispatcher, one Conductor."""
 
-    def __init__(self, root: str | Path | None = None, port: int = DEFAULT_PORT):
+    def __init__(self, root: str | Path | None = None, port: int = DEFAULT_PORT,
+                 fleet_state_path: Path | None = None):
         self.kernel = Kernel(root=root)
         self.repo = self.kernel.repo
         # Make sure the repository exists and is pinned before anything
@@ -49,7 +50,11 @@ class Console:
         # unpinned repository, and the sentinel's I8' check would have
         # nothing to check.
         self.kernel.init()
-        self.fleet_state = FleetState.load()
+        # Default to the project-local fleet state (.pm/fleet/fleet-state.json)
+        # so Console sessions never pollute the shared %LOCALAPPDATA% file.
+        if fleet_state_path is None:
+            fleet_state_path = self.repo.fleet_state_path
+        self.fleet_state = FleetState.load(fleet_state_path)
         # D-A2: the Console starts with dispatch PAUSED.  Work is dispatched
         # only on an explicit action - the Run button (POST /api/project/run),
         # `pmk dispatch run`, or a clearly named config flag set by the
@@ -454,6 +459,8 @@ def main() -> int:
     args = parser.parse_args()
 
     global console
+    # Console.__init__ defaults to the project-local fleet-state.json in
+    # .pm/fleet/ to avoid polluting the shared %LOCALAPPDATA% file.
     console = Console(root=args.root, port=args.port)
     console.start_loops()
     print(f"UMAWS Fleet Console on http://{args.host}:{args.port}")

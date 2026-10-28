@@ -11,9 +11,12 @@ through the merge stage; only a green gate reaches ``ok``.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import subprocess
 from pathlib import Path
 
+from pmk.bundle import Bundle, CommandResult, OracleResult
 from pmk.models import Lease
 
 from fleet.merge import integrate
@@ -36,6 +39,32 @@ def _lease_worktree(kernel, task, name: str):
     return lease, worktree
 
 
+def _write_passing_bundle(kernel, task, lease):
+    """Write a valid bundle with a PASSING oracle."""
+    evidence_dir = kernel.repo.evidence_dir / f"EB-{task.id}-{lease.fence}"
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    constitution_hash = hashlib.sha256(
+        kernel.repo.constitution_path.read_text(encoding="utf-8-sig").encode("utf-8")
+    ).hexdigest()
+    bundle = Bundle(
+        task=task.id,
+        fence=lease.fence,
+        base_commit="dummy",
+        outputs=[],
+        diff_scope_check={"ok": True, "changed": ["src/thing.py"], "violations": []},
+        commands=[CommandResult(cmd="echo", cwd=str(lease.worktree), exit=0)],
+        oracle_results=[OracleResult(cmd="test -f src/thing.py",
+                                     exit=0, ok=True, note="file exists")],
+        premise_check={"ok": True},
+        budget_used={},
+        resolved_models=[],
+        constitution_hash=constitution_hash,
+        context_hash="",
+    )
+    (evidence_dir / "bundle.json").write_text(
+        json.dumps(bundle.to_obj()), encoding="utf-8")
+
+
 def test_reintegration_runs_the_gate(kernel):
     """A crash between merge and record is re-run through the gate.
 
@@ -48,6 +77,7 @@ def test_reintegration_runs_the_gate(kernel):
     try:
         (worktree / "src" / "thing.py").write_text("VALUE = 99\n",
                                                    encoding="utf-8")
+        _write_passing_bundle(kernel, task, lease)
         first = integrate(kernel, task, lease, worktree, gate_cmd="exit 0")
         assert first.ok, first.message
 
@@ -70,6 +100,7 @@ def test_a_worker_that_wrote_nothing_cannot_skip_the_gate(kernel):
     task = make_task(kernel, scope={"write": ["src/thing.py"], "read": []})
     lease, worktree = _lease_worktree(kernel, task, "reint-b")
     try:
+        _write_passing_bundle(kernel, task, lease)
         red = integrate(kernel, task, lease, worktree, gate_cmd="exit 1")
         assert not red.ok, red.message
         assert red.gate_exit == 1
@@ -96,6 +127,7 @@ def test_reintegration_does_not_credit_someone_elses_files(kernel):
     try:
         (worktree / "src" / "thing.py").write_text("VALUE = 77\n",
                                                    encoding="utf-8")
+        _write_passing_bundle(kernel, task, lease)
         first = integrate(kernel, task, lease, worktree, gate_cmd="exit 0")
         assert first.ok and first.files == ["src/thing.py"], first.message
 
