@@ -1,0 +1,2172 @@
+diff --git a/agents.toml b/agents.toml
+index 0569c11..ea2e0c5 100644
+--- a/agents.toml
++++ b/agents.toml
+@@ -2,6 +2,8 @@
+ #
+ # Fleet amendment section 12.A.  Human-edited TOML (pilot v1 D-P3).
+ #
++# Free model reference: see docs/free-models.md (Nous portal + Kenari lists).
++#
+ # A profile is one way to run one CLI on one model.  The operator's saved
+ # entries in prompts.json are really profiles — the same prefix repeated
+ # per project (fleet amendment section 6.1).  `pmk fleet import-prompts
+@@ -54,10 +56,14 @@ priority = 10
+ max_concurrent = 4
+ via_gateway = false
+ roles = ["implement", "review", "plan"]
+-argv_new = ["hermes", "chat", "--oneshot", "-q", "{prompt}", "--yolo", "--cli", "--in", "{cwd}"]
+-# Measured: `hermes --resume <session-id>` resumes, and hermes prints the
+-# id in its trailer: "Resume this session with: hermes --resume <id>".
+-argv_resume = ["hermes", "chat", "--oneshot", "-q", "{prompt}", "--resume", "{session}", "--yolo", "--cli", "--in", "{cwd}"]
++argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}"]
++# Measured: under -Q, hermes writes a `session_id: YYYYMMDD_HHMMSS_<hex6>`
++# line to STDERR (which plat.spawn merges into the stdout log via
++# subprocess.STDOUT).  There is NO "Resume this session with" trailer.
++# The working directory is already set by the harness (cwd=worktree), so no
++# --in flag is needed.
++argv_resume = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}", "--resume", "{session}"]
++model = "reflection/beam-1.0-501b-a23b:free"
+ models = []
+ 
+ [[profile]]
+@@ -155,15 +161,17 @@ priority = 5
+ max_concurrent = 2
+ via_gateway = false
+ roles = ["plan", "review", "implement"]
+-argv_new = ["opencode", "run", "{prompt}"]
+-# Measured: `--continue` continues the last session.  opencode has no
+-# --model flag in its help, so a model swap is not available.
+-argv_resume = ["opencode", "run", "{prompt}", "--continue"]
+-# Repointed to free model (2026-10-24): model = "poolside/laguna-s-2-1:free"
+-# The previous OpenRouter models on an account that "never purchased" were
+-# replaced so one-click dispatch is no longer blocked by credit exhaustion.
+-model = "poolside/laguna-s-2-1:free"
+-models = []
++argv_new = ["opencode", "run", "-m", "{model}", "{prompt}"]
++# Measured: `--continue` continues the last session.  opencode has -m flag
++# (Toy3 uses -m and it works).  Model swap available via L1 recovery.
++argv_resume = ["opencode", "run", "-m", "{model}", "{prompt}", "--continue"]
++model = "poolside/poolside/laguna-s-2.1"
++# Verified free models (from free-models.md): opencode lists beam as ollama-cloud/beam
++models = [
++  "poolside/poolside/laguna-s-2.1",
++  "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
++  "ollama-cloud/beam",
++]
+ 
+ [[profile]]
+ id = "opencode-fallback"
+@@ -173,6 +181,11 @@ priority = 90
+ max_concurrent = 1
+ via_gateway = false
+ roles = ["plan", "review"]
+-argv_new = ["opencode", "run", "{prompt}"]
+-argv_resume = ["opencode", "run", "{prompt}", "--continue"]
+-models = []
++argv_new = ["opencode", "run", "-m", "{model}", "{prompt}"]
++argv_resume = ["opencode", "run", "-m", "{model}", "{prompt}", "--continue"]
++model = "poolside/poolside/laguna-s-2.1"
++models = [
++  "poolside/poolside/laguna-s-2.1",
++  "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
++  "ollama-cloud/beam",
++]
+diff --git a/src/fleet/adapters/base.py b/src/fleet/adapters/base.py
+index f1fcfae..e1ca2ab 100644
+--- a/src/fleet/adapters/base.py
++++ b/src/fleet/adapters/base.py
+@@ -17,6 +17,7 @@ session id, and a console window instead of a headless process.
+ 
+ from __future__ import annotations
+ 
++import re
+ from dataclasses import dataclass
+ from pathlib import Path
+ from typing import Literal, Protocol
+@@ -24,6 +25,14 @@ from typing import Literal, Protocol
+ from ..classify import PatternBook, classify as classify_failure
+ 
+ 
++#: Hermes prints the session id on a line ``session_id: <id>`` to STDERR,
++#: which plat.spawn merges into the stdout log.  The id format is
++#: YYYYMMDD_HHMMSS_<hex6> (operator-verified, 2026-10-28).  We tighten the
++#: regex to the known format so a stray "session_id:" line from a different
++#: process cannot inject a bogus id.
++HERMES_SESSION_PATTERN = re.compile(r"session_id:\s*(\d{8}_\d{6}_[0-9a-f]+)")
++
++
+ @dataclass(frozen=True)
+ class Caps:
+     """What the adapter is known to be able to do.
+@@ -114,16 +123,19 @@ class BaseAdapter:
+ 
+     # -- session -----------------------------------------------------------
+     def parse_session_id(self, log_text: str) -> str | None:
+-        """Find a session id in the output.
++        """Find a session id in the merged stdout/stderr log.
+ 
+-        The base implementation looks for a generic ``session ... <id>``
+-        pattern.  It is a guess, and it is only used when the adapter's
+-        ``reports_session_id`` capability is True — which, for every
+-        unobserved adapter, it is not.
++        Returns the *last* match so a stray early match (e.g. from a
++        resumed sub-process) does not shadow the real one.  Returns
++        ``None`` when the adapter does not claim to report a session id,
++        or when the log contains no ``session_id:`` line at all.
+         """
+         if not self.caps.reports_session_id:
+             return None
+-        return None
++        last = None
++        for m in HERMES_SESSION_PATTERN.finditer(log_text or ""):
++            last = m.group(1)
++        return last
+ 
+     # -- classification ----------------------------------------------------
+     def load_patterns(self, fixture_root: str | Path | None = None) -> None:
+diff --git a/src/fleet/adapters/generic.py b/src/fleet/adapters/generic.py
+index b74cb77..aa0cf0c 100644
+--- a/src/fleet/adapters/generic.py
++++ b/src/fleet/adapters/generic.py
+@@ -42,7 +42,7 @@ interchangeable models, which only **pi** has today.
+ 
+ from __future__ import annotations
+ 
+-from .base import Caps
++from .base import Caps, HERMES_SESSION_PATTERN
+ 
+ #: The measured capabilities, from spike S-A1 (live, 2026-10-22).
+ MEASURED_CAPS: dict[str, Caps] = {
+@@ -103,6 +103,22 @@ class TemplateAdapter:
+     def verified(self) -> bool:
+         return self.name in MEASURED_CAPS
+ 
++    # -- session -----------------------------------------------------------
++    def parse_session_id(self, log_text: str) -> str | None:
++        """Parse a session id from the log.
++
++        Overrides BaseAdapter.parse_session_id so that the check against
++        ``self.caps.reports_session_id`` uses *this* adapter's measured
++        caps (which __getattr__ delegates to _base, but _base.caps returns
++        all-False, so we must short-circuit here).
++        """
++        if not self.caps.reports_session_id:
++            return None
++        last = None
++        for m in HERMES_SESSION_PATTERN.finditer(log_text or ""):
++            last = m.group(1)
++        return last
++
+     def to_dict(self) -> dict:
+         return {"name": self.name, "caps": self.caps.to_dict(),
+                 "verified": self.verified(),
+diff --git a/src/fleet/harness.py b/src/fleet/harness.py
+index b004325..56f386f 100644
+--- a/src/fleet/harness.py
++++ b/src/fleet/harness.py
+@@ -318,7 +318,7 @@ class Harness:
+         # the run; the result reports the running total.
+         result.fix_rounds = run.fix_rounds
+         log_tail = "\n".join(spawn_mod.tail_log(run.slot, 60))
+-        session = _session_from_log(log_tail)
++        session = _session_from_log(run.adapter, log_tail)
+         run.session = session or run.session
+ 
+         failure_class = run.adapter.classify(exit_code, log_tail)
+@@ -626,8 +626,18 @@ class Harness:
+                             error=f"lease exceeded {max_seconds}s")
+ 
+ 
+-def _session_from_log(log_text: str) -> str:
+-    """Find a session id in the process output."""
++def _session_from_log(adapter, log_text: str) -> str:
++    """Find a session id in the process output.
++
++    Delegates to the adapter's ``parse_session_id`` so each CLI's
++    capture format is honoured.  Returns an empty string when no
++    session id is present (the caller treats that as "no session id").
++    """
++    if adapter and getattr(adapter, "caps", None).reports_session_id:
++        result = adapter.parse_session_id(log_text or "")
++        return result or ""
++    # Fall back to the fake pattern for backward compatibility with
++    # fakes that pre-date the adapter dispatch.
+     from .adapters.fake import SESSION_PATTERN
+     match = SESSION_PATTERN.search(log_text or "")
+     return match.group(1) if match else ""
+diff --git a/src/fleet/overseer.py b/src/fleet/overseer.py
+index 843b616..6b2c7dc 100644
+--- a/src/fleet/overseer.py
++++ b/src/fleet/overseer.py
+@@ -52,6 +52,8 @@ from .state import FleetState
+ OVERSEER_PROMPT = """You are the Overseer for {project}. You plan, decompose, review and write prose. You never edit anything under
+ .pm/, the constitution, policy, pins or Kernel code. All state changes go through `pmk`.
+ 
++Your shell is PowerShell. Do not create or edit project files; create tasks instead.
++
+ Each wake: run `pmk brief --role overseer`. The briefing, not this prompt, is your authority; if anything
+ conflicts with the constitution in your briefing, the constitution wins and you report it with `pmk incident`.
+ 
+@@ -63,6 +65,9 @@ Wake reasons you may be given: needs-pdd, needs-decomposition, review, incident,
+ - replan: create only the gap tasks the failed goal oracles require. Do not rewrite finished work.
+ Ask the human only through `pmk queue`, with a recommended option and a safe default. Stop when the briefing
+ has nothing for you; the Conductor will wake you again.
++
++Never run `pmk task submit`, `pmk task verify`, `pmk task integrate`, `pmk task revoke`, `pmk task void`,
++or `pmk queue decide`. These are Kernel-state transitions that only the Conductor drives.
+ """
+ 
+ WAKE_REASONS = ("needs-pdd", "needs-decomposition", "review", "incident",
+@@ -211,7 +216,9 @@ class OverseerRunner:
+             self.kernel.repo, task_id="overseer", profile_id=profile.id,
+             adapter=adapter, profile=profile.raw or profile.to_dict(),
+             prompt=prompt, worktree=self.kernel.repo.root,
+-            fence=0, index=0, env=harness._env(profile))
++            fence=0, index=0,
++            env={**(harness._env(profile) or {}),
++                 "PMK_ACTOR": f"overseer:{profile.id}"})
+         return f"{slot.pid}" if slot.pid else "unknown"
+ 
+     # ------------------------------------------------------------------
+diff --git a/src/fleet/spawn.py b/src/fleet/spawn.py
+index 750ebbd..5f48a11 100644
+--- a/src/fleet/spawn.py
++++ b/src/fleet/spawn.py
+@@ -205,6 +205,23 @@ def spawn_slot(repo, *, task_id: str, profile_id: str, adapter,
+     else:
+         real_argv = argv
+ 
++    # Fleet amendment D-L3: set PMK_ACTOR so every event the worker records
++    # (via pmk CLI or api) carries advisory attribution.  The actor is
++    # always "worker" when spawned through the fleet; the profile_id names
++    # which model/profile served the lease.  This is advisory, not a security
++    # boundary — a compromised worker can set any value.
++    #
++    # Start from os.environ so the child inherits PATH, USERPROFILE and
++    # APPDATA.  When the profile uses a gateway, _env() returns a scrubbed
++    # dict that is layered on top; otherwise env is None and we inherit
++    # everything verbatim.  PMK_ACTOR is always overwritten last so a stale
++    # inherited value never leaks into the worker.
++    actor_env = dict(os.environ)
++    if env is not None:
++        actor_env.update(env)
++    actor_env["PMK_ACTOR"] = f"worker:{profile_id}"
++    env = actor_env
++
+     headless = adapter.caps.headless
+     slot = Slot(task_id=task_id, profile_id=profile_id,
+                 adapter=getattr(adapter, "name", "?"),
+@@ -262,7 +279,8 @@ def _spawn_with_console(repo, slot: Slot, argv: list[str],
+     except OSError:
+         # No console available (a service session, or Windows blocked it).
+         # Fall back to a headless launch so the task still runs.
+-        result = plat.spawn(argv, cwd=slot.worktree, log_path=log_file)
++        result = plat.spawn(argv, cwd=slot.worktree, log_path=log_file,
++                            env=env)
+         slot.pid = result.pid
+         slot.creation_time = result.creation_time
+         return slot
+diff --git a/src/pmk/api.py b/src/pmk/api.py
+index 58bce82..968621b 100644
+--- a/src/pmk/api.py
++++ b/src/pmk/api.py
+@@ -32,11 +32,44 @@ from .clock import Clock, parse_iso, to_iso
+ from .events import Actor, Event, EventLog
+ from .models import (ACTIVE_STATES, BLOCKED, DONE, INTEGRATING, LEASED,
+                       PROPOSED, READY, REWORK, SUBMITTED, VERIFYING, VOID,
+-                      Lease, TaskCard, next_task_id, scope_overlaps)
++                      TASK_TYPES, Lease, TaskCard, next_task_id, scope_overlaps)
+ from .plat import FileLock, LockTimeout, atomic_write_text
+ from .state import State, rebuild
+ 
+ 
++def _actor_from_env() -> Actor | None:
++    """Resolve the actor from ``PMK_ACTOR`` (advisory attribution).
++
++    Formats:
++      - ``PMK_ACTOR=human:<name>``      -> a human operator
++      - ``PMK_ACTOR=worker:<profile>``  -> a fleet-spawned worker (sets
++        kind="worker", agent=profile_id)
++      - ``PMK_ACTOR=agent:<profile>:<session>`` -> a generic agent
++      - ``PMK_ACTOR=overseer:<profile>`` -> an overseer-triggered run
++
++    This is advisory only — it records who *claims* to have done an action,
++    but cannot be trusted as an authentication boundary.  Only ``task_void``
++    checks this (human-only); ``submit``, ``verify``, ``integrate`` and
++    ``revoke`` accept any actor.  Any caller can set the env var.
++    """
++    raw = os.environ.get("PMK_ACTOR")
++    if not raw:
++        return None
++    parts = raw.split(":", 2)
++    kind = parts[0]
++    if kind == "human":
++        return Actor.human(parts[1] if len(parts) > 1 else "operator")
++    if kind == "worker":
++        profile = parts[1] if len(parts) > 1 else "unknown"
++        return Actor(kind="worker", agent=profile, role="worker")
++    if kind == "agent":
++        agent = parts[1] if len(parts) > 1 else "unknown"
++        session = parts[2] if len(parts) > 2 else ""
++        return Actor(kind="worker", agent=agent, session=session,
++                     role="worker")
++    return Actor(kind=kind, agent=parts[0] if parts else "")
++
++
+ class KernelError(RuntimeError):
+     """A refusal.  Carries a machine-readable reason (pilot v1 section 9.3)."""
+ 
+@@ -124,6 +157,10 @@ class Kernel:
+                 payload: dict | None = None) -> Event:
+         """Append an event.  The caller must hold the lock."""
+         self._check_not_stopped()
++        # PMK_ACTOR: if no explicit actor was given, resolve from the env var
++        # so events are attributed to the spawning profile/session.
++        if actor is None:
++            actor = _actor_from_env() or Actor.kernel()
+         event = self.log.append(
+             event_type,
+             actor=actor,
+@@ -166,6 +203,7 @@ class Kernel:
+         """Create the layout, the first event, and the pins."""
+         with self._locked():
+             self.repo.ensure_layout()
++            self._write_pytest_config()
+             events, _ = self.log.read_all(repair=True)
+             if not events:
+                 self._append("BOOTSTRAP_IMPORTED", actor=Actor.kernel(),
+@@ -177,6 +215,22 @@ class Kernel:
+         return {"ok": True, "root": str(self.repo.root),
+                 "events": len(self.events())}
+ 
++    def _write_pytest_config(self) -> None:
++        """Write a default pytest.ini if none exists.
++
++        Ensures a root-level ``pytest -q`` does not collect the per-lease
++        worktrees under ``work/`` and the Kernel's own tmp under ``work/.pm/tmp``.
++        """
++        target = self.repo.root / "pytest.ini"
++        if target.is_file():
++            return
++        target.write_text(
++            "[pytest]\n"
++            "norecursedirs = work work/.pm/tmp .venv .git __pycache__\n"
++            "testpaths = tests\n",
++            encoding="utf-8",
++        )
++
+     def status(self) -> dict:
+         state = self.state()
+         counts = state.counts()
+@@ -228,6 +282,13 @@ class Kernel:
+                 agent_hint=agent_hint,
+                 created_by=(actor or Actor(kind="overseer")).to_dict(),
+             )
++            # Reject unknown task types: only the six recognised roles
++            # (implement, review, verify, plan, maintain, research) are valid.
++            # This is a structural check, not an access-control gate.
++            if card.type not in TASK_TYPES:
++                raise KernelError("invalid_task_type", task=card.id,
++                                  type=card.type,
++                                  valid=list(TASK_TYPES))
+             problems = card.admission_errors()
+             self._append("TASK_CREATED", actor=actor, subject=card.id,
+                          payload={"card": card.to_obj(),
+@@ -246,6 +307,13 @@ class Kernel:
+             card = state.tasks.get(task_id)
+             if card is None:
+                 raise KernelError("unknown_task", task=task_id)
++            # Reject unknown task types at admit time.  TASK_TYPES lists the
++            # six recognised roles: implement, review, verify, plan, maintain,
++            # research.  Any profile may run any of these; the check is structural
++            # (is this a known task kind?) not an access-control gate.
++            if card.type not in TASK_TYPES:
++                raise KernelError("invalid_task_type", task=task_id,
++                                  type=card.type, valid=list(TASK_TYPES))
+             problems = card.admission_errors()
+             if problems:
+                 raise KernelError("admission_failed", task=task_id,
+@@ -285,6 +353,50 @@ class Kernel:
+                 raise KernelError("unknown_task", task=task_id)
+             self._append("TASK_READY", actor=actor, subject=task_id, payload={})
+ 
++    def task_void(self, task_id: str, *, reason: str = "",
++                  actor: Actor | None = None) -> dict:
++        """Permanently retire a task (fleet amendment section 10.B).
++
++        Unlike REWORK (which returns a task to READY for re-dispatch), VOID
++        permanently retires a task.  This is the operator's tool for tasks
++        whose oracle cannot pass on the current platform — e.g. T-0003, whose
++        oracle ``test -f pi-test.txt && grep -q pi pi-test.txt`` is a POSIX
++        shell builtin unavailable on Windows.
++
++        .. note::
++           The human-only check is *advisory*, not a security boundary: it
++           prevents the CLI and the Conductor from accidentally voiding tasks,
++           but any caller with access to the Kernel can pass ``actor=Actor.human()``.
++        """
++        with self._locked():
++            state = self.state()
++            card = state.tasks.get(task_id)
++            if card is None:
++                raise KernelError("unknown_task", task=task_id)
++            if card.state in (DONE, VOID):
++                raise KernelError("bad_transition", task=task_id,
++                                  current=card.state, target=VOID)
++            # Advisorily operator-only: a missing actor fails closed (not a
++            # security boundary — see docstring).
++            actor = actor or _actor_from_env() or Actor.kernel()
++            if actor.kind != "human":
++                raise KernelError("not_authorized", task=task_id,
++                                  actor=actor.kind,
++                                  msg="only a human may void a task")
++            fence = card.fence
++            # If the task is leased, revoke the lease first.
++            lease = state.leases.get(task_id)
++            if lease:
++                fence = lease.fence
++                new_fence = self._next_fence()
++                self._append("REVOKED", actor=actor, subject=task_id,
++                             fence=fence,
++                             payload={"reason": f"voided: {reason}",
++                                      "new_fence": new_fence})
++            self._append("TASK_VOIDED", actor=actor, subject=task_id,
++                         fence=fence, payload={"reason": reason})
++            return {"ok": True, "task": task_id, "state": VOID}
++
+     # ------------------------------------------------------------------
+     # Leases
+     # ------------------------------------------------------------------
+@@ -440,6 +552,9 @@ class Kernel:
+             current = self._current_fence(state, task_id)
+             if fence != current:
+                 # I4: stale fence never merges.  Quarantine it.
++                # This check comes before the state guard so that a revoked
++                # task (no longer LEASED) can still be quarantined with its
++                # stale fence, rather than being blocked by the transition.
+                 path = self._quarantine(task_id, fence,
+                                         f"stale fence {fence} != {current}")
+                 self._append("QUARANTINED", actor=actor, subject=task_id,
+@@ -448,6 +563,10 @@ class Kernel:
+                                       "stale fence", "path": str(path)})
+                 raise KernelError("stale_fence", task=task_id, fence=fence,
+                                   current=current, quarantined=str(path))
++            # State guard: submissions are only valid from a leased state.
++            if card.state not in (LEASED,):
++                raise KernelError("bad_transition", task=task_id,
++                                  current=card.state, target=SUBMITTED)
+             lease = state.leases.get(task_id)
+             if lease is None:
+                 raise KernelError("no_lease", task=task_id)
+@@ -475,6 +594,19 @@ class Kernel:
+         """
+         with self._locked():
+             state = self.state()
++            card = state.tasks.get(task_id)
++            if card is None:
++                raise KernelError("unknown_task", task=task_id)
++            # State guard: verify is only valid from SUBMITTED or VERIFYING.
++            # The conductor's REWORK path calls verify(ok=False) while the
++            # task is still in VERIFYING; the old code allowed that but the
++            # guard must not block it.  DONE and every other state are refused.
++            # A VERIFIED event on a DONE task used to flip it to VERIFYING
++            # (the old state.py handler was unconditional) -- T-0009 was
++            # integrated twice.  Guard prevents this.
++            if card.state not in (SUBMITTED, VERIFYING):
++                raise KernelError("bad_transition", task=task_id,
++                                  current=card.state, target=VERIFYING)
+             current = self._current_fence(state, task_id)
+             if fence != current:
+                 raise KernelError("stale_fence", task=task_id, fence=fence,
+@@ -486,7 +618,16 @@ class Kernel:
+ 
+     def integrate(self, task_id: str, fence: int, *, commit: str = "",
+                   actor: Actor | None = None) -> dict:
+-        """Promote a verified task to DONE (invariant I5)."""
++        """Promote a verified task to DONE (invariant I5).
++
++        The promotion is refused unless the evidence bundle on disk is
++        **structurally valid and every acceptance oracle passed**.  This
++        is the enforcement point for I5: "oracles decide".  Without this
++        check a task could reach DONE carrying a bundle whose oracles
++        failed, which is exactly what happened to T-0003 (the bundle
++        recorded ``ok: false, exit: 1`` and the task was still
++        promoted).
++        """
+         with self._locked():
+             state = self.state()
+             card = state.tasks.get(task_id)
+@@ -500,6 +641,22 @@ class Kernel:
+             if card.state not in (SUBMITTED, VERIFYING, INTEGRATING):
+                 raise KernelError("bad_transition", task=task_id,
+                                   current=card.state, target=DONE)
++
++            # -- I5: the bundle decides, not the caller --------------------
++            try:
++                bundle = Bundle.load_for_task(self.repo.evidence_dir, task_id, fence)
++            except (OSError, ValueError) as exc:
++                raise KernelError("invalid_bundle", task=task_id,
++                                  problems=[f"unreadable bundle: {exc}"])
++            if bundle is None:
++                raise KernelError("no_bundle", task=task_id,
++                                  bundle=str(Bundle.bundle_path(
++                                      self.repo.evidence_dir, task_id, fence)))
++            problems = bundle.validation_problems()
++            if problems:
++                raise KernelError("invalid_bundle", task=task_id,
++                                  problems=problems)
++
+             self._append("INTEGRATING", actor=actor, subject=task_id, fence=fence,
+                          payload={"commit": commit})
+             self._append("INTEGRATED", actor=actor, subject=task_id, fence=fence,
+diff --git a/tests/fleet/test_fleet.py b/tests/fleet/test_fleet.py
+index 16a6165..09d4ad9 100644
+--- a/tests/fleet/test_fleet.py
++++ b/tests/fleet/test_fleet.py
+@@ -1,718 +1,718 @@
+-﻿"""Fleet tests: selection, the harness, the recovery ladder, reconciliation.
+-
+-These map onto the fleet amendment's acceptance tests F2, F3, F5, F6, F8,
+-F10, F11, F12 and F13.  Everything runs against the fake CLI.
+-"""
+-
+-from __future__ import annotations
+-
+-import os
+-import time
+-from pathlib import Path
+-
+-import pytest
+-
+-from fleet import classify as classes
+-from fleet import recover
+-from fleet.adapters import get_adapter
+-from fleet.dispatcher import Dispatcher
+-from fleet.harness import Harness, run_oracles, scope_check
+-from fleet.profiles import Profile, guess_family, import_prompts
+-from fleet.select import select_profile
+-from fleet.spawn import worktree_path
+-from fleet.state import FleetState
+-
+-from conftest import FIXTURE_ROOT, fake_profile, make_task, write_agents
+-
+-
+-# ---------------------------------------------------------------------------
+-# Selection (F5)
+-# ---------------------------------------------------------------------------
+-
+-def test_selection_is_deterministic(fake_kernel, git_repo):
+-    task = make_task(fake_kernel)
+-    profiles = [Profile.from_dict(fake_profile("a", priority=10)),
+-                Profile.from_dict(fake_profile("b", priority=20))]
+-    state = FleetState()
+-    first = select_profile(task, profiles, state, {})
+-    second = select_profile(task, profiles, state, {})
+-    assert first.chosen.id == second.chosen.id
+-    assert first.chosen.id == "a"          # lower priority number wins
+-
+-
+-def test_selection_prefers_lower_utilisation_at_equal_priority(fake_kernel):
+-    task = make_task(fake_kernel)
+-    profiles = [Profile.from_dict(fake_profile("a", priority=10,
+-                                              max_concurrent=2)),
+-                Profile.from_dict(fake_profile("b", priority=10,
+-                                              max_concurrent=2))]
+-    state = FleetState()
+-    running = {"a": 1, "b": 0}
+-    selection = select_profile(task, profiles, state, running)
+-    assert selection.chosen.id == "b"      # less utilised wins
+-
+-
+-def test_selection_skips_a_cooling_profile(fake_kernel):
+-    task = make_task(fake_kernel)
+-    profiles = [Profile.from_dict(fake_profile("a", priority=10)),
+-                Profile.from_dict(fake_profile("b", priority=20))]
+-    state = FleetState()
+-    state.cool("a", 600)
+-    selection = select_profile(task, profiles, state, {})
+-    assert selection.chosen.id == "b"
+-
+-
+-def test_selection_skips_a_disabled_profile(fake_kernel):
+-    task = make_task(fake_kernel)
+-    profiles = [Profile.from_dict(fake_profile("a", priority=10)),
+-                Profile.from_dict(fake_profile("b", priority=20))]
+-    state = FleetState()
+-    state.disable("a")
+-    selection = select_profile(task, profiles, state, {})
+-    assert selection.chosen.id == "b"
+-
+-
+-def test_selection_respects_the_concurrency_limit(fake_kernel):
+-    task = make_task(fake_kernel)
+-    profiles = [Profile.from_dict(fake_profile("a", priority=10,
+-                                              max_concurrent=1))]
+-    state = FleetState()
+-    selection = select_profile(task, profiles, state, {"a": 1})
+-    assert selection.chosen is None
+-    assert "concurrency limit" in selection.reason
+-
+-
+-def test_selection_respects_the_fleet_cap(fake_kernel):
+-    task = make_task(fake_kernel)
+-    profiles = [Profile.from_dict(fake_profile("a"))]
+-    selection = select_profile(task, profiles, FleetState(), {},
+-                               fleet_cap=5, total_running=5)
+-    assert selection.chosen is None
+-
+-
+-def test_selection_excludes_an_unknown_family_from_verification(fake_kernel):
+-    """D-L12: an unverifiable family can never be an independent verifier."""
+-    task = make_task(fake_kernel, type="verify")
+-    profiles = [Profile.from_dict(fake_profile("unknown-family",
+-                                              family="unknown")),
+-                Profile.from_dict(fake_profile("known-family",
+-                                              family="deepseek"))]
+-    selection = select_profile(task, profiles, FleetState(), {},
+-                               implementer_family="anthropic")
+-    assert selection.chosen.id == "known-family"
+-
+-
+-def test_selection_excludes_the_implementers_own_family(fake_kernel):
+-    task = make_task(fake_kernel, type="verify")
+-    profiles = [Profile.from_dict(fake_profile("same", family="deepseek")),
+-                Profile.from_dict(fake_profile("other", family="anthropic"))]
+-    selection = select_profile(task, profiles, FleetState(), {},
+-                               implementer_family="deepseek")
+-    assert selection.chosen.id == "other"
+-
+-
+-def test_selection_respects_role_eligibility(fake_kernel):
+-    task = make_task(fake_kernel, type="verify")
+-    profiles = [Profile.from_dict(fake_profile("impl-only",
+-                                              roles=["implement"]))]
+-    selection = select_profile(task, profiles, FleetState(), {})
+-    assert selection.chosen is None
+-
+-
+-def test_agent_hint_is_a_preference_not_a_requirement(fake_kernel):
+-    task = make_task(fake_kernel, agent_hint="b")
+-    profiles = [Profile.from_dict(fake_profile("a", priority=10)),
+-                Profile.from_dict(fake_profile("b", priority=99))]
+-    selection = select_profile(task, profiles, FleetState(), {})
+-    assert selection.chosen.id == "b"      # the hint wins over priority
+-
+-
+-def test_selection_explains_why_nothing_qualified(fake_kernel):
+-    task = make_task(fake_kernel)
+-    profiles = [Profile.from_dict(fake_profile("a", max_concurrent=1))]
+-    selection = select_profile(task, profiles, FleetState(), {"a": 1})
+-    assert selection.chosen is None
+-    assert selection.reason
+-
+-
+-# ---------------------------------------------------------------------------
+-# Classification and the unverified-classifier rule (F12)
+-# ---------------------------------------------------------------------------
+-
+-def test_a_real_adapter_has_no_patterns_so_everything_is_unknown(fake_kernel):
+-    """With no fixtures, every failure is UNKNOWN (fleet section 7.5)."""
+-    adapter = get_adapter("hermes", FIXTURE_ROOT)
+-    assert not adapter.book.verified
+-    assert adapter.classify(1, "SYNTHETIC-FAILURE-QUOTA") == classes.UNKNOWN
+-    assert adapter.classify(1, "anything at all") == classes.UNKNOWN
+-
+-
+-def test_the_fake_adapter_classifies_its_own_fixtures(fake_kernel):
+-    adapter = get_adapter("fake", FIXTURE_ROOT)
+-    assert adapter.book.verified
+-    assert adapter.classify(2, "SYNTHETIC-FAILURE-QUOTA: gone") == classes.QUOTA
+-    assert adapter.classify(3, "SYNTHETIC-FAILURE-AUTH: no") == classes.AUTH
+-    assert adapter.classify(4, "SYNTHETIC-FAILURE-NETWORK: down") == classes.NETWORK
+-    assert adapter.classify(5, "SYNTHETIC-FAILURE-MODEL-GONE: gone") \
+-        == classes.MODEL_GONE
+-
+-
+-def test_unknown_exit_is_unknown_not_crash(fake_kernel):
+-    adapter = get_adapter("fake", FIXTURE_ROOT)
+-    assert adapter.classify(139, "segfault of some kind") == classes.UNKNOWN
+-
+-
+-def test_exit_zero_is_ok(fake_kernel):
+-    adapter = get_adapter("fake", FIXTURE_ROOT)
+-    assert adapter.classify(0, "") == classes.OK
+-
+-
+-def test_the_measured_capabilities_are_what_the_live_spike_found():
+-    """The capabilities come from spike S-A1, run live on 2026-10-22.
+-
+-    Before the live spike every real adapter's capabilities were ``False``
+-    and the consequences were severe: a console window per worker, no
+-    resume, and every failure classified ``UNKNOWN``.
+-    """
+-    hermes = get_adapter("hermes", FIXTURE_ROOT)
+-    assert hermes.caps.headless              # it ran and exited 0
+-    assert hermes.caps.can_resume            # --resume <id> exited 0
+-    assert hermes.caps.reports_session_id    # it prints "Resume this session with: ..."
+-    assert not hermes.caps.can_swap_model_on_resume   # no second model string is known
+-
+-    pi = get_adapter("pi", FIXTURE_ROOT)
+-    assert pi.caps.headless
+-    assert pi.caps.can_resume
+-    assert pi.caps.can_swap_model_on_resume  # measured: exit 0 with another model
+-
+-    kilo = get_adapter("kilo", FIXTURE_ROOT)
+-    assert kilo.caps.headless
+-    assert kilo.caps.can_resume              # --continue exited 0
+-    assert not kilo.caps.reports_session_id   # it continues without an id
+-
+-    opencode = get_adapter("opencode", FIXTURE_ROOT)
+-    assert opencode.caps.headless             # it ran and produced a rate limit
+-    assert opencode.caps.can_resume
+-
+-    cline = get_adapter("cline", FIXTURE_ROOT)
+-    assert cline.caps.headless               # it ran and produced a clean error
+-    assert not cline.caps.can_resume          # untested: no session was obtained
+-
+-
+-def test_an_unmeasured_adapter_still_defaults_to_false():
+-    """Unknown means no (fleet section 12.B, risk R-F1).
+-
+-    The defaults are only lifted for a CLI the live spike has actually
+-    measured.
+-    """
+-    adapter = get_adapter("some-unmeasured-cli", FIXTURE_ROOT)
+-    caps = adapter.caps
+-    assert not caps.headless
+-    assert not caps.can_resume
+-    assert not caps.can_swap_model_on_resume
+-    assert not caps.reports_session_id
+-    assert not adapter.verified()
+-
+-
+-def test_a_real_adapter_classifies_its_own_captured_failures():
+-    """The classifier patterns come from real captures."""
+-    opencode = get_adapter("opencode", FIXTURE_ROOT)
+-    assert opencode.classify(1, "Error: Rate limit exceeded: free-models-pe") \
+-        == classes.QUOTA
+-
+-    cline = get_adapter("cline", FIXTURE_ROOT)
+-    captured = (FIXTURE_ROOT / "cline" / "model_gone.txt").read_text(
+-        encoding="utf-8")
+-    assert cline.classify(1, captured) == classes.MODEL_GONE
+-
+-
+-def test_a_pattern_without_matching_evidence_is_not_loaded(tmp_path):
+-    """Fleet rule 15, mechanically: a pattern needs a capture it matches.
+-
+-    A pattern that does not match the capture it claims to come from is
+-    not loaded, so the adapter falls back to ``UNKNOWN`` â€” the safe class.
+-    """
+-    from fleet.classify import classify, load_book
+-
+-    directory = tmp_path / "sometool"
+-    directory.mkdir()
+-    (directory / "quota.txt").write_text(
+-        "the provider said no, you are out of quota\n", encoding="utf-8")
+-    (directory / "patterns.toml").write_text(
+-        '[quota]\npattern = "rate limit exceeded"\nsource = "quota.txt"\n',
+-        encoding="utf-8")
+-
+-    book = load_book("sometool", tmp_path)
+-    # The pattern does not match the capture, so it is not loaded.
+-    assert book.patterns == {}
+-    assert not book.verified
+-    assert classify(1, "the provider said no, you are out of quota", book) \
+-        == classes.UNKNOWN
+-
+-
+-def test_a_pattern_with_matching_evidence_is_loaded(tmp_path):
+-    from fleet.classify import classify, load_book
+-
+-    directory = tmp_path / "sometool"
+-    directory.mkdir()
+-    (directory / "quota.txt").write_text(
+-        "Error: Rate limit exceeded: free-models-per-day\n", encoding="utf-8")
+-    (directory / "patterns.toml").write_text(
+-        '[quota]\npattern = "Rate limit exceeded"\nsource = "quota.txt"\n',
+-        encoding="utf-8")
+-
+-    book = load_book("sometool", tmp_path)
+-    assert book.verified
+-    assert classify(1, "Error: Rate limit exceeded: free-models-per-day",
+-                    book) == classes.QUOTA
+-
+-
+-# ---------------------------------------------------------------------------
+-# The recovery ladder
+-# ---------------------------------------------------------------------------
+-
+-def test_l0_retries_a_network_failure(fake_kernel):
+-    context = recover.RecoveryContext(failure_class=classes.NETWORK,
+-                                      network_retries=0)
+-    decision = recover.decide(context)
+-    assert decision.step == recover.L0
+-    assert decision.action == "retry"
+-    assert decision.delay_seconds == 30
+-
+-
+-def test_l1_resumes_when_the_adapter_can_resume(fake_kernel):
+-    context = recover.RecoveryContext(failure_class=classes.QUOTA,
+-                                      adapter_supports_resume=True)
+-    decision = recover.decide(context)
+-    assert decision.step == recover.L1
+-    assert decision.action == "resume"
+-
+-
+-def test_l2_starts_fresh_when_the_adapter_cannot_resume(fake_kernel):
+-    """Every real adapter cannot resume, so L2 is the real path."""
+-    context = recover.RecoveryContext(failure_class=classes.QUOTA,
+-                                      adapter_supports_resume=False)
+-    decision = recover.decide(context)
+-    assert decision.step == recover.L2
+-    assert decision.action == "fresh"
+-
+-
+-def test_l3_revokes_when_the_restarts_run_out(fake_kernel):
+-    context = recover.RecoveryContext(failure_class=classes.QUOTA,
+-                                      restart_count=5, max_restarts=5)
+-    decision = recover.decide(context)
+-    assert decision.step == recover.L3
+-    assert decision.action == "revoke"
+-
+-
+-def test_l4_blocks_when_the_attempts_run_out(fake_kernel):
+-    context = recover.RecoveryContext(failure_class=classes.QUOTA,
+-                                      attempt=3, attempts_max=3)
+-    decision = recover.decide(context)
+-    assert decision.step == recover.L4
+-    assert decision.action == "block"
+-    assert decision.queue_item
+-
+-
+-def test_quota_cools_the_profile_and_doubles(fake_kernel):
+-    state = FleetState()
+-    policy = {"recovery": {"quota_cooldown_s": 3600,
+-                           "quota_cooldown_max_s": 86400}}
+-    first = recover.apply_penalty(state, "p1", classes.QUOTA, policy=policy)
+-    assert first.cooldown_seconds == 3600
+-    second = recover.apply_penalty(state, "p1", classes.QUOTA, policy=policy)
+-    assert second.cooldown_seconds == 7200       # doubles
+-
+-
+-def test_auth_disables_the_profile_and_raises_a_queue_item(fake_kernel):
+-    state = FleetState()
+-    result = recover.apply_penalty(state, "p1", classes.AUTH)
+-    assert result.disabled
+-    assert result.queue_item
+-    assert not state.profile("p1").enabled
+-
+-
+-def test_model_gone_disables_the_profile(fake_kernel):
+-    state = FleetState()
+-    result = recover.apply_penalty(state, "p1", classes.MODEL_GONE)
+-    assert result.disabled
+-
+-
+-def test_three_providers_reporting_network_pauses_dispatch(fake_kernel):
+-    state = FleetState()
+-    policy = {"recovery": {"network_circuit_breaker_providers": 3,
+-                           "network_circuit_breaker_window_s": 120}}
+-    now = time.time()
+-    for provider in ("alpha", "beta", "gamma"):
+-        recover.apply_penalty(state, f"p-{provider}", classes.NETWORK,
+-                              policy=policy, provider=provider, now=now)
+-    assert state.dispatch_paused
+-    assert "circuit breaker" in state.pause_reason
+-
+-
+-def test_one_network_failure_does_not_pause_dispatch(fake_kernel):
+-    state = FleetState()
+-    recover.apply_penalty(state, "p1", classes.NETWORK, provider="alpha")
+-    assert not state.dispatch_paused
+-
+-
+-def test_two_unknown_failures_cool_the_profile(fake_kernel):
+-    state = FleetState()
+-    policy = {"recovery": {"unknown_cooldown_after": 2,
+-                           "unknown_cooldown_s": 900}}
+-    first = recover.apply_penalty(state, "p1", classes.UNKNOWN, policy=policy)
+-    assert first.cooldown_seconds == 0
+-    second = recover.apply_penalty(state, "p1", classes.UNKNOWN, policy=policy)
+-    assert second.cooldown_seconds == 900
+-
+-
+-# ---------------------------------------------------------------------------
+-# The harness and the fake CLI (F2, F3, F6, F13)
+-# ---------------------------------------------------------------------------
+-
+-def _harness(kernel) -> Harness:
+-    state = FleetState.load(Path(kernel.repo.root) / ".pm" / "fleet-state.json")
+-    return Harness(kernel, state, fixture_root=FIXTURE_ROOT)
+-
+-
+-def test_a_successful_lease_submits_a_bundle(fake_kernel):
+-    task = make_task(fake_kernel, oracles=["python -c \"print('ok')\""])
+-    harness = _harness(fake_kernel)
+-    profile = Profile.from_dict(fake_profile("fake-a"))
+-    result = harness.run(task, profile)
+-    assert result.outcome == "submitted", result.to_dict()
+-    assert result.exit_code == 0
+-    assert result.oracles and result.oracles[0]["ok"]
+-    bundle_path = (fake_kernel.repo.evidence_dir /
+-                   f"EB-{task.id}-{result.bundle['fence']}" / "bundle.json")
+-    assert bundle_path.is_file()
+-
+-
+-def test_a_failing_oracle_triggers_a_fix_round_then_fails(fake_kernel):
+-    """The oracles decide, not the worker's exit code."""
+-    task = make_task(fake_kernel, oracles=["python -c \"raise SystemExit(3)\""])
+-    harness = _harness(fake_kernel)
+-    profile = Profile.from_dict(fake_profile("fake-a"))
+-    result = harness.run(task, profile)
+-    assert result.outcome == "failed"
+-    assert result.fix_rounds >= 1
+-    assert all(not o["ok"] for o in result.oracles)
+-
+-
+-def test_killing_a_worker_mid_task_does_not_promote_it(fake_kernel):
+-    """F2: the fence is unchanged and nothing is integrated.
+-
+-    The ``slow`` scenario keeps the worker alive long enough to be killed
+-    mid-task; without it the fake finishes before the kill lands and the
+-    test would race.
+-    """
+-    task = make_task(fake_kernel, oracles=["python -c \"print('ok')\""])
+-    harness = _harness(fake_kernel)
+-    profile = Profile.from_dict(fake_profile("fake-a", scenario="slow"))
+-    run, failure = harness.start(task, profile)
+-    assert run is not None
+-    fence = run.lease.fence
+-    from fleet import spawn as spawn_mod
+-    spawn_mod.kill_slot(run.slot)
+-    result = harness.poll(run)
+-    assert result is not None
+-    # A killed worker is not a success, whatever the log says.
+-    assert result.outcome != "submitted"
+-    state = fake_kernel.state()
+-    assert state.tasks[task.id].state != "DONE"
+-    # The fence is unchanged: the harness still owns the lease.
+-    assert state.leases[task.id].fence == fence
+-    # And exactly one integration event at most, which would be none.
+-    integrations = [e for e in fake_kernel.events()
+-                    if e.type == "INTEGRATED" and e.subject == task.id]
+-    assert len(integrations) <= 1
+-    assert not integrations
+-
+-
+-def test_a_quota_failure_cools_the_profile_and_is_classified(fake_kernel):
+-    """F3: the profile cools and the failure class is recognised."""
+-    task = make_task(fake_kernel, oracles=["python -c \"print('ok')\""])
+-    harness = _harness(fake_kernel)
+-    profile = Profile.from_dict(fake_profile("fake-a", scenario="quota"))
+-    result = harness.run(task, profile)
+-    assert result.failure_class == classes.QUOTA
+-    state = harness.fleet_state.profile("fake-a")
+-    assert state.cooling()
+-    assert state.failure_counts.get(classes.QUOTA) == 1
+-
+-
+-def test_the_handoff_note_is_written_for_a_fresh_recovery(fake_kernel):
+-    task = make_task(fake_kernel, oracles=["python -c \"print('ok')\""])
+-    harness = _harness(fake_kernel)
+-    profile = Profile.from_dict(fake_profile("fake-a", scenario="network"))
+-    result = harness.run(task, profile)
+-    assert result.decision["step"] in (recover.L0, recover.L2)
+-    worktree = Path(result.worktree)
+-    handoff = worktree / ".pmwork" / "HANDOFF.md"
+-    # L0 retries in place; a handoff is written when the session restarts.
+-    if result.decision["step"] == recover.L2:
+-        assert handoff.is_file()
+-
+-
+-def test_the_work_order_is_written_and_the_prompt_is_fixed(fake_kernel):
+-    task = make_task(fake_kernel)
+-    harness = _harness(fake_kernel)
+-    profile = Profile.from_dict(fake_profile("fake-a"))
+-    run, _ = harness.start(task, profile)
+-    order = Path(run.worktree) / ".pmwork" / "ORDER.md"
+-    assert order.is_file()
+-    text = order.read_text(encoding="utf-8")
+-    assert task.id in text
+-    assert "The harness will run these itself" in text
+-    from fleet.order import FIXED_PROMPT
+-    assert FIXED_PROMPT.isascii()
+-    assert "%" not in FIXED_PROMPT and '"' not in FIXED_PROMPT
+-
+-
+-def test_a_scope_violation_is_detected(fake_kernel):
+-    task = make_task(fake_kernel, scope={"write": ["src/thing.py"], "read": []})
+-    harness = _harness(fake_kernel)
+-    profile = Profile.from_dict(fake_profile("fake-a"))
+-    run, _ = harness.start(task, profile)
+-    # The fake writes outside the declared scope.
+-    (Path(run.worktree) / "outside-scope.txt").write_text("x\n", encoding="utf-8")
+-    check = scope_check(task, run.worktree, fake_kernel.repo)
+-    assert not check["ok"]
+-    assert any(v["path"] == "outside-scope.txt" for v in check["violations"])
+-
+-
+-def test_hooks_are_disabled_in_the_worktree(fake_kernel):
+-    """CIP 2.4: git hooks are shared by every worktree."""
+-    task = make_task(fake_kernel)
+-    harness = _harness(fake_kernel)
+-    profile = Profile.from_dict(fake_profile("fake-a"))
+-    run, _ = harness.start(task, profile)
+-    code, out, err = fake_kernel.git("config", "--worktree",
+-                                    "core.hooksPath", cwd=Path(run.worktree))
+-    assert code == 0
+-    assert out.strip().endswith("nohooks")
+-
+-
+-# ---------------------------------------------------------------------------
+-# Quoting (F11)
+-# ---------------------------------------------------------------------------
+-
+-def test_a_hostile_order_reaches_the_worker_intact(fake_kernel):
+-    """F11: quotes, %, &, ^ and non-ASCII survive, because the order is a file."""
+-    hostile = ('Read "ORDER.md" & do 100% of it ^ carefully â€” Ã¼nÃ¯cÃ¶dÃ© ä¸­æ–‡')
+-    task = make_task(fake_kernel,
+-                     title=f"Handle {hostile}",
+-                     oracles=["python -c \"print('ok')\""])
+-    harness = _harness(fake_kernel)
+-    profile = Profile.from_dict(fake_profile("fake-a"))
+-    run, _ = harness.start(task, profile)
+-    order = (Path(run.worktree) / ".pmwork" / "ORDER.md").read_text(
+-        encoding="utf-8")
+-    assert hostile in order
+-    # And the argv the worker received is a plain sentence.
+-    assert len(run.slot.argv) > 0
+-    assert not any("%" in part for part in run.slot.argv)
+-
+-
+-# ---------------------------------------------------------------------------
+-# Restart reconciliation (F8)
+-# ---------------------------------------------------------------------------
+-
+-def test_reconcile_reports_adopted_and_lost_workers(fake_kernel):
+-    task = make_task(fake_kernel)
+-    harness = _harness(fake_kernel)
+-    profile = Profile.from_dict(fake_profile("fake-a"))
+-    run, _ = harness.start(task, profile)
+-    dispatcher = Dispatcher(fake_kernel, harness.fleet_state,
+-                            fixture_root=FIXTURE_ROOT)
+-    report = dispatcher.reconcile()
+-    assert task.id in report["adopted"]
+-    assert task.id in dispatcher.runs
+-
+-
+-def test_reconcile_loses_a_worker_whose_process_is_gone(fake_kernel):
+-    task = make_task(fake_kernel)
+-    harness = _harness(fake_kernel)
+-    profile = Profile.from_dict(fake_profile("fake-a"))
+-    run, _ = harness.start(task, profile)
+-    from fleet import spawn as spawn_mod
+-    spawn_mod.kill_slot(run.slot)
+-    dispatcher = Dispatcher(fake_kernel, harness.fleet_state,
+-                            fixture_root=FIXTURE_ROOT)
+-    report = dispatcher.reconcile()
+-    assert task.id in report["lost"] or task.id in report["adopted"]
+-    # Either way the task is not DONE.
+-    assert fake_kernel.state().tasks[task.id].state != "DONE"
+-
+-
+-# ---------------------------------------------------------------------------
+-# Profile import from the operator's prompts.json
+-# ---------------------------------------------------------------------------
+-
+-def test_import_prompts_collapses_projects_and_drops_the_prompt(tmp_path):
+-    source = tmp_path / "prompts.json"
+-    source.write_text("""{
+-      "settings": {"delay_seconds": 1.0, "keep_open": true},
+-      "prompts": [
+-        {"id": "1", "name": "hermes a", "group": "A", "prefix": "hermes chat --oneshot -q",
+-         "prompt": "do a thing", "suffix": "--yolo --cli --in \\"C:\\\\a\\"",
+-         "cwd": "C:\\\\a"},
+-        {"id": "2", "name": "hermes b", "group": "B", "prefix": "hermes chat --oneshot -q",
+-         "prompt": "do another thing", "suffix": "--yolo --cli --in \\"C:\\\\b\\"",
+-         "cwd": "C:\\\\b"}
+-      ]}""", encoding="utf-8")
+-    profiles = import_prompts(source)
+-    assert len(profiles) == 1                # the two projects collapse
+-    profile = profiles[0]
+-    assert profile.adapter == "hermes"
+-    assert "{prompt}" in profile.argv_new
+-    assert "{cwd}" in profile.argv_new
+-    assert "do a thing" not in " ".join(profile.argv_new)
+-
+-
+-def test_import_prompts_marks_alias_models_as_unknown_family(tmp_path):
+-    source = tmp_path / "prompts.json"
+-    source.write_text("""{"settings": {}, "prompts": [
+-      {"id": "1", "name": "p", "group": "g", "prefix": "pi --provider openrouter --model free -p",
+-       "prompt": "x", "suffix": "", "cwd": ""},
+-      {"id": "2", "name": "p2", "group": "g", "prefix": "pi --provider x --model deepseek/deepseek-v4-flash-free -p",
+-       "prompt": "y", "suffix": "", "cwd": ""}]}""", encoding="utf-8")
+-    profiles = import_prompts(source)
+-    by_id = {p.id: p for p in profiles}
+-    assert any(p.family == "unknown" for p in profiles)
+-    assert any(p.family == "deepseek" for p in profiles)
+-
+-
+-def test_guess_family():
+-    assert guess_family("deepseek/deepseek-v4-flash-free") == "deepseek"
+-    assert guess_family("free") == "unknown"
+-    assert guess_family("poor-pi") == "unknown"
+-    assert guess_family("") == "unknown"
+-
+-
+-def test_guess_family_free_suffix_is_only_an_alias_for_openrouter():
+-    """``:free`` is a Kilo/Nous pricing tier, not an alias (D-43).
+-
+-    Kilo and Nous both use ``:free`` for concrete free-tier models, so reading
+-    the suffix as an alias marked every free model ``unknown`` and left them
+-    unusable as a verifier (D-L12).  OpenRouter's own free aliases take the
+-    forms ``openrouter/free`` and ``poor-*``, both already caught, so narrowing
+-    this costs nothing on that provider.
+-    """
+-    # A concrete free-tier model keeps its vendor, and can therefore verify.
+-    assert guess_family("kilo/poolside/laguna-s-2.1:free") == "poolside"
+-    assert guess_family("kilo/nvidia/nemotron-3.5-super-vl:free") == "nvidia"
+-    assert guess_family("upstage/solar-mini4:free") == "unknown"
+-
+-    # OpenRouter's ``:free`` is still treated as the alias it is there.
+-    assert guess_family("openrouter/anthropic/claude-opus:free") == "unknown"
+-    assert guess_family("openrouter/free") == "unknown"
+-
+-    # And the alias forms that never used a colon are untouched.
+-    assert guess_family("poor-claude") == "unknown"
+-    assert guess_family("poorer") == "unknown"
+-    assert guess_family("auto") == "unknown"
+-
+-
+-# ---------------------------------------------------------------------------
+-# The dispatcher
+-# ---------------------------------------------------------------------------
+-
+-def test_the_dispatcher_starts_a_lease_for_a_ready_task(fake_kernel):
+-    task = make_task(fake_kernel, oracles=["python -c \"print('ok')\""])
+-    dispatcher = Dispatcher(fake_kernel, FleetState(),
+-                            fixture_root=FIXTURE_ROOT)
+-    report = dispatcher.tick()
+-    assert report.started
+-    assert report.started[0]["task"] == task.id
+-    assert task.id in dispatcher.runs
+-
+-
+-def test_the_dispatcher_records_the_assignment_reason(fake_kernel):
+-    make_task(fake_kernel)
+-    dispatcher = Dispatcher(fake_kernel, FleetState(),
+-                            fixture_root=FIXTURE_ROOT)
+-    dispatcher.tick()
+-    events = [e for e in fake_kernel.events() if e.type == "FLEET_ASSIGNED"]
+-    assert events
+-    assert events[-1].payload["profile"]
+-    assert events[-1].payload["candidates"]
+-
+-
+-def test_the_dispatcher_status_lists_profiles(fake_kernel):
+-    dispatcher = Dispatcher(fake_kernel, FleetState(),
+-                            fixture_root=FIXTURE_ROOT)
+-    status = dispatcher.status()
+-    assert status["profiles"][0]["id"] == "fake-a"
+-    assert status["fleet_cap"] == 20
+-
+-
+-def test_a_dispatch_pause_stops_new_work(fake_kernel):
+-    make_task(fake_kernel)
+-    state = FleetState()
+-    state.dispatch_paused = True
+-    state.pause_reason = "circuit breaker"
+-    dispatcher = Dispatcher(fake_kernel, state, fixture_root=FIXTURE_ROOT)
+-    report = dispatcher.tick()
+-    assert not report.started
+-    assert any("paused" in note for note in report.notes)
+-
+-
+-def test_pilot_stop_file_blocks_dispatch(fake_kernel):
+-    "D-A2: with pilot/STOP, zero FLEET_ASSIGNED and zero AGENT_STARTED."
+-    task = make_task(fake_kernel)
+-    (fake_kernel.repo.root / "pilot").mkdir(parents=True, exist_ok=True)
+-    (fake_kernel.repo.root / "pilot" / "STOP").write_text(
+-        "halt\n", encoding="utf-8")
+-    dispatcher = Dispatcher(fake_kernel, FleetState(),
+-                            fixture_root=FIXTURE_ROOT)
+-    report = dispatcher.tick()
+-    assert not report.started
+-    fleet_assigned = [e for e in fake_kernel.events()
+-                      if e.type == "FLEET_ASSIGNED"]
+-    agent_started = [e for e in fake_kernel.events()
+-                     if e.type == "AGENT_STARTED"]
+-    assert not fleet_assigned, [e.type for e in fake_kernel.events()]
+-    assert not agent_started, [e.type for e in fake_kernel.events()]
+-
+-
+-def test_removing_pilot_stop_resumes_dispatch(fake_kernel):
+-    "D-A2: removing pilot/STOP resumes and produces FLEET_ASSIGNED/AGENT_STARTED."
+-    task = make_task(fake_kernel)
+-    (fake_kernel.repo.root / "pilot").mkdir(parents=True, exist_ok=True)
+-    (fake_kernel.repo.root / "pilot" / "STOP").write_text("halt\n",
+-                                                          encoding="utf-8")
+-    dispatcher = Dispatcher(fake_kernel, FleetState(),
+-                            fixture_root=FIXTURE_ROOT)
+-    dispatcher.tick()  # STOP present -> nothing dispatched
+-    (fake_kernel.repo.root / "pilot" / "STOP").unlink()
+-    report = dispatcher.tick()
+-    assert report.started
+-    fleet_assigned = [e for e in fake_kernel.events()
+-                      if e.type == "FLEET_ASSIGNED"]
+-    agent_started = [e for e in fake_kernel.events()
+-                     if e.type == "AGENT_STARTED"]
+-    assert fleet_assigned, fake_kernel.events()
+-    assert agent_started
+-
+-
+-def test_blocked_task_backoff_no_spam(fake_kernel, clock):
+-    """D-A1: a task blocked by an overlap for 10 simulated minutes produces no more than 5 events."""
+-    # T1 holds an active lease (the blocker).
+-    task1 = make_task(fake_kernel, scope={"write": ["src/thing.py"], "read": []})
+-    fake_kernel.claim(task1.id, holder="fake-a", agent="fake", role="implement")
+-
+-    # T2 has the same write scope -> claim will be refused with scope_overlap.
+-    task2 = make_task(fake_kernel, scope={"write": ["src/thing.py"], "read": []})
+-
+-    dispatcher = Dispatcher(fake_kernel, FleetState(), fixture_root=FIXTURE_ROOT)
+-
+-    # Advance the clock in 60s steps for 10 minutes (600s).
+-    for _ in range(10):
+-        clock.advance(60)
+-        dispatcher.tick()
+-
+-    events = [e for e in fake_kernel.events() if e.subject == task2.id]
+-    # Backoff start 5s, cap 300s: T2 is blocked for the whole 10 minutes
+-    # and produces at most one FLEET_BLOCKED event.
+-    assert len(events) <= 5, [e.type for e in events]
++﻿"""Fleet tests: selection, the harness, the recovery ladder, reconciliation.
++
++These map onto the fleet amendment's acceptance tests F2, F3, F5, F6, F8,
++F10, F11, F12 and F13.  Everything runs against the fake CLI.
++"""
++
++from __future__ import annotations
++
++import os
++import time
++from pathlib import Path
++
++import pytest
++
++from fleet import classify as classes
++from fleet import recover
++from fleet.adapters import get_adapter
++from fleet.dispatcher import Dispatcher
++from fleet.harness import Harness, run_oracles, scope_check
++from fleet.profiles import Profile, guess_family, import_prompts
++from fleet.select import select_profile
++from fleet.spawn import worktree_path
++from fleet.state import FleetState
++
++from conftest import FIXTURE_ROOT, fake_profile, make_task, write_agents
++
++
++# ---------------------------------------------------------------------------
++# Selection (F5)
++# ---------------------------------------------------------------------------
++
++def test_selection_is_deterministic(fake_kernel, git_repo):
++    task = make_task(fake_kernel)
++    profiles = [Profile.from_dict(fake_profile("a", priority=10)),
++                Profile.from_dict(fake_profile("b", priority=20))]
++    state = FleetState()
++    first = select_profile(task, profiles, state, {})
++    second = select_profile(task, profiles, state, {})
++    assert first.chosen.id == second.chosen.id
++    assert first.chosen.id == "a"          # lower priority number wins
++
++
++def test_selection_prefers_lower_utilisation_at_equal_priority(fake_kernel):
++    task = make_task(fake_kernel)
++    profiles = [Profile.from_dict(fake_profile("a", priority=10,
++                                              max_concurrent=2)),
++                Profile.from_dict(fake_profile("b", priority=10,
++                                              max_concurrent=2))]
++    state = FleetState()
++    running = {"a": 1, "b": 0}
++    selection = select_profile(task, profiles, state, running)
++    assert selection.chosen.id == "b"      # less utilised wins
++
++
++def test_selection_skips_a_cooling_profile(fake_kernel):
++    task = make_task(fake_kernel)
++    profiles = [Profile.from_dict(fake_profile("a", priority=10)),
++                Profile.from_dict(fake_profile("b", priority=20))]
++    state = FleetState()
++    state.cool("a", 600)
++    selection = select_profile(task, profiles, state, {})
++    assert selection.chosen.id == "b"
++
++
++def test_selection_skips_a_disabled_profile(fake_kernel):
++    task = make_task(fake_kernel)
++    profiles = [Profile.from_dict(fake_profile("a", priority=10)),
++                Profile.from_dict(fake_profile("b", priority=20))]
++    state = FleetState()
++    state.disable("a")
++    selection = select_profile(task, profiles, state, {})
++    assert selection.chosen.id == "b"
++
++
++def test_selection_respects_the_concurrency_limit(fake_kernel):
++    task = make_task(fake_kernel)
++    profiles = [Profile.from_dict(fake_profile("a", priority=10,
++                                              max_concurrent=1))]
++    state = FleetState()
++    selection = select_profile(task, profiles, state, {"a": 1})
++    assert selection.chosen is None
++    assert "concurrency limit" in selection.reason
++
++
++def test_selection_respects_the_fleet_cap(fake_kernel):
++    task = make_task(fake_kernel)
++    profiles = [Profile.from_dict(fake_profile("a"))]
++    selection = select_profile(task, profiles, FleetState(), {},
++                               fleet_cap=5, total_running=5)
++    assert selection.chosen is None
++
++
++def test_selection_excludes_an_unknown_family_from_verification(fake_kernel):
++    """D-L12: an unverifiable family can never be an independent verifier."""
++    task = make_task(fake_kernel, type="verify")
++    profiles = [Profile.from_dict(fake_profile("unknown-family",
++                                              family="unknown")),
++                Profile.from_dict(fake_profile("known-family",
++                                              family="deepseek"))]
++    selection = select_profile(task, profiles, FleetState(), {},
++                               implementer_family="anthropic")
++    assert selection.chosen.id == "known-family"
++
++
++def test_selection_excludes_the_implementers_own_family(fake_kernel):
++    task = make_task(fake_kernel, type="verify")
++    profiles = [Profile.from_dict(fake_profile("same", family="deepseek")),
++                Profile.from_dict(fake_profile("other", family="anthropic"))]
++    selection = select_profile(task, profiles, FleetState(), {},
++                               implementer_family="deepseek")
++    assert selection.chosen.id == "other"
++
++
++def test_selection_respects_role_eligibility(fake_kernel):
++    task = make_task(fake_kernel, type="verify")
++    profiles = [Profile.from_dict(fake_profile("impl-only",
++                                              roles=["implement"]))]
++    selection = select_profile(task, profiles, FleetState(), {})
++    assert selection.chosen is None
++
++
++def test_agent_hint_is_a_preference_not_a_requirement(fake_kernel):
++    task = make_task(fake_kernel, agent_hint="b")
++    profiles = [Profile.from_dict(fake_profile("a", priority=10)),
++                Profile.from_dict(fake_profile("b", priority=99))]
++    selection = select_profile(task, profiles, FleetState(), {})
++    assert selection.chosen.id == "b"      # the hint wins over priority
++
++
++def test_selection_explains_why_nothing_qualified(fake_kernel):
++    task = make_task(fake_kernel)
++    profiles = [Profile.from_dict(fake_profile("a", max_concurrent=1))]
++    selection = select_profile(task, profiles, FleetState(), {"a": 1})
++    assert selection.chosen is None
++    assert selection.reason
++
++
++# ---------------------------------------------------------------------------
++# Classification and the unverified-classifier rule (F12)
++# ---------------------------------------------------------------------------
++
++def test_a_real_adapter_has_no_patterns_so_everything_is_unknown(fake_kernel):
++    """With no fixtures, every failure is UNKNOWN (fleet section 7.5)."""
++    adapter = get_adapter("hermes", FIXTURE_ROOT)
++    assert not adapter.book.verified
++    assert adapter.classify(1, "SYNTHETIC-FAILURE-QUOTA") == classes.UNKNOWN
++    assert adapter.classify(1, "anything at all") == classes.UNKNOWN
++
++
++def test_the_fake_adapter_classifies_its_own_fixtures(fake_kernel):
++    adapter = get_adapter("fake", FIXTURE_ROOT)
++    assert adapter.book.verified
++    assert adapter.classify(2, "SYNTHETIC-FAILURE-QUOTA: gone") == classes.QUOTA
++    assert adapter.classify(3, "SYNTHETIC-FAILURE-AUTH: no") == classes.AUTH
++    assert adapter.classify(4, "SYNTHETIC-FAILURE-NETWORK: down") == classes.NETWORK
++    assert adapter.classify(5, "SYNTHETIC-FAILURE-MODEL-GONE: gone") \
++        == classes.MODEL_GONE
++
++
++def test_unknown_exit_is_unknown_not_crash(fake_kernel):
++    adapter = get_adapter("fake", FIXTURE_ROOT)
++    assert adapter.classify(139, "segfault of some kind") == classes.UNKNOWN
++
++
++def test_exit_zero_is_ok(fake_kernel):
++    adapter = get_adapter("fake", FIXTURE_ROOT)
++    assert adapter.classify(0, "") == classes.OK
++
++
++def test_the_measured_capabilities_are_what_the_live_spike_found():
++    """The capabilities come from spike S-A1, run live on 2026-10-22.
++
++    Before the live spike every real adapter's capabilities were ``False``
++    and the consequences were severe: a console window per worker, no
++    resume, and every failure classified ``UNKNOWN``.
++    """
++    hermes = get_adapter("hermes", FIXTURE_ROOT)
++    assert hermes.caps.headless              # it ran and exited 0
++    assert hermes.caps.can_resume            # --resume <id> exited 0
++    assert hermes.caps.reports_session_id    # it prints "session_id: <id>" to stderr
++    assert not hermes.caps.can_swap_model_on_resume   # no second model string is known
++
++    pi = get_adapter("pi", FIXTURE_ROOT)
++    assert pi.caps.headless
++    assert pi.caps.can_resume
++    assert pi.caps.can_swap_model_on_resume  # measured: exit 0 with another model
++
++    kilo = get_adapter("kilo", FIXTURE_ROOT)
++    assert kilo.caps.headless
++    assert kilo.caps.can_resume              # --continue exited 0
++    assert not kilo.caps.reports_session_id   # it continues without an id
++
++    opencode = get_adapter("opencode", FIXTURE_ROOT)
++    assert opencode.caps.headless             # it ran and produced a rate limit
++    assert opencode.caps.can_resume
++
++    cline = get_adapter("cline", FIXTURE_ROOT)
++    assert cline.caps.headless               # it ran and produced a clean error
++    assert not cline.caps.can_resume          # untested: no session was obtained
++
++
++def test_an_unmeasured_adapter_still_defaults_to_false():
++    """Unknown means no (fleet section 12.B, risk R-F1).
++
++    The defaults are only lifted for a CLI the live spike has actually
++    measured.
++    """
++    adapter = get_adapter("some-unmeasured-cli", FIXTURE_ROOT)
++    caps = adapter.caps
++    assert not caps.headless
++    assert not caps.can_resume
++    assert not caps.can_swap_model_on_resume
++    assert not caps.reports_session_id
++    assert not adapter.verified()
++
++
++def test_a_real_adapter_classifies_its_own_captured_failures():
++    """The classifier patterns come from real captures."""
++    opencode = get_adapter("opencode", FIXTURE_ROOT)
++    assert opencode.classify(1, "Error: Rate limit exceeded: free-models-pe") \
++        == classes.QUOTA
++
++    cline = get_adapter("cline", FIXTURE_ROOT)
++    captured = (FIXTURE_ROOT / "cline" / "model_gone.txt").read_text(
++        encoding="utf-8")
++    assert cline.classify(1, captured) == classes.MODEL_GONE
++
++
++def test_a_pattern_without_matching_evidence_is_not_loaded(tmp_path):
++    """Fleet rule 15, mechanically: a pattern needs a capture it matches.
++
++    A pattern that does not match the capture it claims to come from is
++    not loaded, so the adapter falls back to ``UNKNOWN`` â€” the safe class.
++    """
++    from fleet.classify import classify, load_book
++
++    directory = tmp_path / "sometool"
++    directory.mkdir()
++    (directory / "quota.txt").write_text(
++        "the provider said no, you are out of quota\n", encoding="utf-8")
++    (directory / "patterns.toml").write_text(
++        '[quota]\npattern = "rate limit exceeded"\nsource = "quota.txt"\n',
++        encoding="utf-8")
++
++    book = load_book("sometool", tmp_path)
++    # The pattern does not match the capture, so it is not loaded.
++    assert book.patterns == {}
++    assert not book.verified
++    assert classify(1, "the provider said no, you are out of quota", book) \
++        == classes.UNKNOWN
++
++
++def test_a_pattern_with_matching_evidence_is_loaded(tmp_path):
++    from fleet.classify import classify, load_book
++
++    directory = tmp_path / "sometool"
++    directory.mkdir()
++    (directory / "quota.txt").write_text(
++        "Error: Rate limit exceeded: free-models-per-day\n", encoding="utf-8")
++    (directory / "patterns.toml").write_text(
++        '[quota]\npattern = "Rate limit exceeded"\nsource = "quota.txt"\n',
++        encoding="utf-8")
++
++    book = load_book("sometool", tmp_path)
++    assert book.verified
++    assert classify(1, "Error: Rate limit exceeded: free-models-per-day",
++                    book) == classes.QUOTA
++
++
++# ---------------------------------------------------------------------------
++# The recovery ladder
++# ---------------------------------------------------------------------------
++
++def test_l0_retries_a_network_failure(fake_kernel):
++    context = recover.RecoveryContext(failure_class=classes.NETWORK,
++                                      network_retries=0)
++    decision = recover.decide(context)
++    assert decision.step == recover.L0
++    assert decision.action == "retry"
++    assert decision.delay_seconds == 30
++
++
++def test_l1_resumes_when_the_adapter_can_resume(fake_kernel):
++    context = recover.RecoveryContext(failure_class=classes.QUOTA,
++                                      adapter_supports_resume=True)
++    decision = recover.decide(context)
++    assert decision.step == recover.L1
++    assert decision.action == "resume"
++
++
++def test_l2_starts_fresh_when_the_adapter_cannot_resume(fake_kernel):
++    """Every real adapter cannot resume, so L2 is the real path."""
++    context = recover.RecoveryContext(failure_class=classes.QUOTA,
++                                      adapter_supports_resume=False)
++    decision = recover.decide(context)
++    assert decision.step == recover.L2
++    assert decision.action == "fresh"
++
++
++def test_l3_revokes_when_the_restarts_run_out(fake_kernel):
++    context = recover.RecoveryContext(failure_class=classes.QUOTA,
++                                      restart_count=5, max_restarts=5)
++    decision = recover.decide(context)
++    assert decision.step == recover.L3
++    assert decision.action == "revoke"
++
++
++def test_l4_blocks_when_the_attempts_run_out(fake_kernel):
++    context = recover.RecoveryContext(failure_class=classes.QUOTA,
++                                      attempt=3, attempts_max=3)
++    decision = recover.decide(context)
++    assert decision.step == recover.L4
++    assert decision.action == "block"
++    assert decision.queue_item
++
++
++def test_quota_cools_the_profile_and_doubles(fake_kernel):
++    state = FleetState()
++    policy = {"recovery": {"quota_cooldown_s": 3600,
++                           "quota_cooldown_max_s": 86400}}
++    first = recover.apply_penalty(state, "p1", classes.QUOTA, policy=policy)
++    assert first.cooldown_seconds == 3600
++    second = recover.apply_penalty(state, "p1", classes.QUOTA, policy=policy)
++    assert second.cooldown_seconds == 7200       # doubles
++
++
++def test_auth_disables_the_profile_and_raises_a_queue_item(fake_kernel):
++    state = FleetState()
++    result = recover.apply_penalty(state, "p1", classes.AUTH)
++    assert result.disabled
++    assert result.queue_item
++    assert not state.profile("p1").enabled
++
++
++def test_model_gone_disables_the_profile(fake_kernel):
++    state = FleetState()
++    result = recover.apply_penalty(state, "p1", classes.MODEL_GONE)
++    assert result.disabled
++
++
++def test_three_providers_reporting_network_pauses_dispatch(fake_kernel):
++    state = FleetState()
++    policy = {"recovery": {"network_circuit_breaker_providers": 3,
++                           "network_circuit_breaker_window_s": 120}}
++    now = time.time()
++    for provider in ("alpha", "beta", "gamma"):
++        recover.apply_penalty(state, f"p-{provider}", classes.NETWORK,
++                              policy=policy, provider=provider, now=now)
++    assert state.dispatch_paused
++    assert "circuit breaker" in state.pause_reason
++
++
++def test_one_network_failure_does_not_pause_dispatch(fake_kernel):
++    state = FleetState()
++    recover.apply_penalty(state, "p1", classes.NETWORK, provider="alpha")
++    assert not state.dispatch_paused
++
++
++def test_two_unknown_failures_cool_the_profile(fake_kernel):
++    state = FleetState()
++    policy = {"recovery": {"unknown_cooldown_after": 2,
++                           "unknown_cooldown_s": 900}}
++    first = recover.apply_penalty(state, "p1", classes.UNKNOWN, policy=policy)
++    assert first.cooldown_seconds == 0
++    second = recover.apply_penalty(state, "p1", classes.UNKNOWN, policy=policy)
++    assert second.cooldown_seconds == 900
++
++
++# ---------------------------------------------------------------------------
++# The harness and the fake CLI (F2, F3, F6, F13)
++# ---------------------------------------------------------------------------
++
++def _harness(kernel) -> Harness:
++    state = FleetState.load(Path(kernel.repo.root) / ".pm" / "fleet-state.json")
++    return Harness(kernel, state, fixture_root=FIXTURE_ROOT)
++
++
++def test_a_successful_lease_submits_a_bundle(fake_kernel):
++    task = make_task(fake_kernel, oracles=["python -c \"print('ok')\""])
++    harness = _harness(fake_kernel)
++    profile = Profile.from_dict(fake_profile("fake-a"))
++    result = harness.run(task, profile)
++    assert result.outcome == "submitted", result.to_dict()
++    assert result.exit_code == 0
++    assert result.oracles and result.oracles[0]["ok"]
++    bundle_path = (fake_kernel.repo.evidence_dir /
++                   f"EB-{task.id}-{result.bundle['fence']}" / "bundle.json")
++    assert bundle_path.is_file()
++
++
++def test_a_failing_oracle_triggers_a_fix_round_then_fails(fake_kernel):
++    """The oracles decide, not the worker's exit code."""
++    task = make_task(fake_kernel, oracles=["python -c \"raise SystemExit(3)\""])
++    harness = _harness(fake_kernel)
++    profile = Profile.from_dict(fake_profile("fake-a"))
++    result = harness.run(task, profile)
++    assert result.outcome == "failed"
++    assert result.fix_rounds >= 1
++    assert all(not o["ok"] for o in result.oracles)
++
++
++def test_killing_a_worker_mid_task_does_not_promote_it(fake_kernel):
++    """F2: the fence is unchanged and nothing is integrated.
++
++    The ``slow`` scenario keeps the worker alive long enough to be killed
++    mid-task; without it the fake finishes before the kill lands and the
++    test would race.
++    """
++    task = make_task(fake_kernel, oracles=["python -c \"print('ok')\""])
++    harness = _harness(fake_kernel)
++    profile = Profile.from_dict(fake_profile("fake-a", scenario="slow"))
++    run, failure = harness.start(task, profile)
++    assert run is not None
++    fence = run.lease.fence
++    from fleet import spawn as spawn_mod
++    spawn_mod.kill_slot(run.slot)
++    result = harness.poll(run)
++    assert result is not None
++    # A killed worker is not a success, whatever the log says.
++    assert result.outcome != "submitted"
++    state = fake_kernel.state()
++    assert state.tasks[task.id].state != "DONE"
++    # The fence is unchanged: the harness still owns the lease.
++    assert state.leases[task.id].fence == fence
++    # And exactly one integration event at most, which would be none.
++    integrations = [e for e in fake_kernel.events()
++                    if e.type == "INTEGRATED" and e.subject == task.id]
++    assert len(integrations) <= 1
++    assert not integrations
++
++
++def test_a_quota_failure_cools_the_profile_and_is_classified(fake_kernel):
++    """F3: the profile cools and the failure class is recognised."""
++    task = make_task(fake_kernel, oracles=["python -c \"print('ok')\""])
++    harness = _harness(fake_kernel)
++    profile = Profile.from_dict(fake_profile("fake-a", scenario="quota"))
++    result = harness.run(task, profile)
++    assert result.failure_class == classes.QUOTA
++    state = harness.fleet_state.profile("fake-a")
++    assert state.cooling()
++    assert state.failure_counts.get(classes.QUOTA) == 1
++
++
++def test_the_handoff_note_is_written_for_a_fresh_recovery(fake_kernel):
++    task = make_task(fake_kernel, oracles=["python -c \"print('ok')\""])
++    harness = _harness(fake_kernel)
++    profile = Profile.from_dict(fake_profile("fake-a", scenario="network"))
++    result = harness.run(task, profile)
++    assert result.decision["step"] in (recover.L0, recover.L2)
++    worktree = Path(result.worktree)
++    handoff = worktree / ".pmwork" / "HANDOFF.md"
++    # L0 retries in place; a handoff is written when the session restarts.
++    if result.decision["step"] == recover.L2:
++        assert handoff.is_file()
++
++
++def test_the_work_order_is_written_and_the_prompt_is_fixed(fake_kernel):
++    task = make_task(fake_kernel)
++    harness = _harness(fake_kernel)
++    profile = Profile.from_dict(fake_profile("fake-a"))
++    run, _ = harness.start(task, profile)
++    order = Path(run.worktree) / ".pmwork" / "ORDER.md"
++    assert order.is_file()
++    text = order.read_text(encoding="utf-8")
++    assert task.id in text
++    assert "The harness will run these itself" in text
++    from fleet.order import FIXED_PROMPT
++    assert FIXED_PROMPT.isascii()
++    assert "%" not in FIXED_PROMPT and '"' not in FIXED_PROMPT
++
++
++def test_a_scope_violation_is_detected(fake_kernel):
++    task = make_task(fake_kernel, scope={"write": ["src/thing.py"], "read": []})
++    harness = _harness(fake_kernel)
++    profile = Profile.from_dict(fake_profile("fake-a"))
++    run, _ = harness.start(task, profile)
++    # The fake writes outside the declared scope.
++    (Path(run.worktree) / "outside-scope.txt").write_text("x\n", encoding="utf-8")
++    check = scope_check(task, run.worktree, fake_kernel.repo)
++    assert not check["ok"]
++    assert any(v["path"] == "outside-scope.txt" for v in check["violations"])
++
++
++def test_hooks_are_disabled_in_the_worktree(fake_kernel):
++    """CIP 2.4: git hooks are shared by every worktree."""
++    task = make_task(fake_kernel)
++    harness = _harness(fake_kernel)
++    profile = Profile.from_dict(fake_profile("fake-a"))
++    run, _ = harness.start(task, profile)
++    code, out, err = fake_kernel.git("config", "--worktree",
++                                    "core.hooksPath", cwd=Path(run.worktree))
++    assert code == 0
++    assert out.strip().endswith("nohooks")
++
++
++# ---------------------------------------------------------------------------
++# Quoting (F11)
++# ---------------------------------------------------------------------------
++
++def test_a_hostile_order_reaches_the_worker_intact(fake_kernel):
++    """F11: quotes, %, &, ^ and non-ASCII survive, because the order is a file."""
++    hostile = ('Read "ORDER.md" & do 100% of it ^ carefully â€” Ã¼nÃ¯cÃ¶dÃ© ä¸­æ–‡')
++    task = make_task(fake_kernel,
++                     title=f"Handle {hostile}",
++                     oracles=["python -c \"print('ok')\""])
++    harness = _harness(fake_kernel)
++    profile = Profile.from_dict(fake_profile("fake-a"))
++    run, _ = harness.start(task, profile)
++    order = (Path(run.worktree) / ".pmwork" / "ORDER.md").read_text(
++        encoding="utf-8")
++    assert hostile in order
++    # And the argv the worker received is a plain sentence.
++    assert len(run.slot.argv) > 0
++    assert not any("%" in part for part in run.slot.argv)
++
++
++# ---------------------------------------------------------------------------
++# Restart reconciliation (F8)
++# ---------------------------------------------------------------------------
++
++def test_reconcile_reports_adopted_and_lost_workers(fake_kernel):
++    task = make_task(fake_kernel)
++    harness = _harness(fake_kernel)
++    profile = Profile.from_dict(fake_profile("fake-a"))
++    run, _ = harness.start(task, profile)
++    dispatcher = Dispatcher(fake_kernel, harness.fleet_state,
++                            fixture_root=FIXTURE_ROOT)
++    report = dispatcher.reconcile()
++    assert task.id in report["adopted"]
++    assert task.id in dispatcher.runs
++
++
++def test_reconcile_loses_a_worker_whose_process_is_gone(fake_kernel):
++    task = make_task(fake_kernel)
++    harness = _harness(fake_kernel)
++    profile = Profile.from_dict(fake_profile("fake-a"))
++    run, _ = harness.start(task, profile)
++    from fleet import spawn as spawn_mod
++    spawn_mod.kill_slot(run.slot)
++    dispatcher = Dispatcher(fake_kernel, harness.fleet_state,
++                            fixture_root=FIXTURE_ROOT)
++    report = dispatcher.reconcile()
++    assert task.id in report["lost"] or task.id in report["adopted"]
++    # Either way the task is not DONE.
++    assert fake_kernel.state().tasks[task.id].state != "DONE"
++
++
++# ---------------------------------------------------------------------------
++# Profile import from the operator's prompts.json
++# ---------------------------------------------------------------------------
++
++def test_import_prompts_collapses_projects_and_drops_the_prompt(tmp_path):
++    source = tmp_path / "prompts.json"
++    source.write_text("""{
++      "settings": {"delay_seconds": 1.0, "keep_open": true},
++      "prompts": [
++        {"id": "1", "name": "hermes a", "group": "A", "prefix": "hermes chat --oneshot -q",
++         "prompt": "do a thing", "suffix": "--yolo --cli --in \\"C:\\\\a\\"",
++         "cwd": "C:\\\\a"},
++        {"id": "2", "name": "hermes b", "group": "B", "prefix": "hermes chat --oneshot -q",
++         "prompt": "do another thing", "suffix": "--yolo --cli --in \\"C:\\\\b\\"",
++         "cwd": "C:\\\\b"}
++      ]}""", encoding="utf-8")
++    profiles = import_prompts(source)
++    assert len(profiles) == 1                # the two projects collapse
++    profile = profiles[0]
++    assert profile.adapter == "hermes"
++    assert "{prompt}" in profile.argv_new
++    assert "{cwd}" in profile.argv_new
++    assert "do a thing" not in " ".join(profile.argv_new)
++
++
++def test_import_prompts_marks_alias_models_as_unknown_family(tmp_path):
++    source = tmp_path / "prompts.json"
++    source.write_text("""{"settings": {}, "prompts": [
++      {"id": "1", "name": "p", "group": "g", "prefix": "pi --provider openrouter --model free -p",
++       "prompt": "x", "suffix": "", "cwd": ""},
++      {"id": "2", "name": "p2", "group": "g", "prefix": "pi --provider x --model deepseek/deepseek-v4-flash-free -p",
++       "prompt": "y", "suffix": "", "cwd": ""}]}""", encoding="utf-8")
++    profiles = import_prompts(source)
++    by_id = {p.id: p for p in profiles}
++    assert any(p.family == "unknown" for p in profiles)
++    assert any(p.family == "deepseek" for p in profiles)
++
++
++def test_guess_family():
++    assert guess_family("deepseek/deepseek-v4-flash-free") == "deepseek"
++    assert guess_family("free") == "unknown"
++    assert guess_family("poor-pi") == "unknown"
++    assert guess_family("") == "unknown"
++
++
++def test_guess_family_free_suffix_is_only_an_alias_for_openrouter():
++    """``:free`` is a Kilo/Nous pricing tier, not an alias (D-43).
++
++    Kilo and Nous both use ``:free`` for concrete free-tier models, so reading
++    the suffix as an alias marked every free model ``unknown`` and left them
++    unusable as a verifier (D-L12).  OpenRouter's own free aliases take the
++    forms ``openrouter/free`` and ``poor-*``, both already caught, so narrowing
++    this costs nothing on that provider.
++    """
++    # A concrete free-tier model keeps its vendor, and can therefore verify.
++    assert guess_family("kilo/poolside/laguna-s-2.1:free") == "poolside"
++    assert guess_family("kilo/nvidia/nemotron-3.5-super-vl:free") == "nvidia"
++    assert guess_family("upstage/solar-mini4:free") == "unknown"
++
++    # OpenRouter's ``:free`` is still treated as the alias it is there.
++    assert guess_family("openrouter/anthropic/claude-opus:free") == "unknown"
++    assert guess_family("openrouter/free") == "unknown"
++
++    # And the alias forms that never used a colon are untouched.
++    assert guess_family("poor-claude") == "unknown"
++    assert guess_family("poorer") == "unknown"
++    assert guess_family("auto") == "unknown"
++
++
++# ---------------------------------------------------------------------------
++# The dispatcher
++# ---------------------------------------------------------------------------
++
++def test_the_dispatcher_starts_a_lease_for_a_ready_task(fake_kernel):
++    task = make_task(fake_kernel, oracles=["python -c \"print('ok')\""])
++    dispatcher = Dispatcher(fake_kernel, FleetState(),
++                            fixture_root=FIXTURE_ROOT)
++    report = dispatcher.tick()
++    assert report.started
++    assert report.started[0]["task"] == task.id
++    assert task.id in dispatcher.runs
++
++
++def test_the_dispatcher_records_the_assignment_reason(fake_kernel):
++    make_task(fake_kernel)
++    dispatcher = Dispatcher(fake_kernel, FleetState(),
++                            fixture_root=FIXTURE_ROOT)
++    dispatcher.tick()
++    events = [e for e in fake_kernel.events() if e.type == "FLEET_ASSIGNED"]
++    assert events
++    assert events[-1].payload["profile"]
++    assert events[-1].payload["candidates"]
++
++
++def test_the_dispatcher_status_lists_profiles(fake_kernel):
++    dispatcher = Dispatcher(fake_kernel, FleetState(),
++                            fixture_root=FIXTURE_ROOT)
++    status = dispatcher.status()
++    assert status["profiles"][0]["id"] == "fake-a"
++    assert status["fleet_cap"] == 20
++
++
++def test_a_dispatch_pause_stops_new_work(fake_kernel):
++    make_task(fake_kernel)
++    state = FleetState()
++    state.dispatch_paused = True
++    state.pause_reason = "circuit breaker"
++    dispatcher = Dispatcher(fake_kernel, state, fixture_root=FIXTURE_ROOT)
++    report = dispatcher.tick()
++    assert not report.started
++    assert any("paused" in note for note in report.notes)
++
++
++def test_pilot_stop_file_blocks_dispatch(fake_kernel):
++    "D-A2: with pilot/STOP, zero FLEET_ASSIGNED and zero AGENT_STARTED."
++    task = make_task(fake_kernel)
++    (fake_kernel.repo.root / "pilot").mkdir(parents=True, exist_ok=True)
++    (fake_kernel.repo.root / "pilot" / "STOP").write_text(
++        "halt\n", encoding="utf-8")
++    dispatcher = Dispatcher(fake_kernel, FleetState(),
++                            fixture_root=FIXTURE_ROOT)
++    report = dispatcher.tick()
++    assert not report.started
++    fleet_assigned = [e for e in fake_kernel.events()
++                      if e.type == "FLEET_ASSIGNED"]
++    agent_started = [e for e in fake_kernel.events()
++                     if e.type == "AGENT_STARTED"]
++    assert not fleet_assigned, [e.type for e in fake_kernel.events()]
++    assert not agent_started, [e.type for e in fake_kernel.events()]
++
++
++def test_removing_pilot_stop_resumes_dispatch(fake_kernel):
++    "D-A2: removing pilot/STOP resumes and produces FLEET_ASSIGNED/AGENT_STARTED."
++    task = make_task(fake_kernel)
++    (fake_kernel.repo.root / "pilot").mkdir(parents=True, exist_ok=True)
++    (fake_kernel.repo.root / "pilot" / "STOP").write_text("halt\n",
++                                                          encoding="utf-8")
++    dispatcher = Dispatcher(fake_kernel, FleetState(),
++                            fixture_root=FIXTURE_ROOT)
++    dispatcher.tick()  # STOP present -> nothing dispatched
++    (fake_kernel.repo.root / "pilot" / "STOP").unlink()
++    report = dispatcher.tick()
++    assert report.started
++    fleet_assigned = [e for e in fake_kernel.events()
++                      if e.type == "FLEET_ASSIGNED"]
++    agent_started = [e for e in fake_kernel.events()
++                     if e.type == "AGENT_STARTED"]
++    assert fleet_assigned, fake_kernel.events()
++    assert agent_started
++
++
++def test_blocked_task_backoff_no_spam(fake_kernel, clock):
++    """D-A1: a task blocked by an overlap for 10 simulated minutes produces no more than 5 events."""
++    # T1 holds an active lease (the blocker).
++    task1 = make_task(fake_kernel, scope={"write": ["src/thing.py"], "read": []})
++    fake_kernel.claim(task1.id, holder="fake-a", agent="fake", role="implement")
++
++    # T2 has the same write scope -> claim will be refused with scope_overlap.
++    task2 = make_task(fake_kernel, scope={"write": ["src/thing.py"], "read": []})
++
++    dispatcher = Dispatcher(fake_kernel, FleetState(), fixture_root=FIXTURE_ROOT)
++
++    # Advance the clock in 60s steps for 10 minutes (600s).
++    for _ in range(10):
++        clock.advance(60)
++        dispatcher.tick()
++
++    events = [e for e in fake_kernel.events() if e.subject == task2.id]
++    # Backoff start 5s, cap 300s: T2 is blocked for the whole 10 minutes
++    # and produces at most one FLEET_BLOCKED event.
++    assert len(events) <= 5, [e.type for e in events]
+diff --git a/tests/fleet/test_hermes_session.py b/tests/fleet/test_hermes_session.py
+new file mode 100644
+index 0000000..dac681a
+--- /dev/null
++++ b/tests/fleet/test_hermes_session.py
+@@ -0,0 +1,203 @@
++"""Tests for Hermes session-id parsing (fleet v1 section 12.B).
++
++Under ``-Q`` Hermes writes a ``session_id:`` line to STDERR.  plat.spawn merges
++STDERR into STDOUT (subprocess.STDOUT), so the adapter must parse the line
++from the *combined* log.  The operator-verified format is
++``session_id: YYYYMMDD_HHMMSS_<hex6>`` and there is NO "Resume this session
++with" trailer (capture by hand, 2026-10-28).
++"""
++
++from __future__ import annotations
++
++import os
++import sys
++from pathlib import Path
++
++import pytest
++
++from fleet.adapters import get_adapter
++from fleet.harness import _session_from_log
++from pmk import plat
++
++
++FIXTURE_ROOT = "tests/fleet/fixtures"
++
++#: Path to a tiny fake CLI used by the end-to-end spawn tests.
++_FAKE_CLI_SRC = '''
++"""Fake CLI for Hermes session-id and env inheritance tests."""
++import sys, os
++
++if "--env" in sys.argv:
++    # Print PATH and PMK_ACTOR to stdout for env-inheritance test
++    print(f"PATH={os.environ.get('PATH', '')}")
++    print(f"PMK_ACTOR={os.environ.get('PMK_ACTOR', '')}")
++elif "--session" in sys.argv:
++    # Print a reply to stdout and a session_id line to stderr
++    print("Hi Tiwa. What do you need?")
++    # plat.spawn merges stderr into stdout (subprocess.STDOUT)
++    print("session_id: 20261028_074048_445ed4", file=sys.stderr)
++    sys.exit(0)
++'''
++_FAKE_CLI_PATH = Path(__file__).resolve().parent / "_fake_hermes_cli.py"
++
++#: Exact capture from a real hermes run under -Q:
++#:   stdout: "Hi Tiwa. What do you need?\n"
++#:   stderr: "session_id: 20261028_074048_445ed4\n"
++#: plat.spawn merges stderr into stdout, so the log is the concatenation.
++HERMES_CAPTURE = (
++    "Hi Tiwa. What do you need?\n"
++    "session_id: 20261028_074048_445ed4\n"
++)
++
++
++def test_hermes_adapter_parses_session_id_from_merged_log():
++    """parse_session_id reads the session_id: line from the combined log."""
++    hermes = get_adapter("hermes", FIXTURE_ROOT)
++    assert hermes.caps.reports_session_id
++    sid = hermes.parse_session_id(HERMES_CAPTURE)
++    assert sid == "20261028_074048_445ed4"
++
++
++def test_hermes_adapter_last_match_wins():
++    """If the log contains multiple session_id lines, the last one wins."""
++    hermes = get_adapter("hermes", FIXTURE_ROOT)
++    log = (
++        "session_id: 20261028_070000_aaa\n"
++        "some middle output\n"
++        "session_id: 20261028_074048_445ed4\n"
++    )
++    sid = hermes.parse_session_id(log)
++    assert sid == "20261028_074048_445ed4"
++
++
++def test_hermes_adapter_missing_session_id_returns_none():
++    """A log with no session_id: line returns None, not a crash."""
++    hermes = get_adapter("hermes", FIXTURE_ROOT)
++    sid = hermes.parse_session_id("Hi Tiwa. What do you need?\n")
++    assert sid is None
++
++
++def test_hermes_adapter_empty_log_returns_none():
++    """An empty or whitespace-only log returns None."""
++    hermes = get_adapter("hermes", FIXTURE_ROOT)
++    assert hermes.parse_session_id("") is None
++    assert hermes.parse_session_id("   \n  ") is None
++
++
++def test_session_from_log_uses_adapter_passthrough():
++    """_session_from_log delegates to the adapter's parse_session_id.
++
++    When the adapter reports_session_id and the log contains a session_id
++    line, _session_from_log returns the id (not the fake pattern).
++    """
++    hermes = get_adapter("hermes", FIXTURE_ROOT)
++    sid = _session_from_log(hermes, HERMES_CAPTURE)
++    assert sid == "20261028_074048_445ed4"
++
++
++def test_session_from_log_empty_when_no_session_id():
++    """When no session_id line is present, _session_from_log returns ''."""
++    hermes = get_adapter("hermes", FIXTURE_ROOT)
++    sid = _session_from_log(hermes, "no session id here\n")
++    assert sid == ""
++
++
++def test_session_from_log_falls_back_to_fake_pattern_for_fake_adapter():
++    """The fake adapter uses the legacy fake-session: pattern."""
++    fake = get_adapter("fake", FIXTURE_ROOT)
++    log = "fake-session: fake-0001\n"
++    sid = _session_from_log(fake, log)
++    assert sid == "fake-0001"
++
++
++def test_session_from_log_for_adapter_without_reports_session_id():
++    """An adapter whose reports_session_id is False falls back to the fake
++    pattern (which won't match Hermes-style logs, returning '')."""
++    kilo = get_adapter("kilo", FIXTURE_ROOT)
++    assert not kilo.caps.reports_session_id
++    sid = _session_from_log(kilo, HERMES_CAPTURE)
++    # kilo doesn't report session ids, so the fake pattern is used; it
++    # won't match "session_id:" so we get "".
++    assert sid == ""
++
++
++# ---------------------------------------------------------------------------
++# End-to-end: real plat.spawn path with stdout/stderr merge and env inheritance
++# ---------------------------------------------------------------------------
++
++@pytest.fixture(autouse=True)
++def _write_fake_cli():
++    """Write the fake CLI script so the end-to-end tests can spawn it."""
++    _FAKE_CLI_PATH.write_text(_FAKE_CLI_SRC, encoding="utf-8")
++    yield
++    _FAKE_CLI_PATH.unlink(missing_ok=True)
++
++
++def _spawn_and_wait(tmp_path, argv, env):
++    """Spawn the fake CLI via plat.spawn, wait for it, and return log path."""
++    log_path = tmp_path / "test.log"
++    result = plat.spawn(argv, cwd=str(tmp_path),
++                        log_path=str(log_path), env=env,
++                        timeout_ms=10_000)
++    proc = result.proc
++    proc.wait(timeout=10)
++    return str(log_path)
++
++
++def test_end_to_end_session_id_from_merged_stdout_stderr(tmp_path):
++    """End-to-end: a fake CLI prints a reply to stdout and `session_id:`
++    to stderr.  plat.spawn merges stderr into stdout.  We then parse the
++    merged log with the real Hermes adapter's parse_session_id.
++    """
++    hermes = get_adapter("hermes", FIXTURE_ROOT)
++    log_path = _spawn_and_wait(tmp_path,
++                               [sys.executable, str(_FAKE_CLI_PATH), "--session"],
++                               env={"PMK_ACTOR": "worker:hermes-oneshot"})
++
++    log_text = Path(log_path).read_text(encoding="utf-8")
++
++    # The log must contain both the stdout reply and the stderr session_id line
++    assert "Hi Tiwa. What do you need?" in log_text
++    assert "session_id: 20261028_074048_445ed4" in log_text
++
++    # The Hermes adapter must parse the session id from the merged log
++    sid = hermes.parse_session_id(log_text)
++    assert sid == "20261028_074048_445ed4"
++
++
++def test_end_to_end_env_inheritance(tmp_path):
++    """End-to-end: spawn_slot's env handling merges PMK_ACTOR onto the parent
++    environment, so the child inherits PATH and gets its PMK_ACTOR set."""
++    # Simulate spawn_slot's env handling: start from os.environ, set PMK_ACTOR
++    actor_env = dict(os.environ)
++    actor_env["PMK_ACTOR"] = "overseer:hermes-oneshot"
++
++    log_path = _spawn_and_wait(tmp_path,
++                               [sys.executable, str(_FAKE_CLI_PATH), "--env"],
++                               env=actor_env)
++
++    log_text = Path(log_path).read_text(encoding="utf-8")
++
++    # PATH must be inherited (non-empty)
++    path_line = [l for l in log_text.splitlines() if l.startswith("PATH=")]
++    assert path_line, f"expected PATH= line in log, got: {log_text!r}"
++    assert path_line[0] == f"PATH={os.environ['PATH']}"
++
++    # PMK_ACTOR must be set to the overseer value
++    actor_line = [l for l in log_text.splitlines() if l.startswith("PMK_ACTOR=")]
++    assert actor_line, f"expected PMK_ACTOR= line in log, got: {log_text!r}"
++    assert actor_line[0] == "PMK_ACTOR=overseer:hermes-oneshot"
++
++
++def test_end_to_end_env_none_inherits_parent(tmp_path):
++    """When env=None (via_gateway=false profile), plat.spawn must still
++    inherit PATH/USERPROFILE from the parent environment."""
++    log_path = _spawn_and_wait(tmp_path,
++                               [sys.executable, str(_FAKE_CLI_PATH), "--env"],
++                               env=None)
++
++    log_text = Path(log_path).read_text(encoding="utf-8")
++
++    path_line = [l for l in log_text.splitlines() if l.startswith("PATH=")]
++    assert path_line, f"expected PATH= line in log, got: {log_text!r}"
++    assert path_line[0] == f"PATH={os.environ['PATH']}"

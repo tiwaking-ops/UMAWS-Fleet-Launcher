@@ -25,9 +25,6 @@ Kernel-lite coordination system with a Fleet Dispatcher and FastAPI Console.
 - **Spawning**: Always use `argv` lists. Never use shell strings. Use `plat.resolve_executable` to peel npm `.cmd` shims.
 - **Errors**: Read all human-written files with `utf-8-sig` to handle PowerShell BOMs.
 
-@./docs/sources/umaws.md
-@./docs/sources/fleet-launcher-proposal.md
-
 
 
 

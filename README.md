@@ -55,7 +55,7 @@ pmk pdd lint docs/PDD.md
 | `src/pmk/` | the Kernel: events, tasks, leases, views, briefing, sentinel, the API and the CLI. **Standard library only.** |
 | `src/fleet/` | profiles, adapters, selection, the harness, the recovery ladder, the Dispatcher, the Conductor, the merge queue, the Overseer runner, the project lifecycle, the manual-launcher port |
 | `src/console/` | the FastAPI Console and its one HTML page |
-| `gateway/quotagate/` | the hierarchical quota engine (QuotaGate M0–M2 core) |
+| `src/quotagate/` | the hierarchical quota engine (QuotaGate M0–M2 core) |
 | `tests/` | 150 tests: Kernel, Fleet, QuotaGate |
 | `tests/fleet/fakecli.py` | the scriptable fake CLI every Fleet test runs against |
 | `pilot/` | STATE.md (the memory), decisions.md, the daily and interrupt logs, the spikes, the **pilot report** |

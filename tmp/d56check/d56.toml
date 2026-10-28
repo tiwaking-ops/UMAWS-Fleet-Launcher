@@ -1,0 +1,7 @@
+[quota]
+pattern = "Rate limit exceeded"
+source  = "quota.txt"
+
+[quota]
+pattern = "Insufficient credits"
+source  = "quota-credits.txt"

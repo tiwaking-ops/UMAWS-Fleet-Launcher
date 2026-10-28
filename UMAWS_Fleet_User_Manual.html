@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UMAWS Fleet — User Manual v1.0</title>
+<style>
+  :root {
+    --bg: #0f172a; --bg-alt: #1e293b; --bg-card: #273449;
+    --text: #e2e8f0; --text-dim: #94a3b8; --accent: #38bdf8; --accent-dim: #7dd3fc;
+    --code-bg: #0d1117; --code-text: #c9d1d9; --border: #334155; --green: #4ade80;
+    --red: #f87171; --yellow: #fbbf24; --purple: #a78bfa; --orange: #fb923c;
+    --teal: #5eead4; --pink: #f472b6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6; margin: 0; padding: 0; font-size: 14px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  header { border-bottom: 2px solid var(--border); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+  h1 { font-size: 2.2rem; margin: 0 0 0.5rem 0; color: var(--accent-dim); }
+  h2 { font-size: 1.6rem; margin: 2.5rem 0 1rem 0; padding-bottom: 0.3rem;
+       border-bottom: 1px solid var(--border); color: var(--text); }
+  h3 { font-size: 1.3rem; margin: 1.5rem 0 0.6rem 0; color: var(--accent-dim); }
+  h4 { font-size: 1.1rem; margin: 1rem 0 0.4rem 0; color: var(--text); }
+  h5 { font-size: 1rem; margin: 0.8rem 0 0.3rem 0; color: var(--accent-dim); }
+  h6 { font-size: 0.9rem; margin: 0.6rem 0 0.2rem 0; color: var(--yellow); }
+  code, pre { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.9em; }
+  code { background: var(--code-bg); color: var(--code-text); padding: 0.1rem 0.4rem; border-radius: 3px; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 1rem;
+         overflow-x: auto; margin: 0.8rem 0; }
+  pre code { background: none; padding: 0; color: var(--code-text); font-size: 0.85em; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; background: var(--bg-card); border-radius: 6px; overflow: hidden; }
+  th, td { border: 1px solid var(--border); padding: 0.6rem 0.8rem; text-align: left; vertical-align: top; }
+  th { background: var(--bg-alt); color: var(--accent-dim); font-weight: 600; }
+  tr:nth-child(even) { background: var(--bg-card); }
+  .toc { background: var(--bg-alt); border: 1px solid var(--border); border-radius: 6px; padding: 1.5rem; margin: 1.5rem 0; }
+  .toc ul { margin: 0.5rem 0; padding-left: 1.5rem; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .note { background: rgba(56, 189, 248, 0.1); border-left: 3px solid var(--accent);
+          padding: 0.8rem 1rem; margin: 1rem 0; border-radius: 4px; }
+  .warning { background: rgba(251, 191, 36, 0.1); border-left: 3px solid var(--yellow);
+             padding: 0.8rem 1rem; margin: 1rem 0; border-radius: 4px; }
+  .danger { background: rgba(248, 113, 113, 0.1); border-left: 3px solid var(--red);
+            padding: 0.8rem 1rem; margin: 1rem 0; border-radius: 4px; }
+  .success { background: rgba(74, 222, 128, 0.1); border-left: 3px solid var(--green);
+             padding: 0.8rem 1rem; margin: 1rem 0; border-radius: 4px; }
+  .meta { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1rem; }
+  .meta span { margin-right: 1.5rem; }
+  .tag { display: inline-block; padding: 0.1rem 0.6rem; border-radius: 3px; font-size: 0.8rem; font-weight: 600; }
+  .tag-core { background: rgba(56, 189, 248, 0.2); color: var(--accent); }
+  .tag-fleet { background: rgba(167, 139, 250, 0.2); color: var(--purple); }
+  .tag-ui { background: rgba(251, 191, 36, 0.2); color: var(--yellow); }
+  .tag-quota { background: rgba(74, 222, 128, 0.1); color: var(--green); }
+  .badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 3px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+  .badge-ok { background: rgba(74, 222, 128, 0.2); color: var(--green); }
+  .badge-warn { background: rgba(251, 191, 36, 0.2); color: var(--yellow); }
+  .badge-fail { background: rgba(248, 113, 113, 0.2); color: var(--red); }
+  .flowchart { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px;
+               padding: 1.5rem; margin: 1rem 0; font-family: 'SFMono-Regular', Consolas, Menlo, monospace;
+               font-size: 0.85em; line-height: 1.8; overflow-x: auto; white-space: pre; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+  .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; text-align: center; }
+  .stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+  .stat-label { font-size: 0.8rem; color: var(--text-dim); margin-top: 0.3rem; }
+  footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border);
+           color: var(--text-dim); font-size: 0.85rem; }
+  .version-banner { background: var(--bg-alt); border-bottom: 1px solid var(--border); padding: 0.5rem 0; }
+  .version-banner span { color: var(--text-dim); font-size: 0.85rem; }
+  .decision-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+                  padding: 1rem 1.5rem; margin: 1rem 0; }
+  .decision-box h4 { margin-top: 0; }
+  .decision-content { border-top: 1px dashed var(--border); margin-top: 0.8rem; padding-top: 0.8rem; }
+  .small { font-size: 0.85em; }
+  .step-number { display: inline-block; background: var(--accent); color: var(--bg);
+                  border-radius: 50%; width: 24px; height: 24px; text-align: center;
+                  line-height: 24px; font-weight: bold; margin-right: 8px; }
+  .event-log { font-family: monospace; font-size: 0.82em; }
+  .event-log tr td:first-child { color: var(--text-dim); font-size: 0.8em; }
+  .no-list-style { list-style: none; }
+  .no-list-style li { display: inline-block; margin-right: 1rem; }
+  .center { text-align: center; }
+  .code-block { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px;
+               padding: 1rem; overflow-x: auto; margin: 0.8rem 0; }
+</style>
+</head>
+<body>
+
+<header class="container">
+  <div class="version-banner">
+    <span>Version 1.0 &middot; Published 2026-10-28 &middot; Author: Claude (Web) &mdash; claude-sonnet-4-6, high effort</span>
+  </div>
+  <h1>UMAWS Fleet &mdash; User Manual</h1>
+  <p class="meta">
+    <span>A Kernel-lite multi-agent coordination system with a Fleet Dispatcher and FastAPI Console</span>
+  </p>
+  <p style="color: var(--text-dim); margin-top: 0.5rem;">
+    Comprehensive reference for operators, developers, and AI agents working with the UMAWS Fleet system.
+  </p>
+</header>
+
+<div class="container">
+
+  <!-- TABLE OF CONTENTS -->
+  <div class="toc">
+    <strong>Table of Contents</strong>
+    <ul>
+      <li><a href="#section-1">1. What Is This Project</a></li>
+      <li><a href="#section-2">2. Quick Start Guide</a></li>
+      <li><a href="#section-3">3. Architecture Overview</a></li>
+      <li><a href="#section-4">4. Project Lifecycle</a></li>
+      <li><a href="#section-5">5. CLI Reference</a>
+        <ul>
+          <li><a href="#section-5-1">5.1 Core Commands</a></li>
+          <li><a href="#section-5-2">5.2 Task Commands</a></li>
+          <li><a href="#section-5-3">5.3 Fleet Commands</a></li>
+          <li><a href="#section-5-4">5.4 Project Commands</a></li>
+          <li><a href="#section-5-5">5.5 Queue &amp; Incident Commands</a></li>
+          <li><a href="#section-5-6">5.6 Context Commands</a></li>
+          <li><a href="#section-5-7">5.7 Gateway Commands</a></li>
+          <li><a href="#section-5-8">5.8 Agent Commands</a></li>
+        </ul>
+      </li>
+      <li><a href="#section-6">6. Console UI</a></li>
+      <li><a href="#section-7">7. Configuration</a></li>
+      <li><a href="#section-8">8. Adapters &amp; Profiles</a></li>
+      <li><a href="#section-9">9. Merge Queue &amp; Oracles</a></li>
+      <li><a href="#section-10">10. Recovery System</a></li>
+      <li><a href="#section-11">11. Sentinel &amp; Invariants</a></li>
+      <li><a href="#section-12">12. Data Models</a></li>
+      <li><a href="#section-13">13. File Layout</a></li>
+      <li><a href="#section-14">14. Testing</a></li>
+      <li><a href="#section-15">15. For LLM Agents</a></li>
+      <li><a href="#section-16">16. Quick User Guide</a></li>
+      <li><a href="#section-17">17. Remaining Tasks &amp; Notes</a></li>
+    </ul>
+  </div>
+
+  <!-- SECTION 1 -->
+  <section id="section-1">
+    <h2>1. What Is This Project</h2>
+
+    <h3>Core Purpose</h3>
+    <p>
+      UMAWS Fleet is an <strong>agentic coding orchestration system</strong>. It lets a
+      single operator supervise multiple AI coding agents (Claude, OpenCode, Kilo, Cline, Pi, etc.)
+      running in isolated git worktrees, with automatic recovery, quota-aware scheduling,
+      and a formal merge queue that only promotes work that passes acceptance tests.
+    </p>
+
+    <p>
+      Think of it as a <em>project conductor</em>: you define tasks in a briefing, the system
+      dispatches agents to work on them in isolated sandboxes, collects evidence that work
+      is correct, and merges only verified changes into your repository. The system runs
+      unattended and recovers from failures automatically.
+    </p>
+
+    <h3>Key Capabilities</h3>
+    <table>
+      <tr>
+        <th>Capability</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>Multi-agent dispatch</td>
+        <td>Runs up to 100 concurrent agents across 6+ CLI profiles (hermes, kilo, cline, pi, opencode, fake)</td>
+      </tr>
+      <tr>
+        <td>Worktree isolation</td>
+        <td>Each task gets an isolated git worktree; work never pollutes the main tree until promoted</td>
+      </tr>
+      <tr>
+        <td>Oracle-based verification</td>
+        <td>Accepting oracles decide — human claims are not evidence; exit codes and output files are</td>
+      </tr>
+      <tr>
+        <td>Recovery ladder (L0&ndash;L4)</td>
+        <td>Automatic retries with exponential backoff, model-swapping resume, fresh sessions with handoff notes</td>
+      </tr>
+      <tr>
+        <td>Quota-aware scheduling</td>
+        <td>Hierarchical quota engine (QuotaGate) tracks RPM, TPM, RPD per provider with timezone-aware resets</td>
+      </tr>
+      <tr>
+        <td>Serial merge queue</td>
+        <td>One merge at a time on the main tree; the gate runs on the tree that becomes canonical</td>
+      </tr>
+      <tr>
+        <td>Audit trail</td>
+        <td>Append-only hash-chained JSONL event log; every state change is an auditable event</td>
+      </tr>
+    </table>
+
+    <h3>Origin Story</h3>
+    <p>
+      This project originated as small utility projects that were combined into a pilot (P-01).
+      It evolved from a project management system into an agentic coding harness through
+      <strong>14 commits</strong> (as of v1.0), with contributions from multiple AI agents
+      (Claude Code, OpenCode, Claude Web) and a human operator. The system has reached
+      <strong>Tier A (Foundation)</strong> with a working Fleet.
+    </p>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-value">303</div>
+        <div class="stat-label">Tests passing</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">6</div>
+        <div class="stat-label">Adapter CLIs supported</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">14</div>
+        <div class="stat-label">Commits (Phase 1)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">100</div>
+        <div class="stat-label">Max concurrent agents</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 2 -->
+  <section id="section-2">
+    <h2>2. Quick Start Guide</h2>
+
+    <h3>Prerequisites</h3>
+    <ul>
+      <li><strong>Python 3.12</strong> (3.12.10 recommended)</li>
+      <li><strong>Git</strong> (any recent version)</li>
+      <li><strong>Windows 10/11</strong> (native platform; Unix compatibility maintained)</li>
+      <li>At least <strong>2GB free RAM</strong> (configurable via <code>max_free_ram_mb</code> in <code>agents.toml</code>)</li>
+    </ul>
+
+    <h3>Installation</h3>
+    <pre><code>&lt;!-- From the project root --&gt;
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e .
+.\.venv\Scripts\python.exe -m pip install fastapi uvicorn httpx tzdata pytest</code></pre>
+
+    <h3>Initialize the Kernel</h3>
+    <pre><code>pmk init</code></pre>
+    <p>
+      This creates the <code>.pm/</code> directory structure: the event log, the pinned
+      constitution and policy, the views, and the first event.
+    </p>
+
+    <h3>Start the Console</h3>
+    <pre><code>.\start.ps1
+# Or alternatively:
+\.venv\Scripts\python.exe -m console.app</code></pre>
+    <p>
+      The Console binds to <code>http://127.0.0.1:8765</code>. Open it in your browser.
+      <strong>By default, dispatch is PAUSED</strong> &mdash; press the "Run" button to start dispatching tasks.
+    </p>
+
+    <h3>Run a Demonstration</h3>
+    <pre><code>.\.venv\Scripts\python.exe pilot/demo_one_click.py</code></pre>
+    <p>
+      Runs the complete lifecycle (brief &rarr; PDD &rarr; tasks &rarr; claim &rarr; worktree
+      &rarr; spawn &rarr; oracles &rarr; evidence bundle &rarr; merge queue &rarr; close-check
+      &rarr; DONE) against the fake CLI. Finishes with <code>state: DONE</code>, a clean sentinel,
+      and a verifying chain.
+    </p>
+
+    <div class="warning">
+      <strong>Stop-the-line:</strong> Dispatch starts PAUSED (D-A2 decision). You must explicitly
+      unpause by pressing Run in the Console, running <code>pmk dispatch run</code>, or setting a
+      config flag. This prevents accidental agent launches.
+    </div>
+  </section>
+
+  <!-- SECTION 3 -->
+  <section id="section-3">
+    <h2>3. Architecture Overview</h2>
+
+    <div class="flowchart">
+      Operator --- browser ---> Console (FastAPI, 127.0.0.1:8765)
+                            |
+                            v
+                      umaws app process
+                        Conductor     lifecycle, wakes the Overseer
+                        Dispatcher    selects a profile, claims a task
+                        Adapters      hermes | kilo | cline | pi | opencode | fake
+                        Harness       worktree, order file, oracles, evidence
+                        pmk.api       the Kernel: the only writer of state
+    </div>
+
+    <h3>Three Layers</h3>
+
+    <h4><span class="tag tag-core">Kernel</span> <code>src/pmk/</code> &mdash; Sole Writer of State</h4>
+    <p>
+      The Kernel manages an <strong>append-only hash-chained JSONL event log</strong> in
+      <code>.pm/events/</code>. It rebuilds <code>State</code> and <code>Views</code> from
+      the log. <strong>Agents never write to <code>.pm/</code> directly</strong> &mdash; they use
+      the <code>pmk</code> CLI or <code>pmk.api</code> (Invariant I2).
+    </p>
+    <ul>
+      <li><strong>Standard library only</strong> &mdash; no external dependencies in <code>src/pmk/</code></li>
+      <li>All state mutations go through <code>Kernel.record_event()</code> &mdash; never write to <code>.pm/</code> directly</li>
+      <li>Hash chain maintained in <code>EventLog</code> with torn-tail detection and repair</li>
+    </ul>
+
+    <h4><span class="tag tag-fleet">Fleet</span> <code>src/fleet/</code> &mdash; Process Supervision</h4>
+    <p>
+      The Dispatcher assigns tasks to Profiles (agent configurations). The Harness manages
+      Worktrees and Oracles. The Conductor drives the project lifecycle and the merge queue.
+      Fleet state (profile cooling, disable status) is <strong>fleet-wide</strong>, not per-project.
+    </p>
+
+    <h4><span class="tag tag-ui">Console</span> <code>src/console/</code> &mdash; FastAPI View Layer</h4>
+    <p>
+      A thin FastAPI wrapper over <code>pmk.api</code> and <code>FleetState</code>. Provides
+      seven tabs and live SSE updates. Binds to loopback only (127.0.0.1) for security.
+    </p>
+
+    <h4><span class="tag tag-quota">QuotaGate</span> <code>src/quotagate/</code> &mdash; Quota Engine</h4>
+    <p>
+      Hierarchical quota engine tracking RPM, TPM, RPD at four scopes (deployment, account,
+      quota_group, provider) with timezone-aware resets. Supports passthrough proxy (M1),
+      failover (M3), and Kernel contract (M5).
+    </p>
+
+    <div class="note">
+      <strong>Windows platform constraints:</strong>
+      <ul>
+        <li>Use <code>&lt;file&gt;.lock</code> for file locks &mdash; Windows forbids appending to locked data bytes</li>
+        <li>Read JSON/TOML with <code>utf-8-sig</code> to handle PowerShell BOMs</li>
+        <li>Keep worktree paths shallow under <code>work/</code> to stay under the 260-char limit</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- SECTION 4 -->
+  <section id="section-4">
+    <h2>4. Project Lifecycle</h2>
+
+    <h3>Project States</h3>
+    <pre class="flowchart">
+NEW --> PLANNING --> DECOMPOSING --> RUNNING --> CLOSING --> DONE
+ |        |          |             |          |
+ |        +----------+-------------+----------+
+ |
+ +-- PAUSED (awaiting operator)
+ +-- STALLED (no progress for stall_minutes)
+ +-- BLOCKED (stop-the-line active)</pre>
+
+    <h3>Task States</h3>
+    <pre class="flowchart">
+PROPOSED --> READY --> LEASED --> SUBMITTED --> VERIFYING --> INTEGRATING --> DONE
+ |         |        |          |           |            |
+ |         +--------+----------+-----------+------------+
+ |
+ +-- BLOCKED
+ +-- VOID (permanent retirement)
+ +-- REWORK (returns to READY for retry)</pre>
+
+    <h3>Lifecycle Commands</h3>
+
+    <h4>Initialize</h4>
+    <pre><code>pmk init</code></pre>
+    <p>Creates the <code>.pm/</code> directory, the first event, and the pinned constitution/policy.</p>
+
+    <h4>Create a Project</h4>
+    <pre><code>pmk project init --brief "Build a CLI tool that lists files" --path /path/to/target</code></pre>
+    <p>Bootstrap a new project from a briefing. The Overseer decomposes it into task cards.</p>
+
+    <h4>Check Status</h4>
+    <pre><code>pmk status                    # Kernel state (tasks, leases, queue)
+pmk project status              # Full project lifecycle state
+pmk fleet status              # Profile and slot status
+pmk sentinel                  # Run invariant checks</code></pre>
+
+    <h4>Dispatch</h4>
+    <pre><code>pmk dispatch run              # One dispatch tick + conductor tick
+pmk dispatch run --seconds 300    # Run for 5 minutes</code></pre>
+
+    <h4>Close a Project</h4>
+    <pre><code>pmk project close-check       # Run goal oracles + gate command</code></pre>
+  </section>
+
+  <!-- SECTION 5 -->
+  <section id="section-5">
+    <h2>5. CLI Reference</h2>
+    <p>All commands run via the <code>pmk</code> CLI (installed as a console script). The CLI is a thin wrapper over <code>pmk.api</code> &mdash; there is no coordination logic in the CLI itself.</p>
+
+    <h3 id="section-5-1">5.1 Core Commands</h3>
+    <table>
+      <tr><th>Command</th><th>Flags</th><th>Description</th></tr>
+      <tr><td><code>pmk init</code></td><td><code>--root PATH</code></td><td>Initialize the Kernel: create <code>.pm/</code>, first event, pins. Exits non-zero on refusal.</td></tr>
+      <tr><td><code>pmk status</code></td><td><code>--root PATH</code></td><td>Print current status: task states, active leases, queue items.</td></tr>
+      <tr><td><code>pmk sentinel</code></td><td><code>--root PATH</code></td><td>Run invariant checks. Exits 0 if all pass, 1 if any findings.</td></tr>
+      <tr><td><code>pmk brief</code></td><td><code>--role ROLE</code></td><td>Generate a briefing from the event log (overseer|worker|human).</td></tr>
+      <tr><td><code>pmk views</code></td><td><code>--root PATH</code></td><td>Regenerate and print all views (ledger, status, queue).</td></tr>
+      <tr><td><code>pmk stop</code></td><td><code>--root PATH</code></td><td>Stop-the-line: freeze promotion and new leases.</td></tr>
+      <tr><td><code>pmk resume</code></td><td><code>--root PATH</code></td><td>Lift the stop-the-line flag.</td></tr>
+    </table>
+
+    <h3 id="section-5-2">5.2 Task Commands</h3>
+    <table>
+      <tr><th>Command</th><th>Flags</th><th>Description</th></tr>
+      <tr>
+        <td><code>pmk task create</code></td>
+        <td>
+          <code>"title"</code> (required)<br>
+          <code>--type TYPE</code> (implement|review|verify|plan|maintain|research)<br>
+          <code>--goal-ref REF</code><br>
+          <code>--write PATH1 PATH2 ...</code><br>
+          <code>--read PATH1 PATH2 ...</code><br>
+          <code>--oracle "cmd1" "cmd2" ...</code><br>
+          <code>--evidence "path1" "path2" ...</code><br>
+          <code>--depends-on TASK1 TASK2 ...</code><br>
+          <code>--attempts N</code> (default 3)<br>
+          <code>--priority N</code> (default 100)<br>
+          <code>--agent-hint "text"</code><br>
+          <code>--budget-tokens N</code><br>
+          <code>--budget-minutes N</code><br>
+          <code>--propose</code>
+        </td>
+        <td>Create a task card. Without <code>--propose</code>, enters READY immediately.</td>
+      </tr>
+      <tr><td><code>pmk task list</code></td><td><code>STATE</code></td><td>List tasks, optionally filtered by state.</td></tr>
+      <tr><td><code>pmk task show</code></td><td><code>TASK_ID</code></td><td>Show full task card details as JSON.</td></tr>
+      <tr><td><code>pmk task admit</code></td><td><code>TASK_ID</code></td><td>Admit a PROPOSED task to READY. Validates task type.</td></tr>
+      <tr><td><code>pmk task void</code></td><td><code>TASK_ID</code> <code>--reason REASON</code> <code>--actor NAME</code></td><td>Void a task (permanent retirement). Requires human actor.</td></tr>
+    </table>
+
+    <h4>Example: Creating a Task</h4>
+    <pre><code>pmk task create "Add logging to the dispatcher" \
+  --type implement \
+  --goal-ref G-001 \
+  --write src/fleet/dispatcher.py \
+  --oracle "python -m pytest tests/fleet/test_dispatcher.py -q" \
+  --evidence src/fleet/dispatcher.py \
+  --budget-tokens 15000 \
+  --budget-minutes 30</code></pre>
+
+    <h3 id="section-5-3">5.3 Fleet Commands</h3>
+    <table>
+      <tr><th>Command</th><th>Flags</th><th>Description</th></tr>
+      <tr><td><code>pmk fleet status</code></td><td>&mdash;</td><td>Fleet status: profiles, slots, dispatch state.</td></tr>
+      <tr><td><code>pmk fleet list-agents</code></td><td>&mdash;</td><td>List running agent processes.</td></tr>
+      <tr><td><code>pmk fleet stop-agent</code></td><td><code>TASK_ID</code></td><td>Stop the agent on a specific task.</td></tr>
+      <tr><td><code>pmk fleet swap</code></td><td><code>TASK_ID</code> <code>--profile PROFILE_ID</code></td><td>Force a profile for an in-flight agent (recovery L1).</td></tr>
+      <tr><td><code>pmk fleet send</code></td><td><code>TASK_ID</code> <code>TEXT</code></td><td>Send a message to a running agent's stdin.</td></tr>
+      <tr><td><code>pmk fleet enable</code></td><td><code>PROFILE_ID</code></td><td>Re-enable a disabled profile.</td></tr>
+      <tr><td><code>pmk fleet disable</code></td><td><code>PROFILE_ID</code></td><td>Disable a profile.</td></tr>
+      <tr><td><code>pmk fleet import-prompts</code></td><td><code>PROMPTS_JSON_PATH</code></td><td>Generate Fleet profiles from a prompts.json file.</td></tr>
+    </table>
+
+    <h3 id="section-5-4">5.4 Project Commands</h3>
+    <table>
+      <tr><th>Command</th><th>Flags</th><th>Description</th></tr>
+      <tr><td><code>pmk project init</code></td><td><code>--brief TEXT</code> <code>--path PATH</code></td><td>Create a new project from a briefing.</td></tr>
+      <tr><td><code>pmk project status</code></td><td>&mdash;</td><td>Show the full project lifecycle state.</td></tr>
+      <tr><td><code>pmk project close-check</code></td><td><code>--pdd PATH</code></td><td>Run goal oracles and gate command on the main tree.</td></tr>
+      <tr><td><code>pmk project pause</code></td><td><code>--reason TEXT</code></td><td>Pause project dispatch.</td></tr>
+      <tr><td><code>pmk project resume</code></td><td><code>--reason TEXT</code></td><td>Resume project dispatch.</td></tr>
+      <tr><td><code>pmk project run</code></td><td><code>--seconds N</code></td><td>Run the Conductor and Dispatcher for N seconds.</td></tr>
+    </table>
+
+    <h3 id="section-5-5">5.5 Queue &amp; Incident Commands</h3>
+    <table>
+      <tr><th>Command</th><th>Flags</th><th>Description</th></tr>
+      <tr>
+        <td><code>pmk queue add</code></td>
+        <td>
+          <code>"topic"</code> <code>--options OPT1 OPT2 ...</code><br>
+          <code>--recommended CHOICE</code> <code>--safe-default CHOICE</code><br>
+          <code>--class-k</code> <code>--details "text"</code>
+        </td>
+        <td>Add a decision item. Class K requires two-key approval.</td>
+      </tr>
+      <tr><td><code>pmk queue list</code></td><td>&mdash;</td><td>List all open and decided queue items.</td></tr>
+      <tr><td><code>pmk queue decide</code></td><td><code>ITEM_ID</code> <code>CHOICE</code></td><td>Decide on a queue item.</td></tr>
+      <tr><td><code>pmk incident</code></td><td><code>"message"</code> <code>--subject ID</code> <code>--severity LEVEL</code></td><td>Record an incident in the event log.</td></tr>
+    </table>
+
+    <h3 id="section-5-6">5.6 Context Commands</h3>
+    <table>
+      <tr><th>Command</th><th>Flags</th><th>Description</th></tr>
+      <tr><td><code>pmk context sync</code></td><td>&mdash;</td><td>Sync AI agent configs via Caliber.</td></tr>
+      <tr><td><code>pmk context drift</code></td><td>&mdash;</td><td>Check for out-of-band edits (I16).</td></tr>
+      <tr><td><code>pmk context revert</code></td><td>&mdash;</td><td>Revert managed context files to last snapshot.</td></tr>
+      <tr><td><code>pmk pdd lint</code></td><td><code>PATH</code></td><td>Lint a PDD file for structural issues.</td></tr>
+    </table>
+
+    <h3 id="section-5-7">5.7 Gateway Commands</h3>
+    <table>
+      <tr><th>Command</th><th>Flags</th><th>Description</th></tr>
+      <tr><td><code>pmk gateway ingest</code></td><td><code>--since SEQ_NUM</code> <code>--url URL</code></td><td>Pull QuotaGate usage events from the gateway.</td></tr>
+      <tr><td><code>pmk gateway config-hash</code></td><td><code>--url URL</code></td><td>Verify the gateway config hash against the Kernel's record.</td></tr>
+    </table>
+
+    <h3 id="section-5-8">5.8 Agent Commands</h3>
+    <table>
+      <tr><th>Command</th><th>Flags</th><th>Description</th></tr>
+      <tr><td><code>pmk agent list</code></td><td>&mdash;</td><td>List running agent processes.</td></tr>
+      <tr><td><code>pmk agent stop</code></td><td><code>TASK_ID</code></td><td>Stop the agent on a specific task (kills process tree).</td></tr>
+      <tr><td><code>pmk agent swap</code></td><td><code>TASK_ID</code> <code>--profile PROFILE_ID</code></td><td>Force a profile for an in-flight agent.</td></tr>
+      <tr><td><code>pmk agent send</code></td><td><code>TASK_ID</code> <code>TEXT</code></td><td>Send a message to a running agent's stdin.</td></tr>
+    </table>
+
+    <div class="note">
+      <strong>Exit codes:</strong> 0 = success; 1 = refusal (sentinel findings, pins mismatch);
+      2 = <code>KernelError</code> (rejected by the Kernel). Machine-readable refusals are
+      printed to stderr as JSON.
+    </div>
+  </section>
+
+  <!-- SECTION 6 -->
+  <section id="section-6">
+    <h2>6. Console UI</h2>
+
+    <h3>Access</h3>
+    <p>
+      Open <code>http://127.0.0.1:8765</code> in any browser. The Console binds to
+      loopback only &mdash; it is <strong>not</strong> exposed to the network.
+    </p>
+
+    <h3>Seven Tabs</h3>
+    <div class="flowchart">index.html (one page)
+├── Projects tab     — project lifecycle &amp; close-check
+├── Fleet tab        — profiles, slots, dispatch state
+├── Tasks tab        — task cards, claims, state
+├── Queue tab        — decision queue (open &amp; decided)
+├── Overseer tab     — Overseer runner, prompts, wake history
+├── Manual launcher  — manual agent launches (legacy &amp; managed)
+└── Metrics tab      — live slot grid, RAM, fleet capacity</div>
+
+    <h3>Features</h3>
+    <ul>
+      <li><strong>Live SSE updates</strong> &mdash; <code>/api/events</code> streams state every 1.5s</li>
+      <li><strong>Fleet control</strong> &mdash; start/stop dispatch, enable/disable profiles, swap profiles, send messages</li>
+      <li><strong>Manual launcher</strong> &mdash; launch agents with or without a Fleet task</li>
+      <li><strong>Project controls</strong> &mdash; init, pause, resume, run, close-check</li>
+    </ul>
+
+    <h3>Console API Endpoints</h3>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      <tr><td>GET</td><td><code>/</code></td><td>HTML page</td></tr>
+      <tr><td>GET</td><td><code>/api/project/status</code></td><td>Project lifecycle state</td></tr>
+      <tr><td>POST</td><td><code>/api/project/init</code></td><td>Create a project (body: brief, path)</td></tr>
+      <tr><td>POST</td><td><code>/api/project/{action}</code></td><td>pause|resume|run</td></tr>
+      <tr><td>POST</td><td><code>/api/project/close-check</code></td><td>Run goal oracles + gate</td></tr>
+      <tr><td>GET</td><td><code>/api/fleet</code></td><td>Fleet status + slots</td></tr>
+      <tr><td>POST</td><td><code>/api/fleet/{action}</code></td><td>enable|disable a profile</td></tr>
+      <tr><td>GET</td><td><code>/api/tasks</code></td><td>Task cards by state</td></tr>
+      <tr><td>POST</td><td><code>/api/tasks/{id}/claim</code></td><td>Claim a task (managed)</td></tr>
+      <tr><td>POST</td><td><code>/api/tasks/{id}/submit</code></td><td>Submit evidence bundle</td></tr>
+      <tr><td>POST</td><td><code>/api/tasks/{id}/verify</code></td><td>Record oracle results</td></tr>
+      <tr><td>POST</td><td><code>/api/tasks/{id}/integrate</code></td><td>Run merge + gate</td></tr>
+      <tr><td>POST</td><td><code>/api/launcher/run</code></td><td>Manual agent launch</td></tr>
+      <tr><td>GET</td><td><code>/api/events</code></td><td>SSE stream of live state</td></tr>
+    </table>
+
+    <div class="danger">
+      <strong>Security note:</strong> The Console has NO authentication (FR12).
+      It binds to 127.0.0.1 only. For remote access, use SSH port forwarding
+      (<code>ssh -L 8765:localhost:8765 user@host</code>).
+    </div>
+  </section>
+
+  <!-- SECTION 7 -->
+  <section id="section-7">
+    <h2>7. Configuration</h2>
+
+    <h3>7.1 agents.toml</h3>
+    <p>
+      <code>agents.toml</code> lives at the repository root. It defines Fleet-wide
+      settings, the Overseer profiles, and all agent profiles. It is <strong>human-edited TOML</strong>.
+    </p>
+
+    <h4>Fleet Settings</h4>
+    <pre><code>[fleet]
+max_total_agents   = 100
+dispatch_tick_s    = 5
+stall_minutes      = 15
+fix_rounds         = 2
+max_restarts_per_task = 5
+min_free_ram_mb    = 2048
+net_probe_urls     = []
+
+[overseer]
+profiles = ["opencode-strongest", "opencode-fallback"]</code></pre>
+
+    <h4>Profile Structure</h4>
+    <pre><code>[[profile]]
+id = "hermes-oneshot"
+adapter = "hermes"
+family = "anthropic"
+priority = 10
+max_concurrent = 4
+via_gateway = false
+roles = ["implement", "review", "plan"]
+argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}"]
+argv_resume = ["hermes", "chat", ... "--resume", "{session}"]
+model = "reflection/beam-1.0-501b-a23b:free"
+models = []</code></pre>
+
+    <h4>Profile Fields</h4>
+    <table>
+      <tr><th>Field</th><th>Description</th></tr>
+      <tr><td><code>id</code></td><td>Unique profile identifier</td></tr>
+      <tr><td><code>adapter</code></td><td>Adapter: hermes, kilo, cline, pi, opencode, fake</td></tr>
+      <tr><td><code>family</code></td><td>Declared model family. <code>"unknown"</code> means the profile can never serve as an independent verifier (D-L12)</td></tr>
+      <tr><td><code>priority</code></td><td>Dispatch priority &mdash; lower is tried first</td></tr>
+      <tr><td><code>max_concurrent</code></td><td>Max concurrent sessions for this profile</td></tr>
+      <tr><td><code>via_gateway</code></td><td>Route through QuotaGate proxy (M1)</td></tr>
+      <tr><td><code>roles</code></td><td>Task types: implement, review, verify, plan, maintain, research</td></tr>
+      <tr><td><code>argv_new</code></td><td>Argv template for new session. Placeholders: <code>{prompt}</code>, <code>{cwd}</code>, <code>{session}</code>, <code>{model}</code></td></tr>
+      <tr><td><code>argv_resume</code></td><td>Argv template for resume. Empty = no resume support</td></tr>
+      <tr><td><code>model</code></td><td>Default model string</td></tr>
+      <tr><td><code>models</code></td><td>List of interchangeable models for L1 recovery</td></tr>
+    </table>
+
+    <h3>7.2 policy.toml</h3>
+    <p>
+      <code>.pm/policy.toml</code> is pinned (class K via <code>pmk pins record</code>).
+      It defines the gate command, retry policies, and recovery parameters.
+    </p>
+
+    <h4>Key Sections</h4>
+    <pre><code>[gate]
+cmd = "pytest -q"
+
+[recovery]
+network_retry_delays_s = [30, 120, 600]
+quota_cooldown_s = 3600
+quota_cooldown_max_s = 86400
+stall_cooldown_s = 1800
+stall_after = 2
+network_circuit_breaker_providers = 3
+network_circuit_breaker_window_s = 120
+
+[sentinel]
+stop_on = ["I1", "I3", "I6", "I8'"]</code></pre>
+
+    <h4>Policy Fields</h4>
+    <table>
+      <tr><th>Field</th><th>Default</th><th>Description</th></tr>
+      <tr><td><code>gate_cmd</code></td><td><code>pytest -q</code></td><td>Command run on merged tree (I5)</td></tr>
+      <tr><td><code>max_restarts_per_task</code></td><td><code>5</code></td><td>Max restarts before L3 (fence bump)</td></tr>
+      <tr><td><code>stall_after</code></td><td><code>2</code></td><td>Stalls before cooldown</td></tr>
+      <tr><td><code>stall_cooldown_s</code></td><td><code>1800</code></td><td>Cooldown after stall burst (30 min)</td></tr>
+      <tr><td><code>no_profile_minutes</code></td><td><code>30</code></td><td>Minutes without viable profile before STALLED</td></tr>
+      <tr><td><code>network_circuit_breaker_providers</code></td><td><code>3</code></td><td>Distinct providers to trigger circuit breaker</td></tr>
+      <tr><td><code>network_circuit_breaker_window_s</code></td><td><code>120</code></td><td>Window for counting provider failures</td></tr>
+    </table>
+
+    <h4>Constitution</h4>
+    <p>
+      <code>.pm/constitution.md</code> is the project's governing rules, pinned alongside
+      <code>policy.toml</code>. Changes require two-key approval (class K). It contains 9
+      principles covering state authority, evidence requirements, and conflict resolution.
+    </p>
+  </section>
+
+  <!-- SECTION 8 -->
+  <section id="section-8">
+    <h2>8. Adapters &amp; Profiles</h2>
+
+    <h3>Known Adapters</h3>
+    <p>The Fleet knows six adapters. All per-CLI facts live in <em>data</em> (profile argv templates and capability tables), not in per-CLI code.</p>
+    <table>
+      <tr>
+        <th>CLI</th><th>Headless</th><th>Session ID</th><th>Resume (same)</th><th>Resume (diff model)</th><th>Verified</th>
+      </tr>
+      <tr><td>hermes</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+      <tr><td>kilo</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+      <tr><td>cline</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>Partial</td></tr>
+      <tr><td>pi</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+      <tr><td>opencode</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+      <tr><td>fake</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>By definition</td></tr>
+    </table>
+
+    <p><small>All capabilities measured live in spike S-A1 (2026-10-22). Nothing here is guessed.</small></p>
+
+    <div class="warning">
+      Capabilities default to <code>False</code> until measured: no resume, no model switch,
+      no session ID parsing, console window instead of headless. This is the safe default (R-F1).
+    </div>
+
+    <h3>The Fake CLI</h3>
+    <p>
+      <code>tests/fleet/fakecli.py</code> is a scriptable stand-in for real agents. It supports
+      scenarios (success, quota, auth, model_gone, network, stall, crash).
+      <strong>All Fleet tests run against the fake CLI.</strong>
+    </p>
+  </section>
+
+  <!-- SECTION 9 -->
+  <section id="section-9">
+    <h2>9. Merge Queue &amp; Oracles</h2>
+
+    <h3>The Serial Merge Queue</h3>
+    <p>
+      The merge queue processes one lease at a time, in the main tree, so that
+      the gate command runs on the tree that becomes canonical.
+    </p>
+
+    <h4>Process</h4>
+    <pre class="flowchart">1. scope_check() — reject out-of-scope changes
+   2. I5 pre-merge check — load evidence bundle, verify no validation_problems()
+   3. commit_worktree() — commit ONLY the declared write scope (NOT git add -A)
+   4. _cleanup_default_pytest_ini() — remove untracked default pytest.ini if
+      incoming branch changes it (runs AFTER commit_worktree, v11 fix)
+   5. git worktree add --detach <target> <main_branch>
+   6. git merge --no-ff --no-edit <lease_branch>
+   7. Run gate_cmd on the merged tree
+      exit 0 -> proceed
+      exit != 0 -> MERGE_REFUSED, task goes to REWORK
+   8. git merge --ff-only <merge_commit>
+   9. Record INTEGRATED event</pre>
+
+    <h3>The pytest.ini Cleanup (T-0009 Fix)</h3>
+    <p>
+      <code>pmk init</code> writes a default <code>pytest.ini</code> to the repo root.
+      When a lease branch also adds <code>pytest.ini</code>, git sees two untracked
+      files and the fast-forward refuses to overwrite, failing the merge.
+    </p>
+    <p>
+      The v11 fix (commit <code>9f2dbaa</code>) moved
+      <code>_cleanup_default_pytest_ini()</code> to run <strong>after</strong>
+      <code>commit_worktree</code> so the branch ref exists and the git diff reveals
+      the incoming change.
+    </p>
+
+    <h3>Evidence Bundles</h3>
+    <p>An evidence bundle (<code>.pm/evidence/EB-&lt;task&gt;-&lt;fence&gt;/bundle.json</code>) contains:</p>
+    <ul>
+      <li><code>task</code>, <code>fence</code>, <code>base_commit</code></li>
+      <li><code>outputs</code>, <code>commands</code>, <code>oracle_results</code></li>
+      <li><code>premise_check</code>, <code>budget_used</code>, <code>resolved_models</code></li>
+      <li><code>constitution_hash</code>, <code>context_hash</code></li>
+    </ul>
+
+    <div class="danger">
+      <strong>I5 enforcement is two-layer defense:</strong>
+      (1) Conductor checks <code>bundle.validation_problems()</code>,
+      (2) Kernel.integrate checks it again, (3) merge.integrate runs the gate.
+    </div>
+  </section>
+
+  <!-- SECTION 10 -->
+  <section id="section-10">
+    <h2>10. Recovery System</h2>
+
+    <h3>The Recovery Ladder (L0&ndash;L4)</h3>
+    <div class="flowchart">
+L0: Retry (transient NETWORK failures)
+    Same profile, same session, delayed retries
+    Fence UNCHANGED
+
+L1: Resume on next profile
+    Resume session on a different profile
+    Requires: adapter supports resume AND model swap
+    Fence UNCHANGED
+
+L2: Fresh session with handoff (same worktree)
+    Start fresh session on next profile with handoff note
+    Fence UNCHANGED
+    Triggered by: QUOTA, AUTH, MODEL_GONE, NETWORK, STALL, UNKNOWN, CRASH
+
+L3: Revoke lease, bump fence
+    max_restarts_per_task reached, or no profile qualifies
+    Fence BUMPED — task returns to READY
+
+L4: Block task
+    attempts.max reached: task -> BLOCKED, queue item for Overseer</div>
+
+    <h3>Profile Consequences</h3>
+    <table>
+      <tr><th>Failure</th><th>Consequence</th></tr>
+      <tr><td><code>QUOTA</code></td><td>Cooldown: 1 hour, doubles after each failed probe, up to 24h</td></tr>
+      <tr><td><code>AUTH</code></td><td>Profile DISABLED. Queue item raised.</td></tr>
+      <tr><td><code>MODEL_GONE</code></td><td>Profile DISABLED. Queue item raised.</td></tr>
+      <tr><td><code>NETWORK</code></td><td>No penalty first failure; 3+ providers within 120s triggers circuit breaker</td></tr>
+      <tr><td><code>UNKNOWN</code></td><td>Retry once; 2+ failures in 10 min &rarr; 15-min cooldown</td></tr>
+      <tr><td><code>STALL</code></td><td>Kill process tree; 2+ stalls in 1 hr &rarr; 30-min cooldown</td></tr>
+      <tr><td><code>CRASH</code></td><td>Fresh session with handoff note on next profile (L2)</td></tr>
+    </table>
+  </section>
+
+  <!-- SECTION 11 -->
+  <section id="section-11">
+    <h2>11. Sentinel &amp; Invariants</h2>
+
+    <h3>Run Checks</h3>
+    <pre><code>pmk sentinel  # Exits 0 if pass, 1 if findings
+pmk pins check   # Verify constitution and policy match pins
+pmk pins record  # Re-record pins (class K)</code></pre>
+
+    <h3>Invariants (16 total, 4 stop-the-line)</h3>
+    <table class="event-log">
+      <tr><th>ID</th><th>Name</th><th>Stops?</th><th>Description</th></tr>
+      <tr><td>I1</td><td>Hash Chain</td><td class="center"><span class="badge badge-fail">Yes</span></td><td>Every event hashes against predecessor. Torn-tail detection and repair.</td></tr>
+      <tr><td>I2</td><td>Kernel Only</td><td class="center"><span class="badge badge-warn">Report</span></td><td>Agents never write to <code>.pm/</code> directly.</td></tr>
+      <tr><td>I3</td><td>Task Conservation</td><td class="center"><span class="badge badge-fail">Yes</span></td><td>Total tasks = sum of all states.</td></tr>
+      <tr><td>I4</td><td>Fence Integrity</td><td class="center"><span class="badge badge-warn">Report</span></td><td>Stale-fence submissions quarantined.</td></tr>
+      <tr><td>I5</td><td>Oracles Decide</td><td class="center"><span class="badge badge-warn">Report</span></td><td>DONE task with failing oracle bundle = reported (not stop). Structurally enforced in merge queue.</td></tr>
+      <tr><td>I6</td><td>Bundle Integrity</td><td class="center"><span class="badge badge-fail">Yes</span></td><td>Every DONE task has resolvable, readable bundle with passing oracles.</td></tr>
+      <tr><td>I7</td><td>Trusted Timestamps</td><td class="center"><span class="badge badge-warn">Report</span></td><td>Only Kernel timestamps are trusted.</td></tr>
+      <tr><td>I8'</td><td>Pinned Policy</td><td class="center"><span class="badge badge-fail">Yes</span></td><td><code>.pm/constitution.md</code> and <code>.pm/policy.toml</code> match <code>.pm/pins.sha256</code>.</td></tr>
+      <tr><td>I13</td><td>Views as Projections</td><td class="center"><span class="badge badge-warn">Report</span></td><td><code>.pm/views/</code> equals projection of the log.</td></tr>
+      <tr><td>I14</td><td>Lease Fence</td><td class="center"><span class="badge badge-warn">Report</span></td><td>A leased task has a fence.</td></tr>
+      <tr><td>I15</td><td>Context Lint</td><td class="center"><span class="badge badge-warn">Report</span></td><td>CIP &sect;14.6 rules: reject vs review, coverage limits.</td></tr>
+      <tr><td>I16</td><td>No Out-of-Band Edits</td><td class="center"><span class="badge badge-warn">Report</span></td><td>No files written to <code>.pm/</code> outside the Kernel.</td></tr>
+    </table>
+  </section>
+
+  <!-- SECTION 12 -->
+  <section id="section-12">
+    <h2>12. Data Models</h2>
+
+    <h3>Task Card</h3>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+      <tr><td><code>id</code></td><td>string</td><td>Unique ID (T-0001, T-0002, ...)</td></tr>
+      <tr><td><code>type</code></td><td>string</td><td>implement | review | verify | plan | maintain | research</td></tr>
+      <tr><td><code>title</code></td><td>string</td><td>Human-readable title</td></tr>
+      <tr><td><code>state</code></td><td>string</td><td>PROPOSED | READY | LEASED | SUBMITTED | VERIFYING | INTEGRATING | DONE | REWORK | BLOCKED | VOID</td></tr>
+      <tr><td><code>fence</code></td><td>string</td><td>Version token; changes when task returns to READY (L3)</td></tr>
+      <tr><td><code>write_scope</code></td><td>list&lt;string&gt;</td><td>Paths the task may modify (prefix match, not glob)</td></tr>
+      <tr><td><code>read_scope</code></td><td>list&lt;string&gt;</td><td>Paths the task may read</td></tr>
+      <tr><td><code>oracle_cmds</code></td><td>list&lt;string&gt;</td><td>Commands whose exit codes determine acceptance</td></tr>
+      <tr><td><code>evidence_paths</code></td><td>list&lt;string&gt;</td><td>Paths the task must produce before submission</td></tr>
+      <tr><td><code>attempts.max</code></td><td>int</td><td>Max dispatch attempts before L4 (default 3)</td></tr>
+      <tr><td><code>budget.tokens</code></td><td>int</td><td>Max tokens allowed (direct CLI only)</td></tr>
+      <tr><td><code>budget.minutes</code></td><td>int</td><td>Max wall time allowed</td></tr>
+      <tr><td><code>priority</code></td><td>int</td><td>Dispatch priority (lower = first)</td></tr>
+      <tr><td><code>depends_on</code></td><td>list&lt;string&gt;</td><td>Task IDs this depends on</td></tr>
+      <tr><td><code>lease</code></td><td>Lease|null</td><td>Active lease if claimed</td></tr>
+    </table>
+
+    <h3>Lease</h3>
+    <table>
+      <tr><th>Field</th><th>Description</th></tr>
+      <tr><td><code>task_id</code></td><td>The task this lease is for</td></tr>
+      <tr><td><code>profile_id</code></td><td>Selected profile</td></tr>
+      <tr><td><code>fence</code></td><td>Version token &mdash; must match task fence at submit</td></tr>
+      <tr><td><code>claimed_at</code></td><td>ISO timestamp</td></tr>
+      <tr><td><code>expires_at</code></td><td>ISO timestamp (TTL from policy)</td></tr>
+      <tr><td><code>worktree</code></td><td>Path to isolated git worktree</td></tr>
+    </table>
+
+    <h3>Event Log Entry</h3>
+    <pre><code>{
+  "seq": 281,
+  "hash": "a1b2c3...",          // SHA-256 of this entry's content
+  "prev_hash": "f0e1d2...",      // Hash of previous entry (I1)
+  "ts": "2026-10-25T12:30:00Z",
+  "actor": "hermes-oneshot",
+  "type": "TASK_CLAIMED",
+  "task": "T-0001",
+  "fence": "f-20261025-1",
+  "payload": { ... }
+}</code></pre>
+
+    <h3>Evidence Bundle JSON</h3>
+    <pre><code>{
+  "task": "T-0001",
+  "fence": "f-20261025-1",
+  "base_commit": "a1b2c3d4",
+  "outputs": ["result.txt"],
+  "diff_scope_check": {"status": "ok", "violations": []},
+  "commands": [{"cmd": "...", "exit": 0, "stdout": "", "stderr": ""}],
+  "oracle_results": [{"cmd": "...", "exit": 0, "ok": true, "note": ""}],
+  "premise_check": {"ok": true, "note": "..."},
+  "budget_used": {"tokens": 150, "minutes": 1},
+  "resolved_models": [{"profile": "fake", "model": "fake-model"}],
+  "constitution_hash": "cfa209a3...",
+  "context_hash": "d2e23e06..."
+}</code></pre>
+  </section>
+
+  <!-- SECTION 13 -->
+  <section id="section-13">
+    <h2>13. File Layout</h2>
+
+    <table>
+      <tr><th>Path</th><th>Description</th></tr>
+      <tr><td><code>src/pmk/</code></td><td>Kernel: events, tasks, leases, views, briefing, sentinel, API, CLI (~3,773 lines, stdlib only)</td></tr>
+      <tr><td><code>src/fleet/</code></td><td>Profiles, adapters, selection, harness, recovery ladder, Dispatcher, Conductor, merge queue, Overseer (~3,507 lines)</td></tr>
+      <tr><td><code>src/console/</code></td><td>FastAPI Console (127.0.0.1:8765, ~375 lines)</td></tr>
+      <tr><td><code>src/quotagate/</code></td><td>Hierarchical quota engine (M0&ndash;M2 core, ~903 lines)</td></tr>
+      <tr><td><code>tests/fleet/</code></td><td>41 Fleet tests + fake CLI (<code>fakecli.py</code>)</td></tr>
+      <tr><td><code>tests/</code></td><td>~150 tests across Kernel, Fleet, QuotaGate</td></tr>
+      <tr><td><code>pilot/</code></td><td>STATE.md, decisions.md, logs, spikes, pilot report, demo</td></tr>
+      <tr><td><code>agents.toml</code></td><td>Fleet configuration (profiles, settings)</td></tr>
+      <tr><td><code>.pm/</code></td><td>Coordination state (event log, views, task cards, evidence)</td></tr>
+      <tr><td><code>CLAUDE.md</code></td><td>Claude Code context</td></tr>
+      <tr><td><code>AGENTS.md</code></td><td>OpenCode context</td></tr>
+    </table>
+
+    <h3>The <code>.pm/</code> Directory</h3>
+    <table>
+      <tr><th>Path</th><th>Description</th></tr>
+      <tr><td><code>.pm/events/</code></td><td>Hash-chained JSONL event log (one file per day)</td></tr>
+      <tr><td><code>.pm/views/</code></td><td>Generated views: ledger.md, status.md, queue.md</td></tr>
+      <tr><td><code>.pm/constitution.md</code></td><td>Project constitution (pinned, class K)</td></tr>
+      <tr><td><code>.pm/policy.toml</code></td><td>Kernel policy (pinned, class K)</td></tr>
+      <tr><td><code>.pm/pins.sha256</code></td><td>Hashes of pinned files</td></tr>
+      <tr><td><code>.pm/tasks/</code></td><td>Task card definitions (JSON)</td></tr>
+      <tr><td><code>.pm/evidence/</code></td><td>Evidence bundles (EB-&lt;task&gt;-&lt;fence&gt;/)</td></tr>
+      <tr><td><code>.pm/fleet/</code></td><td>Fleet runtime state (cooling, disabled)</td></tr>
+      <tr><td><code>.pm/registry/</code></td><td>Task ID registry</td></tr>
+      <tr><td><code>.pm/briefings/</code></td><td>Generated briefings for handover</td></tr>
+      <tr><td><code>.pm/context-snapshots/</code></td><td>Caliber context sync snapshots</td></tr>
+      <tr><td><code>.pm/context.sha256</code></td><td>Context snapshot hash</td></tr>
+    </table>
+  </section>
+
+  <!-- SECTION 14 -->
+  <section id="section-14">
+    <h2>14. Testing</h2>
+
+    <h3>Run All Tests</h3>
+    <pre><code>.\.venv\Scripts\python.exe -m pytest -q</code></pre>
+    <p><strong>Result:</strong> 303 passed in ~116s (0 failures, 0 errors, 0 skipped)</p>
+
+    <h3>Test Layout</h3>
+    <table>
+      <tr><th>Directory</th><th>Description</th><th>Approx. Tests</th></tr>
+      <tr><td><code>tests/fleet/</code></td><td>Fleet: dispatcher, harness, recovery, merge, Conductor, Overseer</td><td>41+</td></tr>
+      <tr><td><code>tests/pmk/</code></td><td>Kernel: events, tasks, leases, views, sentinel, context</td><td>~150</td></tr>
+      <tr><td><code>tests/quotagate/</code></td><td>QuotaGate: engine, config, routing, errors</td><td>~50</td></tr>
+      <tr><td><code>tests/fake/</code></td><td>Fake CLI &amp; scenario simulations</td><td>~60</td></tr>
+    </table>
+
+    <h3>Run Specific Tests</h3>
+    <pre><code>python -m pytest tests/fleet/ -v --tb=short
+python -m pytest tests/fleet/test_regressions.py -v</code></pre>
+  </section>
+
+  <!-- SECTION 15 -->
+  <section id="section-15">
+    <h2>15. For LLM Agents</h2>
+
+    <h3>How This Works When You Are an AI Agent</h3>
+    <p>If you are an AI agent invoked by the UMAWS Fleet, here is what you need to know:</p>
+
+    <h4>Your Lifecycle</h4>
+    <pre class="flowchart">You receive a prompt from a file
+--> You work in an isolated git worktree
+--> You run oracle commands (acceptance tests)
+--> You produce evidence output files
+--> You produce a summary
+--> The Harness takes over:
+    - Records your outputs as an evidence bundle
+    - Runs scope checks (are you writing only in your declared scope?)
+    - Commits your work to the lease branch
+    - Submits to the merge queue (runs the gate command)
+    - If the gate passes: your change is merged into main
+--> DONE (or REWORK if gate fails)</pre>
+
+    <h4>Key Rules</h4>
+    <ul>
+      <li><strong>Work only within your declared write scope</strong> — paths are prefix-matched, not globbed</li>
+      <li><strong>Run your oracle commands before exiting</strong> — these are your acceptance tests</li>
+      <li><strong>Produce all declared evidence files</strong> — the Harness checks for them</li>
+      <li><strong>Do not edit <code>.pm/</code> directly</strong> — use the <code>pmk</code> CLI or API</li>
+      <li><strong>Write your summary to a file</strong> — do not rely on stdout alone</li>
+    </ul>
+
+    <div class="danger">
+      If your exit code is non-zero, the Dispatcher classifies your failure
+      (QUOTA, AUTH, MODEL_GONE, NETWORK, STALL, UNKNOWN, CRASH) and applies the
+      recovery ladder. You may be retried, resumed, or replaced &mdash; all
+      automatically. Your briefing is the canonical handover document.
+    </div>
+  </section>
+
+  <!-- SECTION 16 -->
+  <section id="section-16">
+    <h2>16. Quick User Guide</h2>
+
+    <h3>Step 1: Install</h3>
+    <pre><code>py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e .
+.\.venv\Scripts\python.exe -m pip install fastapi uvicorn httpx tzdata pytest</code></pre>
+
+    <h3>Step 2: Initialize</h3>
+    <pre><code>pmk init</code></pre>
+
+    <h3>Step 3: Start Console</h3>
+    <pre><code>.\start.ps1
+# Open http://127.0.0.1:8765 in your browser</code></pre>
+
+    <h3>Step 4: Verify</h3>
+    <pre><code>.\.venv\Scripts\python.exe pilot/demo_one_click.py</code></pre>
+    <p>This runs the full lifecycle with the fake CLI. If it passes, everything works.</p>
+
+    <h3>Step 5: Create Your First Task</h3>
+    <pre><code>pmk task create "Write a hello.txt file" \
+  --type implement \
+  --write hello.txt \
+  --oracle "test -f hello.txt" \
+  --evidence hello.txt</code></pre>
+
+    <h3>Step 6: Dispatch</h3>
+    <pre><code>pmk dispatch run --seconds 60</code></pre>
+    <p>Or press the "Run" button in the Console.</p>
+
+    <h3>Step 7: Monitor</h3>
+    <ul class="no-list-style">
+      <li><code>pmk status</code> &mdash; snapshot of all tasks</li>
+      <li><code>pmk fleet status</code> &mdash; profiles and dispatch state</li>
+      <li><code>pmk sentinel</code> &mdash; invariant check</li>
+      <li>Fleet tab in Console &mdash; live view of agents</li>
+    </ul>
+
+    <h3>Step 8: Close</h3>
+    <pre><code>pmk project close-check
+pmk sentinel</code></pre>
+  </section>
+
+  <!-- SECTION 17 -->
+  <section id="section-17">
+    <h2>17. Remaining Tasks &amp; Notes</h2>
+
+    <h3>Not Yet Built</h3>
+    <table>
+      <tr><th>Item</th><th>Status</th><th>Notes</th></tr>
+      <tr><td>QuotaGate M1 passthrough proxy</td><td><span class="badge badge-warn">Not built</span></td><td>Upstream measured: no quota headers, <code>/v1</code> disagreement.</td></tr>
+      <tr><td>QuotaGate M3 failover</td><td><span class="badge badge-warn">Not built</span></td><td>Needs provider keys</td></tr>
+      <tr><td>QuotaGate M5 Kernel contract</td><td><span class="badge badge-warn">Not built</span></td><td>&mdash;</td></tr>
+      <tr><td>REWORK task re-dispatch</td><td><span class="badge badge-warn">Not implemented</span></td><td>Tasks still never re-dispatched after rework</td></tr>
+    </table>
+
+    <h3>Not Yet Verified</h3>
+    <table>
+      <tr><th>Item</th><th>Status</th><th>Notes</th></tr>
+      <tr><td>Auth-expired classification</td><td><span class="badge badge-warn">Not separate</span></td><td>Spends retries instead of distinct classification</td></tr>
+      <tr><td>Five cline free models</td><td><span class="badge badge-warn">Not verified</span></td><td>Offered, not tested</td></tr>
+      <tr><td>Verifier family declared</td><td><span class="badge badge-warn">Not declared</span></td><td>All profiles: <code>family = "unknown"</code></td></tr>
+      <tr><td>Generator injection safety (V-07)</td><td><span class="badge badge-warn">Unproven</span></td><td>T4 premise did not reproduce</td></tr>
+    </table>
+
+    <h3>Current State</h3>
+    <p>As of commit <code>9f2dbaa</code> (HEAD):</p>
+    <ul>
+      <li>Project state: <strong>NEW</strong></li>
+      <li>Tasks: 3 (all READY)</li>
+      <li>Active leases: 0</li>
+      <li>Open queue items: 3 (Q-005, Q-006, Q-007)</li>
+      <li>Incidents: 2</li>
+      <li>Policy version: p-2026-10-23</li>
+    </ul>
+
+    <h3>Recent Commits</h3>
+    <table class="event-log">
+      <tr><th>Hash</th><th>Date</th><th>Subject</th></tr>
+      <tr><td><code>9f2dbaa</code></td><td>2026-10-28</td><td>merge: gate pytest.ini cleanup on the committed branch diff</td></tr>
+      <tr><td><code>548885e</code></td><td>2026-10-24</td><td>Fleet hardening v5-v11: PMK_ACTOR attribution, merge gate, recovery backoff</td></tr>
+      <tr><td><code>aa09a8a</code></td><td>2026-10-24</td><td>docs: PDD for testproject1</td></tr>
+      <tr><td><code>6764d54</code></td><td>2026-10-22</td><td>Merge branch 'pmk/T-0003-3' into HEAD</td></tr>
+      <tr><td><code>7c3ff46</code></td><td>2026-10-22</td><td>repair: restore original seq-84 event line (hash chain)</td></tr>
+    </table>
+  </section>
+
+  <footer>
+    <p>
+      This manual was generated as part of the UMAWS Fleet project.
+      For questions or issues, record an incident via <code>pmk incident</code>.
+      <br><br>
+      <strong>Co-Authored-By:</strong> Claude Code &lt;noreply@anthropic.com&gt;
+    </p>
+  </footer>
+
+</div>
+</body>
+</html>

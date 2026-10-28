@@ -1,0 +1,4 @@
+# .gitattributes for pinned files - enforce LF line endings
+**/pm/** eol=lf
+*.md eol=lf
+*.toml eol=lf

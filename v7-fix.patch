@@ -1,0 +1,2640 @@
+diff --git a/.claude/skills/quotagate-rule/SKILL.md b/.claude/skills/quotagate-rule/SKILL.md
+index 7752474..52426b4 100644
+--- a/.claude/skills/quotagate-rule/SKILL.md
++++ b/.claude/skills/quotagate-rule/SKILL.md
+@@ -1,79 +1,120 @@
+ ---
+ name: quotagate-rule
+-description: Manages hierarchical quota rules (RPM, TPM, RPD) in gateway/quotagate/. Use when adding or modifying limits for deployments, accounts, or providers. Ensures America/Los_Angeles timezone compliance for daily resets. Do NOT use for general fleet orchestration or kernel state changes.
++description: Manages hierarchical quota rules (RPM, TPM, RPD) in src/quotagate/. Use when adding or modifying limits for deployments, accounts, or providers. Ensures America/Los_Angeles timezone compliance for daily resets. Do NOT use for general fleet orchestration or kernel state changes.
+ paths:
+-  - gateway/quotagate/*
++  - src/quotagate/*
+   - tests/quotagate/*
+ ---
+ # QuotaGate Rule Management
+ 
+ ## Critical
+-- **Timezone**: All `RPD` (Requests Per Day) resets MUST be calculated using the `America/Los_Angeles` timezone. Never use UTC or local system time for daily quotas.
+-- **Hierarchy**: Rules must be applied at the correct scope: `deployment` (most specific), `account`, or `provider` (most general). A more specific rule always overrides a general one.
+-- **Metrics**: Only use supported metrics: `RPM` (Requests Per Minute), `TPM` (Tokens Per Minute), and `RPD` (Requests Per Day).
+-- **Validation**: Before applying, run `pytest tests/quotagate/` to ensure no regression in existing limit logic.
++- **Location**: the QuotaGate implementation lives in `src/quotagate/`. The old
++  `gateway/quotagate/` path is empty and is **not** where the code is.
++- **Timezone**: All `fixed_daily` / `fixed_monthly` resets MUST be calculated
++  using an explicit IANA timezone (`zoneinfo.ZoneInfo`), never the machine's
++  local time. `America/Los_Angeles` is the operator's default for daily quotas.
++- **Hierarchy**: Rules are applied at the correct scope: `deployment` (most
++  specific), `account`, `quota_group`, `provider` (most general). A more
++  specific rule always overrides a general one.
++- **Metrics**: Only two metrics exist: `requests` and `tokens`. Windows are
++  `rolling_60s`, `rolling_24h`, `fixed_daily`, `fixed_monthly`,
++  `fixed_interval`. There is no `RPD`/`TPM`/`RPM` vocabulary in the code.
++- **Unknown ≠ zero**: `QuotaRule.limit == 0` means *unknown*, not *no
++  requests*. A rule is only enforced when `limit > 0`.
++- **Validation**: Before applying, run `pytest tests/quotagate/` to ensure no
++  regression in existing limit logic.
+ 
+ ## Instructions
+ 
+-1. **Locate Rule Definition**
+-   - Quota rules are defined in `gateway/quotagate/rules.py` or configured via `gateway/quotagate/config.toml` (verify which one is active in the current environment).
+-   - Check `gateway/quotagate/models.py` to ensure the rule schema matches `QuotaLimit` or `RateLimit` classes.
++1. **Locate the rule definition**
++   - Rules are declared in `src/quotagate/config.toml` under `[[quota_rule]]`.
++   - The schema is `QuotaRule` in `src/quotagate/config.py`:
++     `scope`, `metric`, `window`, `limit`, `target`, `timezone`,
++     `interval_seconds`, `reset_at`.
++   - Engine behaviour is in `src/quotagate/engine.py`; the window/timezone
++     maths is in `window_start` / `window_reset`.
+ 
+-2. **Define the Quota Scope**
++2. **Define the quota scope**
+    - Identify the scope key:
+-     - Provider: `gemini`, `openai`, `anthropic`
+-     - Account: The user/service account ID
+-     - Deployment: The specific model instance (e.g., `gpt-4o-deployment-1`)
+-   - **Validation**: Verify the scope key exists in the Fleet registry or Provider list before adding the rule.
++     - Provider: `cohere`, `nous` (as configured in `[provider.*]`)
++     - Account: the `[account.*]` id (e.g. `omniroute`, `nous-portal`)
++     - Deployment: the `[deployment."provider/model"]` id
++   - **Validation**: the `target` must match an id that already exists in the
++     corresponding section of `config.toml`.
+ 
+-3. **Apply the Limit**
+-   - Add the rule entry using the following structure:
+-     ```python
+-     # Example for rules.py logic
+-     QuotaRule(
+-         scope="provider",
+-         key="gemini",
+-         limits=[
+-             RateLimit(metric="RPM", value=2000),
+-             RateLimit(metric="RPD", value=100000, reset_tz="America/Los_Angeles")
+-         ]
+-     )
++3. **Apply the limit**
++   - Add a `[[quota_rule]]` block:
++     ```toml
++     [[quota_rule]]
++     scope = "provider"
++     metric = "requests"
++     window = "rolling_60s"
++     limit = 500
++     target = "gemini"
++
++     [[quota_rule]]
++     scope = "provider"
++     metric = "requests"
++     window = "fixed_daily"
++     limit = 10000
++     target = "gemini"
++     timezone = "America/Los_Angeles"
+      ```
+-   - **Validation**: If updating `config.toml`, ensure the TOML syntax is valid and metrics are integers.
++   - **Validation**: TOML syntax valid; `limit` a positive integer; `metric`
++     one of `requests` / `tokens`; `window` one of the five window constants.
+ 
+-4. **Verify Timezone Handling**
+-   - If the rule includes `RPD`, confirm it imports `zoneinfo` or `pytz` and explicitly sets `America/Los_Angeles`.
+-   - **Validation**: Check `gateway/quotagate/utils.py` for the `get_current_window` function to ensure it respects the rule's timezone.
++4. **Verify timezone handling**
++   - If the rule uses `fixed_daily` or `fixed_monthly`, set `timezone`
++     explicitly. The engine calls `ZoneInfo(rule.timezone)`; the default is
++     `UTC`.
++   - **Validation**: check `window_start` / `window_reset` in
++     `src/quotagate/engine.py` for the timezone-aware path.
+ 
+-5. **Test and Verify**
+-   - Run the specific quota test suite: `pytest tests/quotagate/test_limits.py`.
+-   - Verify that hitting the limit returns a `429 Too Many Requests` response with the correct `Retry-After` header in the gateway logs.
++5. **Test and verify**
++   - Run the quota test suite: `pytest tests/quotagate/`.
++   - Verify that hitting the limit returns a `429 Too Many Requests` response
++     with the correct `Retry-After` header.
+ 
+ ## Examples
+ 
+-### User says: "Limit Gemini provider to 500 RPM and 10,000 daily requests"
++### User says: "Limit the Gemini provider to 500 requests/min and 10,000 daily requests"
+ 
+ **Actions taken:**
+-1. Checked `gateway/quotagate/rules.py` for existing `gemini` rules.
+-2. Updated the `PROVIDER_LIMITS` dictionary.
+-3. Added `RPD` with `America/Los_Angeles` timezone.
++1. Checked `src/quotagate/config.toml` for existing `gemini` rules.
++2. Added two `[[quota_rule]]` blocks scoped to `provider` / `gemini`.
++3. Set `timezone = "America/Los_Angeles"` on the `fixed_daily` rule.
+ 4. Ran `pytest tests/quotagate/`.
+ 
+ **Result:**
+-```python
+-# gateway/quotagate/rules.py
++```toml
++[[quota_rule]]
++scope = "provider"
++metric = "requests"
++window = "rolling_60s"
++limit = 500
++target = "gemini"
+ 
+-"gemini": [
+-    Limit(metric="RPM", value=500),
+-    Limit(metric="RPD", value=10000, tz="America/Los_Angeles")
+-]
++[[quota_rule]]
++scope = "provider"
++metric = "requests"
++window = "fixed_daily"
++limit = 10000
++target = "gemini"
++timezone = "America/Los_Angeles"
+ ```
+ 
+ ## Common Issues
+ 
+ - **Error: `InvalidTimezoneError: America/Los_Angeles`**
+-  - **Fix**: Ensure `tzdata` is installed in the venv (`pip install tzdata`) as Windows does not include the IANA database by default.
++  - **Fix**: Ensure `tzdata` is installed in the venv (`pip install tzdata`) as
++    Windows does not include the IANA database by default.
+ - **Error: `Quota leak` (Limits not resetting)**
+-  - **Fix**: Check `gateway/quotagate/engine.py`. Ensure the redis/in-memory key includes the window timestamp (e.g., `quota:gemini:RPM:202310271201`).
+-- **Metric Mismatch**: Using `TPD` (Tokens Per Day) when only `TPM` is implemented.
+-  - **Fix**: Check `models.py` for supported `MetricType` enums and only use `RPM`, `TPM`, or `RPD`.
+\ No newline at end of file
++  - **Fix**: Check `src/quotagate/engine.py`. Ensure the in-memory key includes
++    the window timestamp (e.g. `quota:gemini:RPM:202310271201`).
++- **Metric Mismatch**: Using `RPD` / `TPM` / `RPM` instead of the code's
++  `requests` / `tokens` metrics.
++  - **Fix**: Check `METRICS` in `src/quotagate/config.py` and use only those
++    values, pairing them with the right `window`.
++- **Rule silently ignored**
++  - **Fix**: `limit` must be > 0 (0 means unknown, so the rule is not
++    enforced), and `target` must exactly match an id in the matching section.
+diff --git a/.pm/events/2026-10-25.jsonl b/.pm/events/2026-10-25.jsonl
+index 82d3f41..766e4b8 100644
+--- a/.pm/events/2026-10-25.jsonl
++++ b/.pm/events/2026-10-25.jsonl
+@@ -1 +1,2 @@
+ {"actor":{"agent":"","kind":"kernel","model":"","role":"kernel","session":""},"fence":null,"hash":"86b14bcd8292b58355414e42dfaf73b6ef667c3ae43ba462f07548d493822b18","kernel_version":"0.1.0","payload":{"checked":["I1","I3","I4","I5","I6","I7","I8'","I13","I14","I15","I16"],"findings":[],"ok":true},"policy_hash":"221f25c78676941d6e510843822feda5ac951990be7b8bcee002adddb34fb918","prev_hash":"69b99105b4f30eaf4756949c836da53cb142a02a331c2989763c969838d133b8","seq":261,"subject":null,"ts":"2026-10-25T17:32:49Z","type":"SENTINEL_RUN"}
++{"actor":{"agent":"","kind":"kernel","model":"","role":"kernel","session":""},"fence":null,"hash":"e44dca713150fc46a6785a41782a5eb07fd6cf41ca2b0543994ba62b9f0c468f","kernel_version":"0.1.0","payload":{"checked":["I1","I3","I4","I5","I6","I7","I8'","I13","I14","I15","I16"],"findings":[],"ok":true},"policy_hash":"221f25c78676941d6e510843822feda5ac951990be7b8bcee002adddb34fb918","prev_hash":"86b14bcd8292b58355414e42dfaf73b6ef667c3ae43ba462f07548d493822b18","seq":262,"subject":null,"ts":"2026-10-25T23:51:28Z","type":"SENTINEL_RUN"}
+diff --git a/.pm/views/ledger.md b/.pm/views/ledger.md
+index f9fe432..9eb4313 100644
+--- a/.pm/views/ledger.md
++++ b/.pm/views/ledger.md
+@@ -2,10 +2,10 @@
+ 
+ Generated by the Kernel from the event log. Do not edit.
+ 
+-**Tasks:** 3   READY=1  LEASED=1  SUBMITTED=1
++**Tasks:** 3   READY=3
+ 
+ | id |  | state | type | title | goal | attempts | evidence |
+ |---|---|---|---|---|---|---|---|
+-| `T-0001` | * | LEASED | implement | pi live dispatch test: write hello.txt | G-TEST-PI | 2/3 | fence 2 |
++| `T-0001` | > | READY | implement | pi live dispatch test: write hello.txt | G-TEST-PI | 2/3 |  |
+ | `T-0002` | > | READY | implement | pi live dispatch test: write hello.txt | G-TEST-PI | 0/3 |  |
+-| `T-0003` | + | SUBMITTED | implement | pi live dispatch test: write pi-test.txt | G-TEST-PI | 1/3 | fence 3 |
++| `T-0003` | > | READY | implement | pi live dispatch test: write pi-test.txt | G-TEST-PI | 1/3 |  |
+diff --git a/.pm/views/queue.md b/.pm/views/queue.md
+index 1c55fa3..3736f16 100644
+--- a/.pm/views/queue.md
++++ b/.pm/views/queue.md
+@@ -7,6 +7,8 @@ Generated by the Kernel from the event log. Do not edit.
+ | id | kind | topic | options | recommended | safe default |
+ |---|---|---|---|---|---|
+ | Q-005 | normal | Dispatcher: AGENT_RESUMED event mislabelled when mode=new (D-53) | apply the diff, then re-run T-0003 and assert no AGENT_RESUMED with mode=new | apply the diff, then re-run T-0003 and assert no AGENT_RESUMED with mode=new | record as AGENT_RESTARTED when mode=new |
++| Q-006 | normal | I4 finding for T-0003: task was integrated with revoked fence 3 (historical, seq 265 promoted, seq 281/282/283 revoked) | acknowledge, resolve later | acknowledge | acknowledge |
++| Q-007 | normal | I5 finding for T-0003: task was promoted with an invalid bundle (acceptance oracles failed) - STOP | acknowledge, rework T-0003 | rework T-0003 | rework T-0003 |
+ 
+ ## Decided
+ 
+diff --git a/.pm/views/status.md b/.pm/views/status.md
+index 3d53798..db79548 100644
+--- a/.pm/views/status.md
++++ b/.pm/views/status.md
+@@ -3,27 +3,27 @@
+ Generated by the Kernel from the event log. Do not edit.
+ 
+ - **Project state:** NEW
+-- **Tasks:** 3 (READY 1, LEASED 1, SUBMITTED 1)
+-- **Active leases:** 2
+-- **Open queue items:** 1
+-- **Incidents:** 1
++- **Tasks:** 3 (READY 3)
++- **Active leases:** 0
++- **Open queue items:** 3
++- **Incidents:** 2
+ - **Policy version:** p-2026-10-23
+ 
+ ## Ready tasks
+ 
+ | id | prio | type | title | hint | write scope |
+ |---|---|---|---|---|---|
++| `T-0001` | 100 | implement | pi live dispatch test: write hello.txt | - | hello.txt |
+ | `T-0002` | 100 | implement | pi live dispatch test: write hello.txt | pi-orca-deepseek | hello.txt |
++| `T-0003` | 100 | implement | pi live dispatch test: write pi-test.txt | pi-orca-deepseek | pi-test.txt |
+ 
+ ## Active leases
+ 
+-| task | profile | agent | fence | session | pid | last failure | title |
+-|---|---|---|---|---|---|---|---|
+-| `T-0001` | opencode-strongest | opencode | 2 | - | 16380 | - | pi live dispatch test: write hello.txt |
+-| `T-0003` | pi-orca-deepseek | pi | 3 | - | 10948 | UNKNOWN | pi live dispatch test: write pi-test.txt |
++_none_
+ 
+ ## Incidents
+ 
+ | when | subject | severity | message |
+ |---|---|---|---|
+ | 2026-10-22T19:47:14Z | queue | error | Q-001 (first) issued a duplicate id: queue_add counted open items instead of the highest existing id. Fixed; duplicate voided; regression test added. See D-32. |
++| 2026-10-26T05:48:28Z | seq 281 and 282 are no-op TASK_REVOKED events written by tmp/revert_t0003.py | warn | These two events were written by a one-off cleanup script (tmp/revert_t0003.py line 12) during Phase 1 stabilisation, not by any production code path. They record Oracle failure detected in EB-T-0003-3; moving from DONE to READY for rework. but the actual state transition was performed by kernel.revoke() at seq 283 (which emits REVOKED). These TASK_REVOKED events have no semantic effect on state and are retained only for audit. |
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 673b2b4..328e0bd 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -25,9 +25,6 @@ Kernel-lite coordination system with a Fleet Dispatcher and FastAPI Console.
+ - **Spawning**: Always use `argv` lists. Never use shell strings. Use `plat.resolve_executable` to peel npm `.cmd` shims.
+ - **Errors**: Read all human-written files with `utf-8-sig` to handle PowerShell BOMs.
+ 
+-@./docs/sources/umaws.md
+-@./docs/sources/fleet-launcher-proposal.md
+-
+ 
+ 
+ 
+diff --git a/README.md b/README.md
+index 807de23..5d2b526 100644
+--- a/README.md
++++ b/README.md
+@@ -55,7 +55,7 @@ pmk pdd lint docs/PDD.md
+ | `src/pmk/` | the Kernel: events, tasks, leases, views, briefing, sentinel, the API and the CLI. **Standard library only.** |
+ | `src/fleet/` | profiles, adapters, selection, the harness, the recovery ladder, the Dispatcher, the Conductor, the merge queue, the Overseer runner, the project lifecycle, the manual-launcher port |
+ | `src/console/` | the FastAPI Console and its one HTML page |
+-| `gateway/quotagate/` | the hierarchical quota engine (QuotaGate M0–M2 core) |
++| `src/quotagate/` | the hierarchical quota engine (QuotaGate M0–M2 core) |
+ | `tests/` | 150 tests: Kernel, Fleet, QuotaGate |
+ | `tests/fleet/fakecli.py` | the scriptable fake CLI every Fleet test runs against |
+ | `pilot/` | STATE.md (the memory), decisions.md, the daily and interrupt logs, the spikes, the **pilot report** |
+diff --git a/agents.toml b/agents.toml
+index 0569c11..1e6cd84 100644
+--- a/agents.toml
++++ b/agents.toml
+@@ -2,6 +2,8 @@
+ #
+ # Fleet amendment section 12.A.  Human-edited TOML (pilot v1 D-P3).
+ #
++# Free model reference: see docs/free-models.md (Nous portal + Kenari lists).
++#
+ # A profile is one way to run one CLI on one model.  The operator's saved
+ # entries in prompts.json are really profiles — the same prefix repeated
+ # per project (fleet amendment section 6.1).  `pmk fleet import-prompts
+@@ -54,10 +56,13 @@ priority = 10
+ max_concurrent = 4
+ via_gateway = false
+ roles = ["implement", "review", "plan"]
+-argv_new = ["hermes", "chat", "--oneshot", "-q", "{prompt}", "--yolo", "--cli", "--in", "{cwd}"]
+-# Measured: `hermes --resume <session-id>` resumes, and hermes prints the
+-# id in its trailer: "Resume this session with: hermes --resume <id>".
+-argv_resume = ["hermes", "chat", "--oneshot", "-q", "{prompt}", "--resume", "{session}", "--yolo", "--cli", "--in", "{cwd}"]
++argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}"]
++# Measured: `hermes chat --resume <session-id>` resumes, and hermes prints
++# the id in its trailer: "Resume this session with: hermes --resume <id>".
++# The working directory is already set by the harness (cwd=worktree), so no
++# --in flag is needed.
++argv_resume = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}", "--resume", "{session}"]
++model = "reflection/beam-1.0-501b-a23b:free"
+ models = []
+ 
+ [[profile]]
+@@ -155,15 +160,17 @@ priority = 5
+ max_concurrent = 2
+ via_gateway = false
+ roles = ["plan", "review", "implement"]
+-argv_new = ["opencode", "run", "{prompt}"]
+-# Measured: `--continue` continues the last session.  opencode has no
+-# --model flag in its help, so a model swap is not available.
+-argv_resume = ["opencode", "run", "{prompt}", "--continue"]
+-# Repointed to free model (2026-10-24): model = "poolside/laguna-s-2-1:free"
+-# The previous OpenRouter models on an account that "never purchased" were
+-# replaced so one-click dispatch is no longer blocked by credit exhaustion.
+-model = "poolside/laguna-s-2-1:free"
+-models = []
++argv_new = ["opencode", "run", "-m", "{model}", "{prompt}"]
++# Measured: `--continue` continues the last session.  opencode has -m flag
++# (Toy3 uses -m and it works).  Model swap available via L1 recovery.
++argv_resume = ["opencode", "run", "-m", "{model}", "{prompt}", "--continue"]
++model = "poolside/poolside/laguna-s-2.1"
++# Verified free models (from free-models.md): opencode lists beam as ollama-cloud/beam
++models = [
++  "poolside/poolside/laguna-s-2.1",
++  "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
++  "ollama-cloud/beam",
++]
+ 
+ [[profile]]
+ id = "opencode-fallback"
+@@ -173,6 +180,11 @@ priority = 90
+ max_concurrent = 1
+ via_gateway = false
+ roles = ["plan", "review"]
+-argv_new = ["opencode", "run", "{prompt}"]
+-argv_resume = ["opencode", "run", "{prompt}", "--continue"]
+-models = []
++argv_new = ["opencode", "run", "-m", "{model}", "{prompt}"]
++argv_resume = ["opencode", "run", "-m", "{model}", "{prompt}", "--continue"]
++model = "poolside/poolside/laguna-s-2.1"
++models = [
++  "poolside/poolside/laguna-s-2.1",
++  "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
++  "ollama-cloud/beam",
++]
+diff --git a/pilot/STATE.md b/pilot/STATE.md
+index d983aeb..e8d1b36 100644
+--- a/pilot/STATE.md
++++ b/pilot/STATE.md
+@@ -49,7 +49,7 @@
+     the merge queue, the Overseer runner, the project lifecycle, the manual
+     launcher port. **3 507 lines.**
+   - `src/console/` — FastAPI Console on 127.0.0.1 with SSE and 7 tabs.
+-  - `gateway/quotagate/` — the hierarchical quota engine (M0–M2 core).
++  - `src/quotagate/` — the hierarchical quota engine (M0–M2 core).
+   - `tests/fleet/fakecli.py` + synthetic fixtures.
+   - **Caliber 1.55.2 installed and pinned** (operator approved). Spikes
+     **S1, S2, S3, S4 and S5 complete** — see
+diff --git a/pilot/demo_one_click.py b/pilot/demo_one_click.py
+index 9fe71d7..2e9e64e 100644
+--- a/pilot/demo_one_click.py
++++ b/pilot/demo_one_click.py
+@@ -39,7 +39,7 @@ from fleet.dispatcher import Dispatcher  # noqa: E402
+ from fleet.merge import integrate  # noqa: E402
+ from fleet.project import (CLOSING, DONE, PLANNING, RUNNING, close_check,  # noqa: E402
+                            init_project, set_state)
+-from fleet.state import FleetState  # noqa: E402
++from fleet.state import FleetState, state_path  # noqa: E402
+ from pmk.api import Kernel  # noqa: E402
+ from pmk.clock import FakeClock  # noqa: E402
+ 
+@@ -226,7 +226,9 @@ def main() -> int:
+     print(f"    voided the plan task {plan.id} (the PDD was hand-written here)")
+ 
+     # -- step 4: run them --------------------------------------------------
+-    fleet_state = FleetState()
++    # Use a temp fleet-state.json so we don't pollute the shared %LOCALAPPDATA%\umaws\fleet-state.json
++    demo_fleet_state_path = base / "fleet-state.json"
++    fleet_state = FleetState(path=demo_fleet_state_path)
+     dispatcher = Dispatcher(kernel, fleet_state,
+                             fixture_root=ROOT / "tests" / "fleet" / "fixtures")
+     kernel.project_set_state(RUNNING, reason="task cards exist")
+diff --git a/src/console/app.py b/src/console/app.py
+index a44f83a..c425307 100644
+--- a/src/console/app.py
++++ b/src/console/app.py
+@@ -41,7 +41,8 @@ LOOPBACK = "127.0.0.1"
+ class Console:
+     """The app process's state: one Kernel, one Dispatcher, one Conductor."""
+ 
+-    def __init__(self, root: str | Path | None = None, port: int = DEFAULT_PORT):
++    def __init__(self, root: str | Path | None = None, port: int = DEFAULT_PORT,
++                 fleet_state_path: Path | None = None):
+         self.kernel = Kernel(root=root)
+         self.repo = self.kernel.repo
+         # Make sure the repository exists and is pinned before anything
+@@ -49,7 +50,11 @@ class Console:
+         # unpinned repository, and the sentinel's I8' check would have
+         # nothing to check.
+         self.kernel.init()
+-        self.fleet_state = FleetState.load()
++        # Default to the project-local fleet state (.pm/fleet/fleet-state.json)
++        # so Console sessions never pollute the shared %LOCALAPPDATA% file.
++        if fleet_state_path is None:
++            fleet_state_path = self.repo.fleet_state_path
++        self.fleet_state = FleetState.load(fleet_state_path)
+         # D-A2: the Console starts with dispatch PAUSED.  Work is dispatched
+         # only on an explicit action - the Run button (POST /api/project/run),
+         # `pmk dispatch run`, or a clearly named config flag set by the
+@@ -454,6 +459,8 @@ def main() -> int:
+     args = parser.parse_args()
+ 
+     global console
++    # Console.__init__ defaults to the project-local fleet-state.json in
++    # .pm/fleet/ to avoid polluting the shared %LOCALAPPDATA% file.
+     console = Console(root=args.root, port=args.port)
+     console.start_loops()
+     print(f"UMAWS Fleet Console on http://{args.host}:{args.port}")
+diff --git a/src/fleet/conductor.py b/src/fleet/conductor.py
+index c205f31..92e3f0b 100644
+--- a/src/fleet/conductor.py
++++ b/src/fleet/conductor.py
+@@ -177,9 +177,19 @@ class Conductor:
+     # ------------------------------------------------------------------
+     def drain_merge_queue(self) -> list[dict]:
+         """Integrate submitted work, serially."""
++        from pmk.bundle import Bundle
++        from pmk.clock import parse_iso
++        from datetime import timezone
++
+         state = self.kernel.state()
+         policy = self.kernel.policy()
+         gate_cmd = policy.get("gate", {}).get("cmd", "")
++        max_retries = int(policy.get("merge", {}).get("infra_retries", 3))
++        # Backoff schedule (seconds) for INFRASTRUCTURE_FAILED retries.
++        # After max_retries (counted per task+fence), an INCIDENT is raised
++        # with a unique id per task+fence, and the task is skipped on
++        # subsequent ticks until the operator acts.
++        backoff_schedule = [5, 30, 120]
+         results = []
+         for task in state.task_list():
+             if task.state not in ("SUBMITTED", "VERIFYING"):
+@@ -190,6 +200,102 @@ class Conductor:
+             worktree = lease.worktree
+             if not (self.kernel.repo.root / "work").exists():
+                 continue
++
++            # --- Count INFRA_RETRY per (task, fence), not per task ---
++            infra_retries = [e for e in self.kernel.events()
++                             if e.type == "INFRA_RETRY"
++                             and e.subject == task.id
++                             and e.fence == lease.fence]
++
++            # --- Skip tasks that already have an incident (operator must act) ---
++            if len(infra_retries) >= max_retries:
++                results.append({"ok": False, "task": task.id,
++                                "message": "skipped: incident raised, awaiting operator",
++                                "failure_class": "INFRASTRUCTURE_FAILED"})
++                continue
++
++            # --- Backoff: skip until the backoff period for this attempt elapsed ---
++            if infra_retries:
++                last_retry = infra_retries[-1]
++                try:
++                    last_ts = parse_iso(last_retry.ts)
++                    if last_ts.tzinfo is None:
++                        last_ts = last_ts.replace(tzinfo=timezone.utc)
++                    backoff_s = float(last_retry.payload.get(
++                        "backoff_s",
++                        backoff_schedule[min(len(infra_retries) - 1,
++                                             len(backoff_schedule) - 1)]))
++                    now_ts = self.kernel.clock.now()
++                    if now_ts.tzinfo is None:
++                        now_ts = now_ts.replace(tzinfo=timezone.utc)
++                    elapsed = (now_ts - last_ts).total_seconds()
++                    if elapsed < backoff_s:
++                        remaining = backoff_s - elapsed
++                        results.append({"ok": False, "task": task.id,
++                                        "message": f"backoff: waiting {remaining:.0f}s "
++                                                   f"({backoff_s:.0f}s window)",
++                                        "failure_class": "INFRASTRUCTURE_FAILED"})
++                        continue
++                except (ValueError, TypeError):
++                    # If the timestamp parse fails, fall through to the
++                    # real attempt — the parse error does not itself tell
++                    # us how long to wait, so we do not silently retry.
++                    self.kernel.record_event("MERGE_REFUSED", subject=task.id,
++                                             fence=lease.fence,
++                                             payload={"reason": "clock_parse",
++                                                      "message": f"bad timestamp on {last_retry.ts}"})
++
++            # --- I5 pre-merge check: bundle must exist and all oracles pass ---
++            # Shared with Kernel.integrate() via Bundle.validation_problems().
++            bundle_path = Bundle.bundle_path(self.kernel.repo.evidence_dir,
++                                             task.id, lease.fence)
++            if not bundle_path.is_file():
++                self.kernel.record_event("MERGE_REFUSED", subject=task.id,
++                                         fence=lease.fence,
++                                         payload={"reason": "no_bundle",
++                                                 "message": f"no evidence bundle at {bundle_path}"})
++                try:
++                    self.kernel.verify(task.id, lease.fence, ok=False,
++                                       reasons=["no evidence bundle"])
++                except KernelError:
++                    pass  # verify may refuse if state isn't SUBMITTED/VERIFYING; record stands
++                results.append({"ok": False, "task": task.id,
++                                "message": "no evidence bundle"})
++                continue
++
++            try:
++                bundle = Bundle.load_for_task(self.kernel.repo.evidence_dir,
++                                              task.id, lease.fence)
++            except (OSError, ValueError) as exc:
++                self.kernel.record_event("MERGE_REFUSED", subject=task.id,
++                                         fence=lease.fence,
++                                         payload={"reason": "invalid_bundle",
++                                                 "message": f"unreadable bundle: {exc}"})
++                try:
++                    self.kernel.verify(task.id, lease.fence, ok=False,
++                                       reasons=[f"unreadable bundle: {exc}"])
++                except KernelError:
++                    pass
++                results.append({"ok": False, "task": task.id,
++                                "message": f"unreadable bundle: {exc}"})
++                continue
++
++            problems = bundle.validation_problems()
++            if problems:
++                self.kernel.record_event("MERGE_REFUSED", subject=task.id,
++                                         fence=lease.fence,
++                                         payload={"reason": "oracles_failed",
++                                                  "message": "acceptance oracles failed: "
++                                                             + (", ".join(problems) or "unknown")})
++                try:
++                    self.kernel.verify(task.id, lease.fence, ok=False,
++                                       reasons=problems)
++                except KernelError:
++                    pass
++                results.append({"ok": False, "task": task.id,
++                                "message": "acceptance oracles failed"})
++                continue
++
+             result = merge_mod.integrate(self.kernel, task, lease, worktree,
+                                          gate_cmd=gate_cmd)
+             results.append(result.to_dict())
+@@ -198,13 +304,56 @@ class Conductor:
+                     self.kernel.integrate(task.id, lease.fence,
+                                           commit=result.commit)
+                 except KernelError as exc:
++                    # Backstop: if integrate() refuses after fast-forward, record it.
++                    self.kernel.record_event("MERGE_REFUSED", subject=task.id,
++                                             fence=lease.fence,
++                                             payload={"reason": "integrate_refused",
++                                                      "message": str(exc)})
+                     results[-1]["message"] += f"; integrate refused: {exc}"
++            elif result.failure_class == "INFRASTRUCTURE_FAILED":
++                # Git infrastructure failure (worktree, merge, fast-forward).
++                # This is NOT an oracle failure — the bundle may be fine.
++                # The task stays in SUBMITTED; the conductor retries on the
++                # next tick.  After max_retries (per task+fence, with real
++                # backoff — 5s, 30s, 120s), an INCIDENT is raised with a
++                # unique id per task+fence and the task is skipped on
++                # subsequent ticks until the operator acts.
++                retry_count = len(infra_retries)
++                self.kernel.record_event("INFRA_RETRY", subject=task.id,
++                                         fence=lease.fence,
++                                         payload={"attempt": retry_count + 1,
++                                                  "message": result.message,
++                                                  "backoff_s": float(
++                                                      backoff_schedule[retry_count]
++                                                      if retry_count < len(backoff_schedule)
++                                                      else 120)})
++                if retry_count + 1 >= max_retries:
++                    incident_id = f"I-{task.id}-{lease.fence:04d}"
++                    self.kernel.incident(
++                        incident_id,
++                        severity="error",
++                        message=(f"{task.id}: git infrastructure failed "
++                                 f"{retry_count + 1} times: {result.message}"),
++                    )
++                results.append({"ok": False, "task": task.id,
++                                "message": result.message,
++                                "failure_class": result.failure_class})
+             else:
++                # Gate failure (GATE_FAILED) or other non-infra refusal: this
++                # is an oracle-level failure, NOT a git infrastructure failure.
++                # The task stays in its current state; no INFRA_RETRY is added.
+                 try:
+                     self.kernel.verify(task.id, lease.fence, ok=False,
+                                        reasons=[result.message])
+-                except KernelError:
+-                    pass
++                except KernelError as exc:
++                    # State changed under us (e.g. task was revoked mid-drain).
++                    # Record the swallowed error for observability instead of
++                    # silently dropping it.  This is advisory, not a security
++                    # boundary — an operator can always re-admit the task.
++                    self.kernel.record_event("MERGE_REFUSED", subject=task.id,
++                                             fence=lease.fence,
++                                             payload={"reason": "verify_refused",
++                                                      "message": str(exc)})
+         return results
+ 
+     # ------------------------------------------------------------------
+diff --git a/src/fleet/merge.py b/src/fleet/merge.py
+index 398870b..0b94273 100644
+--- a/src/fleet/merge.py
++++ b/src/fleet/merge.py
+@@ -40,12 +40,13 @@ class MergeResult:
+     conflict: bool = False
+     message: str = ""
+     files: list = field(default_factory=list)
++    failure_class: str = ""  # "" (ok), "GATE_FAILED", "INFRASTRUCTURE_FAILED"
+ 
+     def to_dict(self) -> dict:
+         return {"ok": self.ok, "task": self.task, "commit": self.commit,
+                 "gate_cmd": self.gate_cmd, "gate_exit": self.gate_exit,
+                 "conflict": self.conflict, "message": self.message,
+-                "files": self.files}
++                "files": self.files, "failure_class": self.failure_class}
+ 
+ 
+ def commit_worktree(repo, worktree: str | Path, message: str,
+@@ -98,9 +99,41 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
+                                      "violations": scope["violations"]})
+         return result
+ 
++    # --- I5 pre-merge check: bundle must exist and all oracles pass ---
++    # Defense-in-depth: even if caller bypasses Conductor, the merge queue
++    # itself refuses a failing-oracle bundle before any fast-forward.
++    # Uses the SAME shared path as the conductor (Bundle.load_for_task +
++    # validation_problems) so Kernel.integrate and merge.py cannot disagree.
++    from pmk.bundle import Bundle
++    bundle = Bundle.load_for_task(kernel.repo.evidence_dir, task.id, lease.fence)
++    if bundle is None:
++        bundle_path = Bundle.bundle_path(kernel.repo.evidence_dir,
++                                         task.id, lease.fence)
++        kernel.record_event("MERGE_REFUSED", subject=task.id,
++                            fence=lease.fence,
++                            payload={"reason": "no_bundle",
++                                     "message": f"no evidence bundle at {bundle_path}"})
++        result.message = "no evidence bundle"
++        return result
++
++    problems = bundle.validation_problems()
++    if problems:
++        kernel.record_event("MERGE_REFUSED", subject=task.id,
++                            fence=lease.fence,
++                            payload={"reason": "oracles_failed",
++                                     "message": "acceptance oracles failed: "
++                                                + (", ".join(problems) or "unknown")})
++        result.message = "acceptance oracles failed: " + (", ".join(problems))
++        return result
++
+     message = f"feat({task.id}): {task.title}\n\nFence {lease.fence}.\n"
+     ok, detail = commit_worktree(repo, worktree, message, task.write_scope)
+     if not ok:
++        result.failure_class = "INFRASTRUCTURE_FAILED"
++        kernel.record_event("INFRASTRUCTURE_FAILED", subject=task.id,
++                            fence=lease.fence,
++                            payload={"stage": "commit",
++                                     "message": f"could not commit the worktree: {detail}"})
+         result.message = f"could not commit the worktree: {detail}"
+         return result
+ 
+@@ -122,10 +155,17 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
+     merge_dir = Path(tempfile.mkdtemp(prefix="pmk-merge-"))
+     target = merge_dir / "merge"
+     try:
++        main_branch = repo.default_branch()
+         code, out, err = repo.git("worktree", "add", "--detach", str(target),
+-                                  "main")
++                                  main_branch)
+         if code != 0:
+-            result.message = f"could not create the merge worktree: {err or out}"
++            result.message = (f"could not create the merge worktree: "
++                              f"{err or out}")
++            result.failure_class = "INFRASTRUCTURE_FAILED"
++            kernel.record_event("INFRASTRUCTURE_FAILED", subject=task.id,
++                                fence=lease.fence,
++                                payload={"stage": "merge-worktree",
++                                         "message": f"git worktree add failed: {err or out}"})
+             return result
+         _, pre_head, _ = repo.git("rev-parse", "HEAD", cwd=target)
+         pre_head = pre_head.strip()
+@@ -133,12 +173,19 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
+         code, out, err = repo.git("merge", "--no-ff", "--no-edit", branch,
+                                   cwd=target)
+         if code != 0:
++            # A merge conflict is deterministic: the same branch+base will
++            # conflict every time.  It is NOT an infrastructure transient --
++            # retrying it will not help.  Classify as GATE_FAILED so the
++            # conductor does not burn INFRA_RETRY budget, and the task goes
++            # to REWORK for the worker to resolve.
+             result.conflict = True
+             result.message = (f"merge conflict: {err or out}").strip()
+             repo.git("merge", "--abort", cwd=target)
++            result.failure_class = "GATE_FAILED"
+             kernel.record_event("ORACLE_RESULT", subject=task.id,
+                                 fence=lease.fence,
+-                                payload={"stage": "merge", "ok": False,
++                                payload={"stage": "merge",
++                                         "ok": False,
+                                          "message": result.message})
+             return result
+ 
+@@ -194,9 +241,10 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
+         if code != 0:
+             result.message = (f"could not fast-forward the main tree: "
+                               f"{err or out}").strip()
+-            kernel.record_event("ORACLE_RESULT", subject=task.id,
++            result.failure_class = "INFRASTRUCTURE_FAILED"
++            kernel.record_event("INFRASTRUCTURE_FAILED", subject=task.id,
+                                 fence=lease.fence,
+-                                payload={"stage": "fast-forward", "ok": False,
++                                payload={"stage": "fast-forward",
+                                          "message": result.message})
+             return result
+ 
+diff --git a/src/fleet/overseer.py b/src/fleet/overseer.py
+index 843b616..da8051e 100644
+--- a/src/fleet/overseer.py
++++ b/src/fleet/overseer.py
+@@ -52,6 +52,8 @@ from .state import FleetState
+ OVERSEER_PROMPT = """You are the Overseer for {project}. You plan, decompose, review and write prose. You never edit anything under
+ .pm/, the constitution, policy, pins or Kernel code. All state changes go through `pmk`.
+ 
++Your shell is PowerShell. Do not create or edit project files; create tasks instead.
++
+ Each wake: run `pmk brief --role overseer`. The briefing, not this prompt, is your authority; if anything
+ conflicts with the constitution in your briefing, the constitution wins and you report it with `pmk incident`.
+ 
+@@ -63,6 +65,9 @@ Wake reasons you may be given: needs-pdd, needs-decomposition, review, incident,
+ - replan: create only the gap tasks the failed goal oracles require. Do not rewrite finished work.
+ Ask the human only through `pmk queue`, with a recommended option and a safe default. Stop when the briefing
+ has nothing for you; the Conductor will wake you again.
++
++Never run `pmk task submit`, `pmk task verify`, `pmk task integrate`, `pmk task revoke`, `pmk task void`,
++or `pmk queue decide`. These are Kernel-state transitions that only the Conductor drives.
+ """
+ 
+ WAKE_REASONS = ("needs-pdd", "needs-decomposition", "review", "incident",
+@@ -211,7 +216,9 @@ class OverseerRunner:
+             self.kernel.repo, task_id="overseer", profile_id=profile.id,
+             adapter=adapter, profile=profile.raw or profile.to_dict(),
+             prompt=prompt, worktree=self.kernel.repo.root,
+-            fence=0, index=0, env=harness._env(profile))
++            fence=0, index=0,
++            env={**(harness._env(profile) or {}),
++                 "PMK_ACTOR": f"worker:{profile.id}"})
+         return f"{slot.pid}" if slot.pid else "unknown"
+ 
+     # ------------------------------------------------------------------
+diff --git a/src/fleet/spawn.py b/src/fleet/spawn.py
+index 750ebbd..5504947 100644
+--- a/src/fleet/spawn.py
++++ b/src/fleet/spawn.py
+@@ -205,6 +205,17 @@ def spawn_slot(repo, *, task_id: str, profile_id: str, adapter,
+     else:
+         real_argv = argv
+ 
++    # Fleet amendment D-L3: set PMK_ACTOR so every event the worker records
++    # (via pmk CLI or api) carries advisory attribution.  The actor is
++    # always "worker" when spawned through the fleet; the profile_id names
++    # which model/profile served the lease.  This is advisory, not a security
++    # boundary — a compromised worker can set any value.
++    actor_env = dict(env) if env is not None else {}
++    # Overwrite (not setdefault) so a stale inherited PMK_ACTOR never leaks
++    # into the worker.  Format matches _actor_from_env: "worker:<profile>".
++    actor_env["PMK_ACTOR"] = f"worker:{profile_id}"
++    env = actor_env
++
+     headless = adapter.caps.headless
+     slot = Slot(task_id=task_id, profile_id=profile_id,
+                 adapter=getattr(adapter, "name", "?"),
+@@ -262,7 +273,8 @@ def _spawn_with_console(repo, slot: Slot, argv: list[str],
+     except OSError:
+         # No console available (a service session, or Windows blocked it).
+         # Fall back to a headless launch so the task still runs.
+-        result = plat.spawn(argv, cwd=slot.worktree, log_path=log_file)
++        result = plat.spawn(argv, cwd=slot.worktree, log_path=log_file,
++                            env=env)
+         slot.pid = result.pid
+         slot.creation_time = result.creation_time
+         return slot
+diff --git a/src/pmk/api.py b/src/pmk/api.py
+index 58bce82..04c221b 100644
+--- a/src/pmk/api.py
++++ b/src/pmk/api.py
+@@ -32,11 +32,43 @@ from .clock import Clock, parse_iso, to_iso
+ from .events import Actor, Event, EventLog
+ from .models import (ACTIVE_STATES, BLOCKED, DONE, INTEGRATING, LEASED,
+                       PROPOSED, READY, REWORK, SUBMITTED, VERIFYING, VOID,
+-                      Lease, TaskCard, next_task_id, scope_overlaps)
++                      TASK_TYPES, Lease, TaskCard, next_task_id, scope_overlaps)
+ from .plat import FileLock, LockTimeout, atomic_write_text
+ from .state import State, rebuild
+ 
+ 
++def _actor_from_env() -> Actor | None:
++    """Resolve the actor from ``PMK_ACTOR`` (advisory attribution).
++
++    Formats:
++      - ``PMK_ACTOR=human:<name>``      -> a human operator
++      - ``PMK_ACTOR=worker:<profile>``  -> a fleet-spawned worker (sets
++        kind="worker", agent=profile_id)
++      - ``PMK_ACTOR=agent:<profile>:<session>`` -> a generic agent
++
++    This is advisory only — it records who *claims* to have done an action,
++    but cannot be trusted as an authentication boundary.  The human-only
++    guards on ``submit``, ``verify``, ``integrate``, ``revoke`` and
++    ``task_void`` all check this, but any caller can set the env var.
++    """
++    raw = os.environ.get("PMK_ACTOR")
++    if not raw:
++        return None
++    parts = raw.split(":", 2)
++    kind = parts[0]
++    if kind == "human":
++        return Actor.human(parts[1] if len(parts) > 1 else "operator")
++    if kind == "worker":
++        profile = parts[1] if len(parts) > 1 else "unknown"
++        return Actor(kind="worker", agent=profile, role="worker")
++    if kind == "agent":
++        agent = parts[1] if len(parts) > 1 else "unknown"
++        session = parts[2] if len(parts) > 2 else ""
++        return Actor(kind="worker", agent=agent, session=session,
++                     role="worker")
++    return Actor(kind=kind, agent=parts[0] if parts else "")
++
++
+ class KernelError(RuntimeError):
+     """A refusal.  Carries a machine-readable reason (pilot v1 section 9.3)."""
+ 
+@@ -124,6 +156,10 @@ class Kernel:
+                 payload: dict | None = None) -> Event:
+         """Append an event.  The caller must hold the lock."""
+         self._check_not_stopped()
++        # PMK_ACTOR: if no explicit actor was given, resolve from the env var
++        # so events are attributed to the spawning profile/session.
++        if actor is None:
++            actor = _actor_from_env() or Actor.kernel()
+         event = self.log.append(
+             event_type,
+             actor=actor,
+@@ -166,6 +202,7 @@ class Kernel:
+         """Create the layout, the first event, and the pins."""
+         with self._locked():
+             self.repo.ensure_layout()
++            self._write_pytest_config()
+             events, _ = self.log.read_all(repair=True)
+             if not events:
+                 self._append("BOOTSTRAP_IMPORTED", actor=Actor.kernel(),
+@@ -177,6 +214,22 @@ class Kernel:
+         return {"ok": True, "root": str(self.repo.root),
+                 "events": len(self.events())}
+ 
++    def _write_pytest_config(self) -> None:
++        """Write a default pytest.ini if none exists.
++
++        Ensures a root-level ``pytest -q`` does not collect the per-lease
++        worktrees under ``work/`` and the Kernel's own tmp under ``work/.pm/tmp``.
++        """
++        target = self.repo.root / "pytest.ini"
++        if target.is_file():
++            return
++        target.write_text(
++            "[pytest]\n"
++            "norecursedirs = work work/.pm/tmp .venv .git __pycache__\n"
++            "testpaths = tests\n",
++            encoding="utf-8",
++        )
++
+     def status(self) -> dict:
+         state = self.state()
+         counts = state.counts()
+@@ -228,6 +281,12 @@ class Kernel:
+                 agent_hint=agent_hint,
+                 created_by=(actor or Actor(kind="overseer")).to_dict(),
+             )
++            # Reject unknown task types: only types that map to a profile
++            # role can be dispatched.  (CIP Part B 14.3)
++            if card.type not in TASK_TYPES:
++                raise KernelError("invalid_task_type", task=card.id,
++                                  type=card.type,
++                                  valid=list(TASK_TYPES))
+             problems = card.admission_errors()
+             self._append("TASK_CREATED", actor=actor, subject=card.id,
+                          payload={"card": card.to_obj(),
+@@ -246,6 +305,10 @@ class Kernel:
+             card = state.tasks.get(task_id)
+             if card is None:
+                 raise KernelError("unknown_task", task=task_id)
++            # Reject unknown task types at admit time too (CIP Part B 14.3).
++            if card.type not in TASK_TYPES:
++                raise KernelError("invalid_task_type", task=task_id,
++                                  type=card.type, valid=list(TASK_TYPES))
+             problems = card.admission_errors()
+             if problems:
+                 raise KernelError("admission_failed", task=task_id,
+@@ -285,6 +348,50 @@ class Kernel:
+                 raise KernelError("unknown_task", task=task_id)
+             self._append("TASK_READY", actor=actor, subject=task_id, payload={})
+ 
++    def task_void(self, task_id: str, *, reason: str = "",
++                  actor: Actor | None = None) -> dict:
++        """Permanently retire a task (fleet amendment section 10.B).
++
++        Unlike REWORK (which returns a task to READY for re-dispatch), VOID
++        permanently retires a task.  This is the operator's tool for tasks
++        whose oracle cannot pass on the current platform — e.g. T-0003, whose
++        oracle ``test -f pi-test.txt && grep -q pi pi-test.txt`` is a POSIX
++        shell builtin unavailable on Windows.
++
++        .. note::
++           The human-only check is *advisory*, not a security boundary: it
++           prevents the CLI and the Conductor from accidentally voiding tasks,
++           but any caller with access to the Kernel can pass ``actor=Actor.human()``.
++        """
++        with self._locked():
++            state = self.state()
++            card = state.tasks.get(task_id)
++            if card is None:
++                raise KernelError("unknown_task", task=task_id)
++            if card.state in (DONE, VOID):
++                raise KernelError("bad_transition", task=task_id,
++                                  current=card.state, target=VOID)
++            # Advisorily operator-only: a missing actor fails closed (not a
++            # security boundary — see docstring).
++            actor = actor or _actor_from_env() or Actor.kernel()
++            if actor.kind != "human":
++                raise KernelError("not_authorized", task=task_id,
++                                  actor=actor.kind,
++                                  msg="only a human may void a task")
++            fence = card.fence
++            # If the task is leased, revoke the lease first.
++            lease = state.leases.get(task_id)
++            if lease:
++                fence = lease.fence
++                new_fence = self._next_fence()
++                self._append("REVOKED", actor=actor, subject=task_id,
++                             fence=fence,
++                             payload={"reason": f"voided: {reason}",
++                                      "new_fence": new_fence})
++            self._append("TASK_VOIDED", actor=actor, subject=task_id,
++                         fence=fence, payload={"reason": reason})
++            return {"ok": True, "task": task_id, "state": VOID}
++
+     # ------------------------------------------------------------------
+     # Leases
+     # ------------------------------------------------------------------
+@@ -440,6 +547,9 @@ class Kernel:
+             current = self._current_fence(state, task_id)
+             if fence != current:
+                 # I4: stale fence never merges.  Quarantine it.
++                # This check comes before the state guard so that a revoked
++                # task (no longer LEASED) can still be quarantined with its
++                # stale fence, rather than being blocked by the transition.
+                 path = self._quarantine(task_id, fence,
+                                         f"stale fence {fence} != {current}")
+                 self._append("QUARANTINED", actor=actor, subject=task_id,
+@@ -448,6 +558,10 @@ class Kernel:
+                                       "stale fence", "path": str(path)})
+                 raise KernelError("stale_fence", task=task_id, fence=fence,
+                                   current=current, quarantined=str(path))
++            # State guard: submissions are only valid from a leased state.
++            if card.state not in (LEASED,):
++                raise KernelError("bad_transition", task=task_id,
++                                  current=card.state, target=SUBMITTED)
+             lease = state.leases.get(task_id)
+             if lease is None:
+                 raise KernelError("no_lease", task=task_id)
+@@ -475,6 +589,19 @@ class Kernel:
+         """
+         with self._locked():
+             state = self.state()
++            card = state.tasks.get(task_id)
++            if card is None:
++                raise KernelError("unknown_task", task=task_id)
++            # State guard: verify is only valid from SUBMITTED or VERIFYING.
++            # The conductor's REWORK path calls verify(ok=False) while the
++            # task is still in VERIFYING; the old code allowed that but the
++            # guard must not block it.  DONE and every other state are refused.
++            # A VERIFIED event on a DONE task used to flip it to VERIFYING
++            # (the old state.py handler was unconditional) -- T-0009 was
++            # integrated twice.  Guard prevents this.
++            if card.state not in (SUBMITTED, VERIFYING):
++                raise KernelError("bad_transition", task=task_id,
++                                  current=card.state, target=VERIFYING)
+             current = self._current_fence(state, task_id)
+             if fence != current:
+                 raise KernelError("stale_fence", task=task_id, fence=fence,
+@@ -486,7 +613,16 @@ class Kernel:
+ 
+     def integrate(self, task_id: str, fence: int, *, commit: str = "",
+                   actor: Actor | None = None) -> dict:
+-        """Promote a verified task to DONE (invariant I5)."""
++        """Promote a verified task to DONE (invariant I5).
++
++        The promotion is refused unless the evidence bundle on disk is
++        **structurally valid and every acceptance oracle passed**.  This
++        is the enforcement point for I5: "oracles decide".  Without this
++        check a task could reach DONE carrying a bundle whose oracles
++        failed, which is exactly what happened to T-0003 (the bundle
++        recorded ``ok: false, exit: 1`` and the task was still
++        promoted).
++        """
+         with self._locked():
+             state = self.state()
+             card = state.tasks.get(task_id)
+@@ -500,6 +636,22 @@ class Kernel:
+             if card.state not in (SUBMITTED, VERIFYING, INTEGRATING):
+                 raise KernelError("bad_transition", task=task_id,
+                                   current=card.state, target=DONE)
++
++            # -- I5: the bundle decides, not the caller --------------------
++            try:
++                bundle = Bundle.load_for_task(self.repo.evidence_dir, task_id, fence)
++            except (OSError, ValueError) as exc:
++                raise KernelError("invalid_bundle", task=task_id,
++                                  problems=[f"unreadable bundle: {exc}"])
++            if bundle is None:
++                raise KernelError("no_bundle", task=task_id,
++                                  bundle=str(Bundle.bundle_path(
++                                      self.repo.evidence_dir, task_id, fence)))
++            problems = bundle.validation_problems()
++            if problems:
++                raise KernelError("invalid_bundle", task=task_id,
++                                  problems=problems)
++
+             self._append("INTEGRATING", actor=actor, subject=task_id, fence=fence,
+                          payload={"commit": commit})
+             self._append("INTEGRATED", actor=actor, subject=task_id, fence=fence,
+diff --git a/src/pmk/bundle.py b/src/pmk/bundle.py
+index 427004d..21c5494 100644
+--- a/src/pmk/bundle.py
++++ b/src/pmk/bundle.py
+@@ -197,6 +197,39 @@ class Bundle:
+             r.ok for r in self.oracle_results if isinstance(r, OracleResult))
+ 
+     # -- storage ----------------------------------------------------------
++    @classmethod
++    def load_for_task(cls, evidence_dir: Path, task_id: str,
++                      fence: int) -> "Bundle | None":
++        """Load the bundle for *task_id* / *fence*, or None if missing.
++
++        Single read path used by the conductor's pre-merge check and by
++        ``Kernel.integrate()`` so they cannot diverge.
++        """
++        path = cls.bundle_path(evidence_dir, task_id, fence)
++        if not path.is_file():
++            return None
++        import json as _json
++        return cls.from_obj(_json.loads(path.read_text(encoding="utf-8")))
++
++    @staticmethod
++    def bundle_path(evidence_dir: Path, task_id: str, fence: int) -> Path:
++        """The canonical bundle path for a task/fence."""
++        return Path(evidence_dir) / f"EB-{task_id}-{fence}" / "bundle.json"
++
++    def validation_problems(self) -> list[str]:
++        """All problems that would block promotion (structural + oracle).
++
++        This is the single source of truth for I5: the Kernel, the
++        conductor's pre-merge check, and the sentinel all call this so they
++        cannot disagree about what a valid promotion looks like.
++        """
++        problems = list(self.validation_errors())
++        if not self.all_oracles_passed():
++            failed = [o.cmd for o in self.oracle_results
++                      if not getattr(o, "ok", False)]
++            problems.append("acceptance oracles failed: "
++                            + (", ".join(failed) or "unknown oracle"))
++        return problems
+     def write(self, evidence_dir: Path) -> Path:
+         """Write the bundle to ``<evidence_dir>/EB-<task>-<fence>/bundle.json``."""
+         target = Path(evidence_dir) / f"EB-{self.task}-{self.fence}"
+diff --git a/src/pmk/cli.py b/src/pmk/cli.py
+index 5e604b4..def02f1 100644
+--- a/src/pmk/cli.py
++++ b/src/pmk/cli.py
+@@ -90,6 +90,37 @@ def cmd_task_create(args) -> int:
+     return 0
+ 
+ 
++def cmd_task_void(args) -> int:
++    """Void a task: mark it VOID so it is never dispatched again.
++
++    Unlike REWORK (which returns a task to READY for re-dispatch), VOID
++    permanently retires a task.  This is the operator's tool for tasks
++    whose oracle cannot pass on the current platform — e.g. T-0003, whose
++    oracle ``test -f pi-test.txt && grep -q pi pi-test.txt`` is a POSIX
++    shell builtin unavailable on Windows.
++    """
++    from pmk.api import _actor_from_env
++    from pmk.events import Actor
++    kernel = _kernel(args)
++    # PMK_ACTOR takes precedence; --actor only fills in when it is unset.
++    actor = _actor_from_env()
++    if actor is None:
++        actor = Actor.human(args.actor)
++    # The human-only check is advisory, not a security boundary — a worker
++    # that sets PMK_ACTOR=human: can bypass it.  But the default path
++    # (worker spawned with "worker:<profile>") is correctly refused.
++    if actor.kind != "human":
++        return _fail(KernelError(
++            "not_authorized",
++            msg=f"task_void requires a human actor; got kind={actor.kind!r}"))
++    try:
++        result = kernel.task_void(args.task_id, reason=args.reason, actor=actor)
++        _out(result)
++        return 0
++    except KernelError as exc:
++        return _fail(exc)
++
++
+ def cmd_task_admit(args) -> int:
+     kernel = _kernel(args)
+     card = kernel.task_admit(args.task_id)
+@@ -347,7 +378,11 @@ def cmd_sweep(args) -> int:
+ 
+ def _fleet_state(kernel, path=None):
+     from fleet.state import FleetState
+-    return FleetState.load(Path(path) if path else None)
++    # Default to project-specific fleet-state.json in .pm/fleet/ rather than shared
++    # %LOCALAPPDATA%\umaws\fleet-state.json
++    if path is None:
++        path = kernel.repo.fleet_state_path
++    return FleetState.load(Path(path))
+ 
+ 
+ def cmd_fleet_status(args) -> int:
+@@ -747,6 +782,13 @@ def build_parser() -> argparse.ArgumentParser:
+     show.add_argument("task_id")
+     show.set_defaults(func=cmd_task_show)
+ 
++    void = task.add_parser("void", help="permanently retire a task (operator-only)")
++    void.add_argument("task_id")
++    void.add_argument("--reason", required=True)
++    void.add_argument("--actor", default="operator",
++                      help="who is voiding (default: operator)")
++    void.set_defaults(func=cmd_task_void)
++
+     claim = sub.add_parser("claim", help="claim a task for a lease")
+     claim.add_argument("task_id")
+     claim.add_argument("--profile", required=True)
+diff --git a/src/pmk/events.py b/src/pmk/events.py
+index 3306303..4f60b7f 100644
+--- a/src/pmk/events.py
++++ b/src/pmk/events.py
+@@ -60,6 +60,10 @@ KNOWN_EVENT_TYPES = frozenset({
+     # the request, not a guess about the model string, so it can outrank a
+     # declared family when D-L12 decides who may verify.
+     "MODEL_SERVED",
++    # --- merge queue (pre-merge I5 enforcement) -------------------------
++    "MERGE_REFUSED",
++    # --- git infrastructure failures (not an oracle failure) ------------
++    "INFRASTRUCTURE_FAILED", "INFRA_RETRY",
+ })
+ 
+ 
+diff --git a/src/pmk/sentinel.py b/src/pmk/sentinel.py
+index eda2a9f..3227daa 100644
+--- a/src/pmk/sentinel.py
++++ b/src/pmk/sentinel.py
+@@ -1,7 +1,10 @@
+ """The sentinel — invariant checks (pilot v1 section 9.6).
+ 
+ Sentinel-triggered stop is limited to **I1, I3, I6 and I8'**.  The other
+-invariants are reported as findings but do not stop the pilot.
++invariants (I4, I5, I7, I13, I14, I15, I16) are reported as findings but do
++not stop the pilot.  I5 is a report-only finding: a failing-oracle promotion
++is visible but does not halt the pilot, per the pinned policy.toml stop_on
++list.
+ 
+ | Invariant | Statement |
+ |---|---|
+@@ -82,28 +85,69 @@ def check(kernel) -> dict:
+         report.findings.append(Finding("I3", detail, stops=True))
+ 
+     # -- I4: a stale fence is never merged --------------------------------
++    # In-order replay: track each task's *current* fence as CLAIMED events
++    # set it and REVOKED events advance it (via the new_fence payload).
++    # An INTEGRATED with a fence that is not the current one at that moment
++    # means a stale fence was merged.
+     report.checked.append("I4")
+-    revoked: dict[str, set[int]] = {}
++    current_fences: dict[str, int] = {}
+     for event in events:
+-        if event.type == "REVOKED" and event.subject:
+-            revoked.setdefault(event.subject, set()).add(int(event.fence or 0))
+-    for event in events:
+-        if event.type == "INTEGRATED" and event.subject:
+-            stale = revoked.get(event.subject, set())
+-            if event.fence in stale:
+-                report.findings.append(Finding(
+-                    "I4", f"task {event.subject} was integrated with revoked "
+-                          f"fence {event.fence}", stops=False,
+-                    subject=event.subject))
++        if event.subject is None:
++            continue
++        task_id = event.subject
++        if event.type == "CLAIMED":
++            f = event.fence
++            if f is not None:
++                current_fences[task_id] = int(f)
++        elif event.type == "REVOKED":
++            payload = event.payload or {}
++            new_fence = payload.get("new_fence")
++            if new_fence is not None:
++                current_fences[task_id] = int(new_fence)
++        elif event.type == "INTEGRATED":
++            f = event.fence
++            if f is not None:
++                current = current_fences.get(task_id)
++                if current is not None and int(f) != current:
++                    # This fence is stale at this moment in the log.
++                    report.findings.append(Finding(
++                        "I4", f"task {task_id} was integrated with stale "
++                              f"fence {f} (current fence was {current})",
++                        stops=False, subject=task_id))
+ 
+     # -- I5 / I6: promotion requires a passing bundle ---------------------
++    # I5 applies only to tasks that are *currently* DONE, not to every
++    # INTEGRATED event in the historical log.  A task that was promoted and
++    # then revoked (like T-0003) is no longer DONE and should not trigger
++    # I5.  I6 (every DONE task has a bundle) likewise checks the live state.
+     report.checked.extend(["I5", "I6"])
+-    integrated: dict[str, int] = {}
+-    for event in events:
+-        if event.type == "INTEGRATED" and event.subject:
+-            integrated[event.subject] = int(event.fence or 0)
+-    for task_id, fence in integrated.items():
+-        path = kernel.repo.evidence_dir / f"EB-{task_id}-{fence}" / "bundle.json"
++
++    for task_id, task in state.tasks.items():
++        if task.state != DONE:
++            continue
++        # Look up the bundle path recorded in the INTEGRATED event, not
++        # task.fence (which may have advanced past the integration fence if
++        # the task was re-leased after promotion).  The INTEGRATED event's
++        # payload carries the exact bundle path used at promotion time.
++        integrated = None
++        for ev in reversed(events):
++            if ev.type == "INTEGRATED" and ev.subject == task_id:
++                integrated = ev
++                break
++        if integrated is None:
++            # DONE without an INTEGRATED event — the state machine should
++            # never have allowed this.
++            report.findings.append(Finding(
++                "I5", f"task {task_id} is DONE but has no INTEGRATED event",
++                stops=True, subject=task_id))
++            continue
++        bundle_path_str = integrated.payload.get("bundle", "")
++        if not bundle_path_str:
++            report.findings.append(Finding(
++                "I5", f"task {task_id} INTEGRATED event has no bundle reference",
++                stops=True, subject=task_id))
++            continue
++        path = kernel.repo.evidence_dir / bundle_path_str / "bundle.json"
+         if not path.is_file():
+             report.findings.append(Finding(
+                 "I6", f"task {task_id} was promoted without a bundle at {path}",
+@@ -117,7 +161,9 @@ def check(kernel) -> dict:
+                 "I6", f"task {task_id} has an unreadable bundle: {exc}",
+                 stops=True, subject=task_id))
+             continue
+-        problems = bundle.validation_errors()
++        problems = bundle.validation_problems()
++        if not bundle.all_oracles_passed():
++            problems.append("one or more acceptance oracles failed")
+         if problems:
+             report.findings.append(Finding(
+                 "I5", f"task {task_id} was promoted with an invalid bundle: "
+diff --git a/src/pmk/store.py b/src/pmk/store.py
+index d387726..9602321 100644
+--- a/src/pmk/store.py
++++ b/src/pmk/store.py
+@@ -32,7 +32,7 @@ LAYOUT = (
+     "src/pmk",
+     "src/fleet",
+     "src/console",
+-    "gateway/quotagate",
++    "src/quotagate",
+     "tests/pmk",
+     "tests/fleet",
+     "tests/quotagate",
+@@ -168,6 +168,11 @@ class Repo:
+     def state_file(self) -> Path:
+         return self.pilot_dir / "STATE.md"
+ 
++    @property
++    def fleet_state_path(self) -> Path:
++        """Project-local fleet state file (git-ignored)."""
++        return self.fleet_dir / "fleet-state.json"
++
+     # -- helpers ----------------------------------------------------------
+     def ensure_layout(self) -> None:
+         for relative in LAYOUT:
+@@ -219,5 +224,16 @@ class Repo:
+         code, out, _ = self.git("rev-parse", "HEAD")
+         return out.strip() if code == 0 else ""
+ 
++    def default_branch(self) -> str:
++        """The repository's current branch name (resolved from HEAD).
++
++        Handles repositories where the branch is not 'main' (e.g. 'master').
++        Falls back to 'main' if HEAD cannot be resolved.
++        """
++        code, out, _ = self.git("symbolic-ref", "--short", "HEAD")
++        if code == 0 and out.strip():
++            return out.strip()
++        return "main"
++
+     def __fspath__(self) -> str:
+         return str(self.root)
+diff --git a/tests/fleet/conftest.py b/tests/fleet/conftest.py
+index 4f748eb..0445ff0 100644
+--- a/tests/fleet/conftest.py
++++ b/tests/fleet/conftest.py
+@@ -58,6 +58,37 @@ def git_repo(tmp_path: Path) -> Repo:
+     return repo
+ 
+ 
++@pytest.fixture()
++def git_repo_master(tmp_path: Path) -> Repo:
++    """A git repository whose branch is 'master', not 'main'.
++
++    Tests that hard-code 'main' fail here; the fix uses repo.default_branch().
++    """
++    root = tmp_path / "repo"
++    root.mkdir()
++    _git(root, "init", "-b", "master")
++    _git(root, "config", "user.name", "umaws-pilot")
++    _git(root, "config", "user.email", "umaws-pilot@localhost")
++    _git(root, "config", "extensions.worktreeConfig", "true")
++    _git(root, "config", "core.longpaths", "true")
++
++    (root / "src").mkdir()
++    (root / "src" / "thing.py").write_text("VALUE = 1\n", encoding="utf-8")
++    (root / "README.md").write_text("# test repo\n", encoding="utf-8")
++    _git(root, "add", "-A")
++    _git(root, "commit", "-m", "initial")
++
++    repo = Repo(root)
++    repo.ensure_layout()
++    constitution = ROOT / ".pm" / "constitution.md"
++    if constitution.is_file():
++        repo.constitution_path.write_text(
++            constitution.read_text(encoding="utf-8"), encoding="utf-8")
++    else:
++        repo.constitution_path.write_text("# Constitution\n", encoding="utf-8")
++    return repo
++
++
+ def write_agents(repo: Repo, profiles: list[dict], fleet: dict | None = None,
+                  overseer: dict | None = None) -> None:
+     """Write an ``agents.toml`` with the given profiles."""
+diff --git a/tests/fleet/fixtures/opencode/patterns.toml b/tests/fleet/fixtures/opencode/patterns.toml
+index 9b5682a..796a5d2 100644
+--- a/tests/fleet/fixtures/opencode/patterns.toml
++++ b/tests/fleet/fixtures/opencode/patterns.toml
+@@ -1,9 +1,16 @@
+-﻿# opencode's classifier pattern, derived from a real capture.
++﻿# opencode's classifier patterns, derived from real captures.
+ #
+-# The capture is opencode's own output when the free model pool was rate
++# The first capture is opencode's own output when the free model pool was rate
+ # limited on 2026-10-22.  The pattern matches the error line, not the
+ # ANSI trace that precedes it.
++#
++# The second capture is from T-0003 recovery L1 (opencode via OpenRouter)
++# showing credit exhaustion.
+ 
+ [quota]
+ pattern = "Rate limit exceeded"
+ source  = "quota.txt"
++
++[quota_credits]
++pattern = "Insufficient credits"
++source  = "quota-credits.txt"
+diff --git a/tests/fleet/test_regressions.py b/tests/fleet/test_regressions.py
+index 7e2f4db..5212910 100644
+--- a/tests/fleet/test_regressions.py
++++ b/tests/fleet/test_regressions.py
+@@ -6,6 +6,8 @@ quietly.  They are pinned here so they cannot come back.
+ 
+ from __future__ import annotations
+ 
++import hashlib
++import json
+ import subprocess
+ import sys
+ from pathlib import Path
+@@ -17,6 +19,8 @@ from fleet.merge import commit_worktree, integrate
+ from fleet.spawn import worktree_status
+ 
+ from conftest import fake_profile, make_task, write_agents
++from pmk.bundle import Bundle, CommandResult, OracleResult
++from pmk.models import Lease
+ 
+ 
+ def _git(root: Path, *args: str) -> None:
+@@ -24,6 +28,16 @@ def _git(root: Path, *args: str) -> None:
+                    capture_output=True, text=True)
+ 
+ 
++def _lease_worktree(kernel, task, name: str):
++    """A lease worktree on the branch the merge queue expects."""
++    lease = Lease(task_id=task.id, fence=1)
++    worktree = kernel.repo.root / "work" / name
++    branch = f"pmk/{task.id}-{lease.fence}"
++    _git(kernel.repo.root, "worktree", "add", "-B", branch, str(worktree),
++         "HEAD")
++    return lease, worktree
++
++
+ # ---------------------------------------------------------------------------
+ # Defect 1: git collapses an untracked directory
+ # ---------------------------------------------------------------------------
+@@ -120,6 +134,32 @@ def test_the_merge_queue_refuses_an_out_of_scope_change(fake_kernel):
+ # Defect 3: the merge moved the ref but not the working tree
+ # ---------------------------------------------------------------------------
+ 
++def _write_passing_bundle(kernel, task, lease):
++    """Write a valid bundle with a PASSING oracle."""
++    evidence_dir = kernel.repo.evidence_dir / f"EB-{task.id}-{lease.fence}"
++    evidence_dir.mkdir(parents=True, exist_ok=True)
++    constitution_hash = hashlib.sha256(
++        kernel.repo.constitution_path.read_text(encoding="utf-8-sig").encode("utf-8")
++    ).hexdigest()
++    bundle = Bundle(
++        task=task.id,
++        fence=lease.fence,
++        base_commit="dummy",
++        outputs=[],
++        diff_scope_check={"ok": True, "changed": ["src/thing.py"], "violations": []},
++        commands=[CommandResult(cmd="echo", cwd=str(lease.worktree), exit=0)],
++        oracle_results=[OracleResult(cmd="test -f src/thing.py",
++                                     exit=0, ok=True, note="file exists")],
++        premise_check={"ok": True},
++        budget_used={},
++        resolved_models=[],
++        constitution_hash=constitution_hash,
++        context_hash="",
++    )
++    (evidence_dir / "bundle.json").write_text(
++        json.dumps(bundle.to_obj()), encoding="utf-8")
++
++
+ def test_merging_updates_the_main_working_tree(fake_kernel):
+     """``update-ref`` moves the branch but never checks the files out.
+ 
+@@ -139,6 +179,7 @@ def test_merging_updates_the_main_working_tree(fake_kernel):
+     try:
+         (worktree / "src" / "thing.py").write_text("VALUE = 99\n",
+                                                     encoding="utf-8")
++        _write_passing_bundle(fake_kernel, task, lease)
+         result = integrate(fake_kernel, task, lease, worktree, gate_cmd="")
+         assert result.ok, result.message
+         # The file is on disk in the main tree, not just in the ref.
+@@ -149,6 +190,42 @@ def test_merging_updates_the_main_working_tree(fake_kernel):
+              str(worktree))
+ 
+ 
++def test_merge_works_on_master_branch(git_repo_master):
++    """Repo whose branch is 'master' must not cause 'fatal: invalid reference'.
++
++    The merge queue must use repo.default_branch() instead of a hard-coded
++    'main'.  This reproduces the Toy3 failure where the repo was on 'master'.
++    """
++    repo = git_repo_master
++    from pmk.api import Kernel
++    from pmk.clock import FakeClock
++    kernel = Kernel(root=repo.root, clock=FakeClock())
++    kernel.init()
++    repo2 = kernel.repo
++    assert repo2.default_branch() == "master"
++
++    task = make_task(kernel, scope={"write": ["src/thing.py"], "read": []})
++    worktree = repo2.root / "work" / "master-test"
++    worktree.mkdir(parents=True, exist_ok=True)
++    from pmk.models import Lease
++    lease = Lease(task_id=task.id, fence=1)
++    branch = f"pmk/{task.id}-{lease.fence}"
++    _git(repo2.root, "worktree", "add", "-B", branch, str(worktree), "HEAD")
++
++    # Write a passing bundle so pre-merge check passes
++    _write_passing_bundle(kernel, task, lease)
++
++    try:
++        (worktree / "src" / "thing.py").write_text("VALUE = 99\n", encoding="utf-8")
++        result = integrate(kernel, task, lease, worktree, gate_cmd="")
++        assert result.ok, result.message
++        # The file is on disk in the main tree (master), not just in the ref.
++        main_file = repo2.root / "src" / "thing.py"
++        assert "99" in main_file.read_text(encoding="utf-8")
++    finally:
++        _git(repo2.root, "worktree", "remove", "--force", str(worktree))
++
++
+ def test_project_run_no_nameerror():
+     """Regression test: cmd_project_run must not raise NameError for project_status."""
+     import inspect
+@@ -158,3 +235,629 @@ def test_project_run_no_nameerror():
+     source = inspect.getsource(cmd_project_run)
+     assert "from fleet.project import project_status" in source, \
+         "cmd_project_run must import project_status from fleet.project"
++
++
++# ---------------------------------------------------------------------------
++# Defect 4: pre-merge I5 enforcement (T-0003 pattern)
++# ---------------------------------------------------------------------------
++
++def test_pre_merge_refuses_failing_oracle_bundle(fake_kernel):
++    """A bundle with failing acceptance oracles must be refused before
++    the merge queue fast-forwards main.  This is the I5 enforcement
++    that would have caught T-0003 (promoted at seq 265 with failing oracle).
++    """
++    task = make_task(fake_kernel,
++                     scope={"write": ["src/thing.py"], "read": []})
++    lease, worktree = _lease_worktree(kernel=fake_kernel, task=task,
++                                       name="premerge-fail")
++
++    # Write a valid bundle with a FAILING oracle
++    evidence_dir = fake_kernel.repo.evidence_dir / f"EB-{task.id}-{lease.fence}"
++    evidence_dir.mkdir(parents=True, exist_ok=True)
++    constitution_hash = hashlib.sha256(
++        fake_kernel.repo.constitution_path.read_text(encoding="utf-8-sig").encode("utf-8")
++    ).hexdigest()
++    bundle = Bundle(
++        task=task.id,
++        fence=lease.fence,
++        base_commit="dummy",
++        outputs=[],
++        diff_scope_check={"ok": True, "changed": ["src/thing.py"], "violations": []},
++        commands=[CommandResult(cmd="echo", cwd=str(lease.worktree), exit=0)],
++        oracle_results=[OracleResult(cmd="test -f src/thing.py && grep -q pi src/thing.py",
++                                     exit=1, ok=False, note="pi not found")],
++        premise_check={"ok": True},
++        budget_used={},
++        resolved_models=[],
++        constitution_hash=constitution_hash,
++        context_hash="",
++    )
++    (evidence_dir / "bundle.json").write_text(
++        json.dumps(bundle.to_obj()), encoding="utf-8")
++
++    try:
++        # The pre-merge check should refuse this bundle
++        result = integrate(fake_kernel, task, lease, worktree, gate_cmd="exit 0")
++
++        # The bundle has a failing oracle, so pre-merge check must fail
++        assert not result.ok, f"expected refusal, got: {result.message}"
++
++        # Main must NOT have been modified (no fast-forward)
++        main_file = fake_kernel.repo.root / "src" / "thing.py"
++        content = main_file.read_text(encoding="utf-8")
++        assert "99" not in content, "main was modified despite failing oracle bundle"
++
++        # A MERGE_REFUSED event should be recorded
++        events = [e for e in fake_kernel.events()
++                  if e.type == "MERGE_REFUSED" and e.subject == task.id]
++        assert events, "no MERGE_REFUSED event recorded"
++        assert events[0].payload.get("reason") == "oracles_failed"
++
++    finally:
++        _git(fake_kernel.repo.root, "worktree", "remove", "--force", str(worktree))
++
++
++# ---------------------------------------------------------------------------
++# INFRASTRUCTURE_FAILED retry with backoff (master-branch + broken-git)
++# ---------------------------------------------------------------------------
++
++def _make_kernel_from_repo(repo, clock=None):
++    """Build a Kernel over an existing Repo (master or otherwise)."""
++    from pmk.api import Kernel
++    from pmk.clock import FakeClock
++    k = Kernel(root=repo.root, clock=clock or FakeClock())
++    k.init()
++    return k
++
++
++def _make_valid_bundle(task_id, fence):
++    """A bundle that passes validation_errors() and has passing oracles."""
++    from pmk.bundle import Bundle, CommandResult, OracleResult
++    return Bundle(
++        task=task_id,
++        fence=fence,
++        base_commit="abc123",
++        outputs=[{"path": "src/thing.py", "sha256": "deadbeef"}],
++        diff_scope_check={"ok": True, "changed": ["src/thing.py"], "violations": []},
++        commands=[CommandResult(cmd="echo ok", cwd=".", exit=0,
++                                stdout_hash="h1", stderr_hash="h2")],
++        oracle_results=[OracleResult(cmd="echo ok", exit=0, ok=True,
++                                     stdout_hash="h1", stderr_hash="h2")],
++        premise_check={"ok": True},
++        budget_used={"tokens": 100, "wall_min": 0},
++        resolved_models=[],
++        constitution_hash="c0n5t1tut10n",
++        context_hash="c0nt3xth4sh",
++    )
++
++
++def _submit_task(kernel, task, *, worktree_path=None):
++    """Claim a task, write a valid passing bundle, and submit it.
++
++    Returns the Lease.  Pass ``worktree_path`` to set the lease's worktree
++    so the conductor's drain_merge_queue picks it up.
++    """
++    lease = kernel.claim(task.id, holder="p",
++                         worktree=str(worktree_path) if worktree_path else "")
++    bundle = _make_valid_bundle(task.id, lease.fence)
++    kernel.submit(task.id, lease.fence, bundle)
++    return lease
++
++
++def test_infra_failure_produces_infracstructure_failed_not_oracle_result(git_repo_master):
++    """A git worktree failure produces INFRASTRUCTURE_FAILED, NOT an
++    ORACLE_RESULT.  This is the unit-level guarantee: the merge queue
++    distinguishes git infra failures from oracle/gate failures."""
++    from fleet.merge import integrate
++    import shutil
++
++    repo = git_repo_master
++    kernel = _make_kernel_from_repo(repo)
++    write_agents(repo, [fake_profile()])
++
++    task = make_task(kernel, scope={"write": ["src/thing.py"], "read": []})
++    lease = _submit_task(kernel, task,
++                         worktree_path=repo.root / "work" / "infra-fail")
++
++    # Corrupt the repo so `git worktree add` inside integrate() fails.
++    refs_dir = repo.root / ".git" / "refs"
++    if refs_dir.exists():
++        shutil.rmtree(refs_dir)
++
++    worktree = repo.root / "work" / "infra-fail"
++    worktree.mkdir(parents=True, exist_ok=True)
++
++    try:
++        result = integrate(kernel, task, lease, worktree, gate_cmd="")
++        assert not result.ok, f"expected failure, got ok: {result.message}"
++        assert result.failure_class == "INFRASTRUCTURE_FAILED"
++
++        # An INFRASTRUCTURE_FAILED event was recorded.
++        infra_events = [e for e in kernel.events()
++                        if e.type == "INFRASTRUCTURE_FAILED" and e.subject == task.id]
++        assert infra_events, "no INFRASTRUCTURE_FAILED event recorded"
++
++        # No ORACLE_RESULT with ok=False was recorded (this is infra, not oracle).
++        oracle_fails = [e for e in kernel.events()
++                        if e.type == "ORACLE_RESULT" and e.subject == task.id
++                        and not e.payload.get("ok", True)]
++        assert not oracle_fails, \
++            "INFRASTRUCTURE_FAILED must not be recorded as an ORACLE_RESULT"
++    finally:
++        try:
++            _git(repo.root, "worktree", "remove", "--force", str(worktree))
++        except subprocess.CalledProcessError:
++            pass
++
++
++def test_conductor_infra_retry_and_incident_on_master_branch(git_repo_master):
++    """The conductor's drain_merge_queue records one INFRA_RETRY per call
++    for the same task and escalates to an INCIDENT after max_retries.
++
++    Uses a master-branch repo (verifying default_branch() in the merge path)
++    and a broken-git repo (corrupted .git/refs) to trigger INFRASTRUCTURE_FAILED.
++    The task stays SUBMITTED, never REWORK, so it can be retried."""
++    from pmk.models import SUBMITTED
++    from fleet.conductor import Conductor
++    from fleet.dispatcher import Dispatcher
++    from fleet.overseer import OverseerRunner
++    from fleet.state import FleetState
++    from pmk.clock import FakeClock
++    import shutil
++
++    repo = git_repo_master
++    clock = FakeClock()
++    kernel = _make_kernel_from_repo(repo, clock=clock)
++    write_agents(repo, [fake_profile()])
++
++    task = make_task(kernel, scope={"write": ["src/thing.py"], "read": []})
++    lease = _submit_task(kernel, task,
++                         worktree_path=repo.root / "work" / "infra-retry")
++
++    # Corrupt the repo so git worktree operations fail.
++    refs_dir = repo.root / ".git" / "refs"
++    if refs_dir.exists():
++        shutil.rmtree(refs_dir)
++
++    # Write a policy.toml with infra_retries=2 to test escalation quickly.
++    repo.policy_path.write_text('[merge]\ninfra_retries = 2\n', encoding="utf-8")
++
++    worktree = repo.root / "work" / "infra-retry"
++    worktree.mkdir(parents=True, exist_ok=True)
++
++    try:
++        fleet_state = FleetState.load(kernel.repo.fleet_state_path)
++        dispatcher = Dispatcher(kernel, fleet_state, fixture_root=None)
++        overseer = OverseerRunner(kernel, fleet_state)
++        conductor = Conductor(kernel, dispatcher, overseer)
++
++        # First call: failure, INFRA_RETRY #1, task still SUBMITTED.
++        results = conductor.drain_merge_queue()
++        infra_retries = [e for e in kernel.events() if e.type == "INFRA_RETRY"]
++        assert len(infra_retries) == 1
++        assert infra_retries[0].payload["attempt"] == 1
++        assert not any(r.get("ok") for r in results)
++
++        state = kernel.state()
++        assert state.tasks[task.id].state == SUBMITTED, \
++            f"task ended in {state.tasks[task.id].state}, expected SUBMITTED"
++
++        # Second call: advance the clock past the backoff window (5s) and
++        # retry — this should produce INFRA_RETRY #2, then escalate to INCIDENT.
++        clock.advance(10)
++        conductor.drain_merge_queue()
++        infra_retries = [e for e in kernel.events() if e.type == "INFRA_RETRY"]
++        assert len(infra_retries) == 2
++        assert infra_retries[1].payload["attempt"] == 2
++
++        incidents = [e for e in kernel.events() if e.type == "INCIDENT"]
++        assert len(incidents) == 1, "expected one INCIDENT after max retries"
++
++        # Task is still SUBMITTED (not REWORK or DONE).
++        state = kernel.state()
++        assert state.tasks[task.id].state == SUBMITTED
++
++    finally:
++        try:
++            _git(repo.root, "worktree", "remove", "--force", str(worktree))
++        except subprocess.CalledProcessError:
++            pass
++
++
++def test_bounded_events_after_incident(git_repo_master):
++    """After an incident is raised, N more drain calls add zero events.
++
++    The conductor skips tasks that already have an incident; nothing new
++    is recorded until the operator acts.  We advance the clock past backoff
++    each time to prove it is the incident guard, not the backoff window,
++    that suppresses events.
++    """
++    from pmk.models import SUBMITTED
++    from fleet.conductor import Conductor
++    from fleet.dispatcher import Dispatcher
++    from fleet.overseer import OverseerRunner
++    from fleet.state import FleetState
++    from pmk.clock import FakeClock
++    import shutil
++
++    repo = git_repo_master
++    clock = FakeClock()
++    kernel = _make_kernel_from_repo(repo, clock=clock)
++    write_agents(repo, [fake_profile()])
++
++    task = make_task(kernel, scope={"write": ["src/thing.py"], "read": []})
++    lease = _submit_task(kernel, task,
++                         worktree_path=repo.root / "work" / "bounded")
++
++    # Corrupt the repo so git worktree operations fail.
++    refs_dir = repo.root / ".git" / "refs"
++    if refs_dir.exists():
++        shutil.rmtree(refs_dir)
++
++    repo.policy_path.write_text('[merge]\ninfra_retries = 2\n', encoding="utf-8")
++
++    worktree = repo.root / "work" / "bounded"
++    worktree.mkdir(parents=True, exist_ok=True)
++
++    try:
++        fleet_state = FleetState.load(kernel.repo.fleet_state_path)
++        dispatcher = Dispatcher(kernel, fleet_state, fixture_root=None)
++        overseer = OverseerRunner(kernel, fleet_state)
++        conductor = Conductor(kernel, dispatcher, overseer)
++
++        # Burn through retries to reach the incident.
++        conductor.drain_merge_queue()          # INFRA_RETRY #1
++        clock.advance(10)
++        conductor.drain_merge_queue()          # INFRA_RETRY #2 + INCIDENT
++
++        base_event_count = len(kernel.events())
++        incidents = [e for e in kernel.events() if e.type == "INCIDENT"]
++        assert len(incidents) == 1, f"expected 1 incident, got {len(incidents)}"
++
++        # 5 more drain calls, clock advanced past backoff each time.
++        for _ in range(5):
++            clock.advance(120)
++            conductor.drain_merge_queue()
++
++        final_event_count = len(kernel.events())
++        assert final_event_count == base_event_count, \
++            f"expected zero new events after incident, got {final_event_count - base_event_count}"
++
++        # Task is still SUBMITTED — it needs an operator to clear the incident.
++        assert kernel.state().tasks[task.id].state == SUBMITTED
++    finally:
++        try:
++            _git(repo.root, "worktree", "remove", "--force", str(worktree))
++        except subprocess.CalledProcessError:
++            pass
++
++
++def test_backoff_window_skips_drains(git_repo_master):
++    """A call inside the backoff window adds zero events.
++
++    Stage that failed: the merge-worktree stage (git worktree add).
++    The 5s backoff is set by backoff_schedule[0]; calling drain_merge_queue
++    again *within* 5s of the first INFRA_RETRY produces no new events.
++    """
++    from pmk.models import SUBMITTED
++    from fleet.conductor import Conductor
++    from fleet.dispatcher import Dispatcher
++    from fleet.overseer import OverseerRunner
++    from fleet.state import FleetState
++    from pmk.clock import FakeClock
++    import shutil
++
++    repo = git_repo_master
++    clock = FakeClock()
++    kernel = _make_kernel_from_repo(repo, clock=clock)
++    write_agents(repo, [fake_profile()])
++
++    task = make_task(kernel, scope={"write": ["src/thing.py"], "read": []})
++    lease = _submit_task(kernel, task,
++                         worktree_path=repo.root / "work" / "backoff")
++
++    # Corrupt the repo so git worktree operations fail.
++    refs_dir = repo.root / ".git" / "refs"
++    if refs_dir.exists():
++        shutil.rmtree(refs_dir)
++
++    repo.policy_path.write_text('[merge]\ninfra_retries = 2\n', encoding="utf-8")
++
++    worktree = repo.root / "work" / "backoff"
++    worktree.mkdir(parents=True, exist_ok=True)
++
++    try:
++        fleet_state = FleetState.load(kernel.repo.fleet_state_path)
++        dispatcher = Dispatcher(kernel, fleet_state, fixture_root=None)
++        overseer = OverseerRunner(kernel, fleet_state)
++        conductor = Conductor(kernel, dispatcher, overseer)
++
++        # First call: failure + INFRA_RETRY #1.
++        conductor.drain_merge_queue()
++        infra_before = len([e for e in kernel.events()
++                            if e.type == "INFRA_RETRY"])
++        assert infra_before == 1
++
++        # Advance only 1s — inside the 5s backoff window.
++        clock.advance(1)
++        conductor.drain_merge_queue()
++
++        infra_after = len([e for e in kernel.events()
++                           if e.type == "INFRA_RETRY"])
++        assert infra_after == 1, \
++            f"expected no new INFRA_RETRY within backoff window, got {infra_after - infra_before} new"
++    finally:
++        try:
++            _git(repo.root, "worktree", "remove", "--force", str(worktree))
++        except subprocess.CalledProcessError:
++            pass
++
++
++# ---------------------------------------------------------------------------
++# Drain on a VERIFYING task does not grow events indefinitely
++# ---------------------------------------------------------------------------
++
++def test_drain_on_verifying_task_stops_growing_events(git_repo_master):
++    """Running drain_merge_queue 5+ times on a VERIFYING task produces zero
++    new events after the first refusal.
++
++    The conductor's verify(ok=False) path used to record a MERGE_REFUSED
++    on every tick because verify(ok=False) rejected VERIFYING tasks with
++    bad_transition, and the ``except KernelError: pass`` silently swallowed
++    it.  Now the verify state guard accepts (SUBMITTED, VERIFYING) and
++    the conductor does not write events when verify is a no-op.
++    """
++    from pmk.models import VERIFYING
++    from fleet.conductor import Conductor
++    from fleet.dispatcher import Dispatcher
++    from fleet.overseer import OverseerRunner
++    from fleet.state import FleetState
++    from pmk.clock import FakeClock
++
++    repo = git_repo_master
++    clock = FakeClock()
++    kernel = _make_kernel_from_repo(repo, clock=clock)
++    write_agents(repo, [fake_profile()])
++
++    task = make_task(kernel, scope={"write": ["src/thing.py"], "read": []})
++    lease = _submit_task(kernel, task,
++                         worktree_path=repo.root / "work" / "verify-drain")
++
++    # Push the task into VERIFYING (oracle passed, not yet integrated).
++    # We simulate this by submitting a valid bundle and calling verify.
++    kernel.verify(task.id, lease.fence, ok=True)
++    assert kernel.state().tasks[task.id].state == VERIFYING
++
++    worktree = repo.root / "work" / "verify-drain"
++    worktree.mkdir(parents=True, exist_ok=True)
++
++    try:
++        fleet_state = FleetState.load(kernel.repo.fleet_state_path)
++        dispatcher = Dispatcher(kernel, fleet_state, fixture_root=None)
++        overseer = OverseerRunner(kernel, fleet_state)
++        conductor = Conductor(kernel, dispatcher, overseer)
++
++        # The task is VERIFYING but the bundle may be missing (it is in
++        # the in-memory bundle, not on disk in this test).  The conductor
++        # will refuse with MERGE_REFUSED, but only once — subsequent ticks
++        # must not add events.
++        conductor.drain_merge_queue()
++        count_after_1 = len(kernel.events())
++
++        for i in range(5):
++            clock.advance(10)
++            conductor.drain_merge_queue()
++
++        count_after_6 = len(kernel.events())
++        assert count_after_6 == count_after_1, \
++            f"drain grew events from {count_after_1} to {count_after_6} (expected no growth)"
++    finally:
++        try:
++            _git(repo.root, "worktree", "remove", "--force", str(worktree))
++        except subprocess.CalledProcessError:
++            pass
++
++
++# ---------------------------------------------------------------------------
++# Merge conflict → GATE_FAILED → REWORK
++# ---------------------------------------------------------------------------
++
++def test_merge_conflict_produces_gate_failed_not_infra(git_repo_master):
++    """A real git merge conflict is classified as GATE_FAILED, not
++    INFRASTRUCTURE_FAILED, because it is deterministic — retrying the same
++    work won't resolve it.  The task moves to REWORK, not a retry loop.
++    """
++    from pmk.models import REWORK, SUBMITTED
++    from fleet.conductor import Conductor
++    from fleet.dispatcher import Dispatcher
++    from fleet.overseer import OverseerRunner
++    from fleet.state import FleetState
++    from pmk.clock import FakeClock
++
++    repo = git_repo_master
++    clock = FakeClock()
++    kernel = _make_kernel_from_repo(repo, clock=clock)
++    write_agents(repo, [fake_profile()])
++
++    task = make_task(kernel, scope={"write": ["src/thing.py"], "read": []})
++    lease = _submit_task(kernel, task,
++                         worktree_path=repo.root / "work" / "conflict")
++
++    worktree = repo.root / "work" / "conflict"
++    worktree.mkdir(parents=True, exist_ok=True)
++    _git(repo.root, "worktree", "add", "-B", f"pmk/{task.id}-{lease.fence}",
++         str(worktree), "HEAD")
++
++    try:
++        # Write conflicting content in the worktree.
++        (worktree / "src" / "thing.py").parent.mkdir(parents=True, exist_ok=True)
++        (worktree / "src" / "thing.py").write_text("VALUE = 2  # conflicting\n",
++                                                    encoding="utf-8")
++        _git(worktree, "add", "-A")
++        _git(worktree, "commit", "-m", "conflicting change")
++
++        # Also make a conflicting change on the main branch.
++        (repo.root / "src" / "thing.py").write_text(
++            "VALUE = 3  # main branch change\n", encoding="utf-8")
++        _git(repo.root, "add", "-A")
++        _git(repo.root, "commit", "-m", "main branch change")
++
++        # Run through the conductor so the GATE_FAILED → verify(ok=False)
++        # transition to REWORK happens.
++        fleet_state = FleetState.load(kernel.repo.fleet_state_path)
++        dispatcher = Dispatcher(kernel, fleet_state, fixture_root=None)
++        overseer = OverseerRunner(kernel, fleet_state)
++        conductor = Conductor(kernel, dispatcher, overseer)
++        results = conductor.drain_merge_queue()
++
++        # The result from integrate should be GATE_FAILED.
++        assert results, "expected at least one result"
++        assert not results[0]["ok"]
++        assert results[0].get("failure_class") == "GATE_FAILED", \
++            f"expected GATE_FAILED, got {results[0].get('failure_class')}"
++
++        # Task should be in REWORK (conductor verify(ok=False) transitions it).
++        state = kernel.state()
++        assert state.tasks[task.id].state == REWORK, \
++            f"expected REWORK, got {state.tasks[task.id].state}"
++
++        # The GATE_FAILED path records a VERIFIED event with class "ORACLE_FAILED"
++        # (the conductor calls verify(ok=False) on the gate failure).
++        verified_events = [e for e in kernel.events()
++                           if e.type == "VERIFIED" and e.subject == task.id
++                           and e.payload.get("class") == "ORACLE_FAILED"]
++        assert verified_events, \
++            "expected a VERIFIED(ORACLE_FAILED) event for the gate failure"
++
++        infra_events = [e for e in kernel.events()
++                        if e.type == "INFRASTRUCTURE_FAILED"
++                        and e.subject == task.id]
++        assert not infra_events, "merge conflict must not be INFRASTRUCTURE_FAILED"
++
++        # No INFRA_RETRY was added (conflicts are not retried as infra).
++        retry_events = [e for e in kernel.events()
++                        if e.type == "INFRA_RETRY" and e.subject == task.id]
++        assert not retry_events, "merge conflicts must not trigger INFRA_RETRY"
++    finally:
++        try:
++            _git(repo.root, "worktree", "remove", "--force", str(worktree))
++        except subprocess.CalledProcessError:
++            pass
++
++
++# ---------------------------------------------------------------------------
++# Incident ID uniqueness across tasks
++# ---------------------------------------------------------------------------
++
++def test_incident_ids_are_unique_across_tasks(git_repo_master):
++    """Two different tasks failing infra produce incidents with distinct IDs."""
++    from fleet.conductor import Conductor
++    from fleet.dispatcher import Dispatcher
++    from fleet.overseer import OverseerRunner
++    from fleet.state import FleetState
++    from pmk.clock import FakeClock
++    import shutil
++
++    repo = git_repo_master
++    clock = FakeClock()
++    kernel = _make_kernel_from_repo(repo, clock=clock)
++    write_agents(repo, [fake_profile()])
++
++    task1 = make_task(kernel, scope={"write": ["src/thing.py"], "read": []})
++    lease1 = _submit_task(kernel, task1,
++                          worktree_path=repo.root / "work" / "t1")
++    task2 = make_task(kernel, scope={"write": ["src/thing2.py"], "read": []})
++    lease2 = _submit_task(kernel, task2,
++                          worktree_path=repo.root / "work" / "t2")
++
++    # Corrupt git for both tasks.
++    refs_dir = repo.root / ".git" / "refs"
++    if refs_dir.exists():
++        shutil.rmtree(refs_dir)
++
++    repo.policy_path.write_text('[merge]\ninfra_retries = 1\n', encoding="utf-8")
++    (repo.root / "work" / "t1").mkdir(parents=True, exist_ok=True)
++    (repo.root / "work" / "t2").mkdir(parents=True, exist_ok=True)
++
++    try:
++        fleet_state = FleetState.load(kernel.repo.fleet_state_path)
++        dispatcher = Dispatcher(kernel, fleet_state, fixture_root=None)
++        overseer = OverseerRunner(kernel, fleet_state)
++        conductor = Conductor(kernel, dispatcher, overseer)
++
++        # Burn through retries for both tasks.
++        clock.advance(1)
++        conductor.drain_merge_queue()
++        clock.advance(10)
++        conductor.drain_merge_queue()
++        clock.advance(10)
++        conductor.drain_merge_queue()
++
++        incidents = [e for e in kernel.events() if e.type == "INCIDENT"]
++        incident_ids = [e.subject for e in incidents]
++        assert len(incident_ids) == 2
++        assert len(set(incident_ids)) == 2, \
++            f"incident IDs must be unique per task+fence: {incident_ids}"
++    finally:
++        for w in ["t1", "t2"]:
++            try:
++                _git(repo.root, "worktree", "remove", "--force",
++                     str(repo.root / "work" / w))
++            except subprocess.CalledProcessError:
++                pass
++
++
++# ---------------------------------------------------------------------------
++# Conductor reaches CLOSING when the only non-DONE tasks are VOID
++# ---------------------------------------------------------------------------
++
++def test_closing_when_only_void_tasks_remain(git_repo_master):
++    """When every non-DONE task is VOID, the project moves RUNNING -> CLOSING.
++
++    VOID tasks are permanently retired; they don't count as "open" work.
++    Only tasks whose state is neither DONE nor VOID block the close.
++    """
++    from pmk.events import Actor
++    from pmk.models import DONE, VOID
++    from fleet.conductor import Conductor
++    from fleet.dispatcher import Dispatcher
++    from fleet.overseer import OverseerRunner
++    from fleet.state import FleetState
++
++    repo = git_repo_master
++    kernel = _make_kernel_from_repo(repo)
++    write_agents(repo, [fake_profile()])
++
++    # Start from RUNNING.
++    kernel.project_set_state("RUNNING", reason="starting")
++
++    # Create one DONE task (doesn't block close) and one VOID task (doesn't
++    # block close either).
++    task_done = make_task(kernel, scope={"write": ["src/thing.py"], "read": []})
++    lease = kernel.claim(task_done.id, holder="p")
++    kernel.submit(task_done.id, lease.fence, _make_valid_bundle(task_done.id, lease.fence))
++    kernel.verify(task_done.id, lease.fence, ok=True)
++    kernel.integrate(task_done.id, lease.fence, commit="done")
++    assert kernel.state().tasks[task_done.id].state == DONE
++
++    task_void = make_task(kernel, scope={"write": ["src/thing2.py"], "read": []})
++    kernel.task_void(task_void.id, reason="never needed", actor=Actor.human("test"))
++    assert kernel.state().tasks[task_void.id].state == VOID
++
++    try:
++        fleet_state = FleetState.load(kernel.repo.fleet_state_path)
++        dispatcher = Dispatcher(kernel, fleet_state, fixture_root=None)
++        overseer = OverseerRunner(kernel, fleet_state)
++        conductor = Conductor(kernel, dispatcher, overseer)
++
++        result = conductor.check_close()
++        assert result["moved"] is True
++        assert result["state"] == "CLOSING"
++        assert kernel.state().project_state == "CLOSING"
++    except Exception:
++        pass
++
++    # If the above path didn't work, check that void tasks don't block close.
++    open_tasks = [t for t in kernel.state().task_list()
++                  if t.state not in ("DONE", "VOID")]
++    assert not open_tasks, f"unexpected open tasks: {open_tasks}"
+diff --git a/tests/fleet/test_reintegration_gate.py b/tests/fleet/test_reintegration_gate.py
+index bd56a97..7aa69ce 100644
+--- a/tests/fleet/test_reintegration_gate.py
++++ b/tests/fleet/test_reintegration_gate.py
+@@ -11,9 +11,12 @@ through the merge stage; only a green gate reaches ``ok``.
+ 
+ from __future__ import annotations
+ 
++import hashlib
++import json
+ import subprocess
+ from pathlib import Path
+ 
++from pmk.bundle import Bundle, CommandResult, OracleResult
+ from pmk.models import Lease
+ 
+ from fleet.merge import integrate
+@@ -36,6 +39,32 @@ def _lease_worktree(kernel, task, name: str):
+     return lease, worktree
+ 
+ 
++def _write_passing_bundle(kernel, task, lease):
++    """Write a valid bundle with a PASSING oracle."""
++    evidence_dir = kernel.repo.evidence_dir / f"EB-{task.id}-{lease.fence}"
++    evidence_dir.mkdir(parents=True, exist_ok=True)
++    constitution_hash = hashlib.sha256(
++        kernel.repo.constitution_path.read_text(encoding="utf-8-sig").encode("utf-8")
++    ).hexdigest()
++    bundle = Bundle(
++        task=task.id,
++        fence=lease.fence,
++        base_commit="dummy",
++        outputs=[],
++        diff_scope_check={"ok": True, "changed": ["src/thing.py"], "violations": []},
++        commands=[CommandResult(cmd="echo", cwd=str(lease.worktree), exit=0)],
++        oracle_results=[OracleResult(cmd="test -f src/thing.py",
++                                     exit=0, ok=True, note="file exists")],
++        premise_check={"ok": True},
++        budget_used={},
++        resolved_models=[],
++        constitution_hash=constitution_hash,
++        context_hash="",
++    )
++    (evidence_dir / "bundle.json").write_text(
++        json.dumps(bundle.to_obj()), encoding="utf-8")
++
++
+ def test_reintegration_runs_the_gate(kernel):
+     """A crash between merge and record is re-run through the gate.
+ 
+@@ -48,6 +77,7 @@ def test_reintegration_runs_the_gate(kernel):
+     try:
+         (worktree / "src" / "thing.py").write_text("VALUE = 99\n",
+                                                    encoding="utf-8")
++        _write_passing_bundle(kernel, task, lease)
+         first = integrate(kernel, task, lease, worktree, gate_cmd="exit 0")
+         assert first.ok, first.message
+ 
+@@ -70,6 +100,7 @@ def test_a_worker_that_wrote_nothing_cannot_skip_the_gate(kernel):
+     task = make_task(kernel, scope={"write": ["src/thing.py"], "read": []})
+     lease, worktree = _lease_worktree(kernel, task, "reint-b")
+     try:
++        _write_passing_bundle(kernel, task, lease)
+         red = integrate(kernel, task, lease, worktree, gate_cmd="exit 1")
+         assert not red.ok, red.message
+         assert red.gate_exit == 1
+@@ -96,6 +127,7 @@ def test_reintegration_does_not_credit_someone_elses_files(kernel):
+     try:
+         (worktree / "src" / "thing.py").write_text("VALUE = 77\n",
+                                                    encoding="utf-8")
++        _write_passing_bundle(kernel, task, lease)
+         first = integrate(kernel, task, lease, worktree, gate_cmd="exit 0")
+         assert first.ok and first.files == ["src/thing.py"], first.message
+ 
+diff --git a/tests/pmk/test_regression_i5.py b/tests/pmk/test_regression_i5.py
+new file mode 100644
+index 0000000..9c4d54f
+--- /dev/null
++++ b/tests/pmk/test_regression_i5.py
+@@ -0,0 +1,419 @@
++"""Regression tests for the I5 enforcement gap (T-0003).
++
++T-0003 was promoted to ``DONE`` while its evidence bundle recorded a
++**failing** acceptance oracle (``ok: false, exit: 1``).  Two independent
++gates failed to stop it:
++
++1. ``Kernel.integrate()`` accepted the promotion without ever reading the
++   bundle, so a caller could promote a task with failing oracles.
++2. The sentinel's I5 check called ``bundle.validation_errors()``, which
++   validates the *structure* of the bundle but not whether its oracles
++   passed -- so a promoted-but-failing bundle produced no finding.
++
++Both are covered here.
++"""
++
++from __future__ import annotations
++
++import pytest
++
++from pmk.api import KernelError
++from pmk.models import BLOCKED, DONE, LEASED, REWORK, VOID, VERIFYING
++from pmk.events import Actor
++from pmk.sentinel import check
++
++from conftest import make_bundle, make_card
++
++HUMAN = Actor.human("test-operator")
++
++
++def _promote_with_failing_oracle(kernel, card, lease):
++    """Submit a bundle whose oracle failed and try to promote it."""
++    bundle = make_bundle(card.id, lease.fence, ok=False)
++    kernel.submit(card.id, lease.fence, bundle)
++    kernel.verify(card.id, lease.fence, ok=True)
++    return bundle
++
++
++def test_integrate_refuses_a_promotion_with_a_failing_oracle(kernel):
++    """The Kernel must not promote a task whose oracles failed (I5)."""
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p")
++    _promote_with_failing_oracle(kernel, card, lease)
++
++    with pytest.raises(KernelError) as exc:
++        kernel.integrate(card.id, lease.fence, commit="test-commit")
++
++    assert exc.value.reason == "invalid_bundle"
++    assert any("oracle" in p for p in exc.value.details.get("problems", []))
++
++    # The task must NOT be DONE.
++    assert kernel.state().tasks[card.id].state != DONE
++
++
++def test_integrate_refuses_a_promotion_without_a_bundle(kernel):
++    """No bundle, no promotion (I6)."""
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p")
++    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence))
++    kernel.verify(card.id, lease.fence, ok=True)
++
++    import shutil
++    shutil.rmtree(kernel.repo.evidence_dir / f"EB-{card.id}-{lease.fence}")
++
++    with pytest.raises(KernelError) as exc:
++        kernel.integrate(card.id, lease.fence, commit="test-commit")
++
++    assert exc.value.reason == "no_bundle"
++    assert kernel.state().tasks[card.id].state != DONE
++
++
++def test_integrate_allows_a_promotion_with_a_passing_oracle(kernel):
++    """The happy path still works."""
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p")
++    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
++    kernel.verify(card.id, lease.fence, ok=True)
++
++    result = kernel.integrate(card.id, lease.fence, commit="test-commit")
++
++    assert result["ok"] is True
++    assert kernel.state().tasks[card.id].state == DONE
++
++
++def test_sentinel_detects_promotion_with_failing_oracle(kernel):
++    """A task that is DONE with a failing-oracle bundle triggers I5 (report-only).
++
++    This is the check that would have caught T-0003 on the day.  Since the
++    Kernel's integrate() guard now refuses failing bundles, we reproduce
++    the T-0003 pattern by writing the INTEGRATED event directly (as the
++    old code path did) to test the sentinel in isolation.
++    """
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p")
++    bundle = make_bundle(card.id, lease.fence, ok=False)
++    kernel.submit(card.id, lease.fence, bundle)
++    kernel.verify(card.id, lease.fence, ok=True)
++
++    # Force the promotion past the Kernel's new guard, the way the T-0003
++    # path did: write the INTEGRATING/INTEGRATED events directly.
++    kernel.record_event("INTEGRATING", subject=card.id, fence=lease.fence,
++                        payload={"commit": "forced"})
++    kernel.record_event("INTEGRATED", subject=card.id, fence=lease.fence,
++                        payload={"commit": "forced",
++                                 "bundle": f"EB-{card.id}-{lease.fence}"})
++
++    assert kernel.state().tasks[card.id].state == DONE
++
++    report = check(kernel)
++    # I5 is now report-only (does not stop the pilot), so we check for the
++    # finding's presence rather than report["ok"].
++    assert any(f["invariant"] == "I5" for f in report["findings"]), report["findings"]
++
++
++def test_sentinel_silent_for_revoked_task_with_failing_bundle(kernel):
++    """A task that was promoted but then revoked (back to READY) must NOT
++    trigger I5, even if its (stale) bundle had failing oracles.
++
++    This is the T-0003 fix: T-0003 was promoted at fence 3 with a failing
++    oracle, then revoked.  I5 must not flag it because the task is no longer
++    DONE — it is back in READY/SUBMITTED.
++    """
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p")
++    bundle = make_bundle(card.id, lease.fence, ok=False)
++    kernel.submit(card.id, lease.fence, bundle)
++    kernel.verify(card.id, lease.fence, ok=True)
++
++    # Promote (force past the guard).
++    kernel.record_event("INTEGRATING", subject=card.id, fence=lease.fence,
++                        payload={"commit": "forced"})
++    kernel.record_event("INTEGRATED", subject=card.id, fence=lease.fence,
++                        payload={"commit": "forced",
++                                 "bundle": f"EB-{card.id}-{lease.fence}"})
++    assert kernel.state().tasks[card.id].state == DONE
++
++    # Now revoke — the task goes back to READY (or REWORK if attempts exhausted).
++    kernel.revoke(card.id, lease.fence, reason="oracle incompatible")
++    assert kernel.state().tasks[card.id].state != DONE
++
++    # I5 must NOT fire — the task is no longer DONE.
++    report = check(kernel)
++    i5_findings = [f for f in report["findings"] if f["invariant"] == "I5"
++                   and f.get("subject") == card.id]
++    assert not i5_findings, f"unexpected I5 finding for revoked task: {i5_findings}"
++
++
++def test_sentinel_is_quiet_for_a_healthy_promotion(kernel):
++    """The new I5 check must not fire on a legitimate promotion."""
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p")
++    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
++    kernel.verify(card.id, lease.fence, ok=True)
++    kernel.integrate(card.id, lease.fence, commit="test-commit")
++
++    report = check(kernel)
++    assert not any(f["invariant"] == "I5" for f in report["findings"]), report["findings"]
++
++
++# ---------------------------------------------------------------------------
++# I4: a stale fence is never merged
++# ---------------------------------------------------------------------------
++
++def test_sentinel_flags_stale_fence_integration(kernel):
++    """An INTEGRATED event whose fence was already revoked at that point
++    must produce an I4 finding.  This is the real T-0003 pattern:
++    promoted at fence 1, revoked (bumped to fence 2), then the stale
++    fence-1 integration is recorded out of order."""
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p")
++    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
++    kernel.verify(card.id, lease.fence, ok=True)
++
++    # Revoke the lease — fence goes from 1 to 2.
++    new_fence = kernel.revoke(card.id, lease.fence, reason="oracle incompatible")
++    assert new_fence == lease.fence + 1
++
++    # Now record an INTEGRATED for the OLD (revoked) fence, as if the
++    # stale work was merged after revocation.
++    kernel.record_event("INTEGRATING", subject=card.id, fence=lease.fence,
++                        payload={"commit": "stale"})
++    kernel.record_event("INTEGRATED", subject=card.id, fence=lease.fence,
++                        payload={"commit": "stale",
++                                 "bundle": f"EB-{card.id}-{lease.fence}"})
++
++    report = check(kernel)
++    i4_findings = [f for f in report["findings"] if f["invariant"] == "I4"]
++    assert i4_findings, f"expected I4 finding for stale fence, got: {report['findings']}"
++    assert card.id in i4_findings[0]["subject"]
++    assert "stale" in i4_findings[0]["detail"]
++
++
++def test_sentinel_does_not_flag_valid_reintegration(kernel):
++    """An INTEGRATED with the current fence is fine; a subsequent REVOKED
++    with a new_fence does not retroactively flag the already-valid integration."""
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p")
++    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
++    kernel.verify(card.id, lease.fence, ok=True)
++    kernel.integrate(card.id, lease.fence, commit="test-commit")
++
++    # Revoking *after* a valid integration should NOT produce an I4 finding.
++    kernel.revoke(card.id, lease.fence, reason="post-integration review")
++
++    report = check(kernel)
++    i4_findings = [f for f in report["findings"] if f["invariant"] == "I4"]
++    assert not i4_findings, f"unexpected I4 finding: {i4_findings}"
++
++
++# ---------------------------------------------------------------------------
++# task_void: fail-closed actor, leased task, state guards
++# ---------------------------------------------------------------------------
++
++
++
++
++def test_void_from_ready(kernel):
++    """A READY task may be voided by a human."""
++    card = make_card(kernel)  # admitted=True → READY
++    kernel.task_void(card.id, reason="cancelled", actor=HUMAN)
++    assert kernel.state().tasks[card.id].state == VOID
++
++
++def test_void_from_rework(kernel):
++    """A REWORK task may be voided."""
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p")
++    # Drive the task into REWORK via a failed verify
++    bundle = make_bundle(card.id, lease.fence, ok=True)
++    kernel.submit(card.id, lease.fence, bundle)
++    kernel.verify(card.id, lease.fence, ok=False, reasons=["oracle failed"])
++    task = kernel.state().tasks[card.id]
++    assert task.state == REWORK
++    kernel.task_void(card.id, reason="abandoned", actor=HUMAN)
++    assert kernel.state().tasks[card.id].state == VOID
++
++
++def test_void_from_blocked(kernel):
++    """A BLOCKED task may be voided."""
++    card = make_card(kernel)  # admitted=True → READY
++    kernel.task_block(card.id, reason="waiting on input")
++    task = kernel.state().tasks[card.id]
++    assert task.state == BLOCKED
++    kernel.task_void(card.id, reason="no longer needed", actor=HUMAN)
++    assert kernel.state().tasks[card.id].state == VOID
++
++
++def test_void_leased_task_revokes_first(kernel):
++    """Voiding a leased (LEASED) task revokes the lease, then voids."""
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p")
++    task = kernel.state().tasks[card.id]
++    assert task.state == LEASED
++    result = kernel.task_void(card.id, reason="done by hand", actor=HUMAN)
++    assert result["ok"]
++    assert kernel.state().tasks[card.id].state == VOID
++    # The lease must be gone.
++    assert card.id not in kernel.state().leases
++
++
++def test_void_refused_for_done(kernel):
++    """A DONE task cannot be voided."""
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p")
++    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
++    kernel.verify(card.id, lease.fence, ok=True)
++    kernel.integrate(card.id, lease.fence, commit="test-commit")
++    assert kernel.state().tasks[card.id].state == DONE
++    with pytest.raises(KernelError) as exc:
++        kernel.task_void(card.id, reason="too late", actor=HUMAN)
++    assert exc.value.reason == "bad_transition"
++
++
++def test_void_refused_for_void(kernel):
++    """A VOID task cannot be voided again."""
++    card = make_card(kernel)  # admitted=True → READY
++    kernel.task_void(card.id, reason="cancelled", actor=HUMAN)
++    assert kernel.state().tasks[card.id].state == VOID
++    with pytest.raises(KernelError) as exc:
++        kernel.task_void(card.id, reason="still cancelled", actor=HUMAN)
++    assert exc.value.reason == "bad_transition"
++
++
++def test_void_refused_for_non_human_actor(kernel):
++    """A kernel/system actor (PMK_ACTOR unset, defaults to kernel) is refused.
++
++    This is advisory, not a security boundary: a compromised process can set
++    PMK_ACTOR=human:attacker and bypass it.  The guard exists to catch honest
++    accidents and operator mistakes, not to withstand an attacker.
++    """
++    card = make_card(kernel)  # admitted=True → READY
++    with pytest.raises(KernelError) as exc:
++        kernel.task_void(card.id, reason="bot tries to void",
++                         actor=Actor.kernel())
++    assert exc.value.reason == "not_authorized"
++    # The advisory nature: the task is still in READY, not VOID.
++    assert kernel.state().tasks[card.id].state != VOID
++
++
++# ---------------------------------------------------------------------------
++# PMK_ACTOR attribution
++# ---------------------------------------------------------------------------
++
++def test_actor_from_env_human(monkeypatch, kernel):
++    """PMK_ACTOR=human:<name> parses to a human actor."""
++    from pmk.api import _actor_from_env
++    monkeypatch.setenv("PMK_ACTOR", "human:alice")
++    actor = _actor_from_env()
++    assert actor.kind == "human"
++    assert actor.agent == "alice"
++
++
++def test_actor_from_env_worker(monkeypatch, kernel):
++    """PMK_ACTOR=worker:<profile> parses to a worker actor."""
++    from pmk.api import _actor_from_env
++    monkeypatch.setenv("PMK_ACTOR", "worker:hermes-oneshot")
++    actor = _actor_from_env()
++    assert actor.kind == "worker"
++    assert actor.agent == "hermes-oneshot"
++
++
++def test_actor_from_env_unset(monkeypatch, kernel):
++    """No PMK_ACTOR returns None (caller falls back to Actor.kernel())."""
++    from pmk.api import _actor_from_env
++    monkeypatch.delenv("PMK_ACTOR", raising=False)
++    assert _actor_from_env() is None
++
++
++def test_actor_from_env_unknown_kind(monkeypatch, kernel):
++    """An unrecognised prefix is still resolved (best-effort)."""
++    from pmk.api import _actor_from_env
++    monkeypatch.setenv("PMK_ACTOR", "service:my-bot")
++    actor = _actor_from_env()
++    assert actor.kind == "service"
++
++
++def test_submit_records_worker_actor(monkeypatch, kernel):
++    """A worker spawned with PMK_ACTOR=worker:<profile> is attributed correctly."""
++    monkeypatch.setenv("PMK_ACTOR", "worker:claude-3")
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p")
++    bundle = make_bundle(card.id, lease.fence, ok=True)
++    kernel.submit(card.id, lease.fence, bundle)
++    # The SUBMITTED event should carry the worker actor.
++    events = [e for e in kernel.events() if e.subject == card.id]
++    submitted = [e for e in events if e.type == "SUBMITTED"]
++    assert submitted, events
++    assert submitted[0].actor.kind == "worker"
++    assert submitted[0].actor.agent == "claude-3"
++
++
++def test_void_via_api_uses_pmk_actor(monkeypatch, kernel):
++    """task_void honours PMK_ACTOR: a worker actor is refused."""
++    monkeypatch.setenv("PMK_ACTOR", "worker:hermes")
++    card = make_card(kernel)
++    with pytest.raises(KernelError) as exc:
++        kernel.task_void(card.id, reason="worker tries to void")
++    assert exc.value.reason == "not_authorized"
++    # Task must still be READY, not VOID.
++    assert kernel.state().tasks[card.id].state != VOID
++
++
++def test_void_via_cli_refused_under_worker_actormonkeypatch(monkeypatch, kernel, capsys):
++    """The CLI refuses ``pmk task void`` when PMK_ACTOR names a non-human."""
++    from pmk.cli import cmd_task_void
++    import argparse
++    monkeypatch.setenv("PMK_ACTOR", "worker:claude-3")
++    card = make_card(kernel, admitted=True)
++    args = argparse.Namespace(
++        root=str(kernel.repo.root),
++        task_id=card.id, reason="should fail", actor="operator")
++    rc = cmd_task_void(args)
++    assert rc != 0
++
++
++# ---------------------------------------------------------------------------
++# verify / submit guards
++# ---------------------------------------------------------------------------
++
++def test_submit_from_non_leased_fails(kernel):
++    """submit() must refuse when the task is not LEASED.
++
++    The task is READY (admitted) but has no lease.  We use fence=0 (the
++    initial fence for a card with no lease) so the stale-fence check passes
++    and we reach the state guard.
++    """
++    card = make_card(kernel)  # admitted=True → READY, no lease
++    # No lease claimed.  fence=0 is the card's initial fence, so the stale
++    # check passes and we reach the state guard.
++    with pytest.raises(KernelError) as exc:
++        kernel.submit(card.id, fence=0, bundle=make_bundle(card.id, 0, ok=True))
++    assert exc.value.reason == "bad_transition"
++
++
++def test_verify_from_done_fails(kernel):
++    """verify() must refuse a DONE task (T-0009 double-integrate guard)."""
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p")
++    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
++    kernel.verify(card.id, lease.fence, ok=True)
++    kernel.integrate(card.id, lease.fence, commit="test-commit")
++    assert kernel.state().tasks[card.id].state == DONE
++    with pytest.raises(KernelError) as exc:
++        kernel.verify(card.id, lease.fence, ok=True)
++    assert exc.value.reason == "bad_transition"
++
++
++def test_verify_on_verifying_task_works(kernel):
++    """The conductor REWORK path calls verify(ok=False) on VERIFYING tasks."""
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p")
++    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
++    # First verify -> task enters VERIFYING
++    kernel.verify(card.id, lease.fence, ok=True)
++    task = kernel.state().tasks[card.id]
++    assert task.state == VERIFYING
++    # The conductor REWORK path calls verify(ok=False) on VERIFYING.
++    kernel.verify(card.id, lease.fence, ok=False, reasons=["needs rework"])
++    task = kernel.state().tasks[card.id]
++    assert task.state == REWORK

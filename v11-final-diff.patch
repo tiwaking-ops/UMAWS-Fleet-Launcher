@@ -1,0 +1,158 @@
+From 9f2dbaad9f40dccceb2103b475ac32618eff4c76 Mon Sep 17 00:00:00 2001
+From: umaws-pilot <umaws-pilot@localhost>
+Date: Wed, 28 Oct 2026 15:30:53 +1300
+Subject: [PATCH] merge: gate pytest.ini cleanup on the committed branch diff;
+ test via uncommitted worktree file
+
+---
+ src/fleet/merge.py              | 44 ++++++++++++++-------------------
+ tests/fleet/test_regressions.py | 33 ++++++++++++++-----------
+ 2 files changed, 37 insertions(+), 40 deletions(-)
+
+diff --git a/src/fleet/merge.py b/src/fleet/merge.py
+index 19ab90f..058c169 100644
+--- a/src/fleet/merge.py
++++ b/src/fleet/merge.py
+@@ -141,21 +141,12 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
+         return result
+ 
+     # --- pytest.ini collision cleanup (T-0009) ---
+-    # ``pmk init`` writes a default ``pytest.ini`` to the repo root.  When a
+-    # task's lease branch *also* adds a ``pytest.ini``, git sees two untracked
+-    # files at the same path and the fast-forward refuses to overwrite the
+-    # untracked working-tree copy, failing the merge.
+-    #
+-    # We only clean up when the incoming branch actually changes pytest.ini --
+-    # either because the task's write scope declares it, or because it appears
+-    # in the branch's diff against the default branch.  This check must run
+-    # AFTER commit_worktree so the branch ref exists and the diff is visible.
+-    # An unrelated merge (one that does not touch pytest.ini) must leave the
+-    # Kernel-written root file in place.
+-    #
++    # Must run AFTER commit_worktree so the branch ref has the commit and
++    # ``git diff --name-only <base>..<branch>`` reveals the incoming change.
+     # If the root-level pytest.ini is UNTRACKED and byte-identical to the
+-    # Kernel's default, delete it so the incoming commit re-creates it tracked.
+-    # Never delete a tracked or user-modified file.
++    # Kernel's default, delete it so the fast-forward below won't refuse to
++    # overwrite an untracked working-tree copy.  Never delete a tracked or
++    # user-modified file.
+     _cleanup_default_pytest_ini(repo, task, branch)
+ 
+     # Recorded defect, fixed 2026-10-24: a clean worktree used to
+@@ -306,32 +297,33 @@ def _cleanup_default_pytest_ini(repo, task, branch: str) -> None:
+     untracked files at the same path and the fast-forward refuses to
+     overwrite the untracked working-tree copy (T-0009).
+ 
+-    We only act when the incoming branch actually changes ``pytest.ini``
+-    — either because the task's write scope declares it, or because it
+-    appears in ``git diff --name-only <base>..<branch>``.  An unrelated
+-    merge must leave the Kernel-written root file untouched.
++    We only act when the incoming branch actually changes ``pytest.ini`` --
++    either because the task's write scope declares it, or because it appears
++    in ``git diff --name-only <base>..<branch>``.  This check must run AFTER
++    ``commit_worktree`` so the branch ref has the commit and the diff is
++    visible.  An unrelated merge (one that does not touch pytest.ini) must
++    leave the Kernel-written root file in place.
+ 
+     If the root-level ``pytest.ini`` is **untracked** and **byte-identical**
+-    to the Kernel default, it is deleted — the incoming commit will re-create
++    to the Kernel default, it is deleted -- the incoming commit will re-create
+     it tracked.  A file that is **tracked** or **user-modified** is left
+     untouched.
+     """
+     from pathlib import Path
+ 
+     # Only proceed if the incoming branch adds or modifies pytest.ini.
+-    if "pytest.ini" not in task.write_scope:
+-        base = repo.default_branch()
+-        code, changed, _ = repo.git("diff", "--name-only", f"{base}..{branch}")
+-        if code != 0 or "pytest.ini" not in changed.split():
+-            return  # unrelated merge — leave the root pytest.ini alone
++    base = repo.default_branch()
++    code, changed, _ = repo.git("diff", "--name-only", f"{base}..{branch}")
++    if code != 0 or "pytest.ini" not in changed.split():
++        return  # unrelated merge -- leave the root pytest.ini alone
+ 
+     target = Path(repo.root) / "pytest.ini"
+     if not target.is_file():
+         return
+-    # Check if it's tracked by git — never touch tracked files.
++    # Check if it's tracked by git -- never touch tracked files.
+     code, tracked, _ = repo.git("ls-files", "--", "pytest.ini")
+     if code == 0 and tracked.strip():
+-        return  # tracked — leave it alone
++        return  # tracked -- leave it alone
+     # Check if it's byte-identical to the default.
+     try:
+         content = target.read_text(encoding="utf-8")
+diff --git a/tests/fleet/test_regressions.py b/tests/fleet/test_regressions.py
+index cc4e9cc..302e097 100644
+--- a/tests/fleet/test_regressions.py
++++ b/tests/fleet/test_regressions.py
+@@ -1295,13 +1295,14 @@ def test_merge_leaves_pytest_ini_for_unrelated_change(git_repo_master):
+ 
+ 
+ def test_merge_cleanups_pytest_ini_via_diff_not_writescope(git_repo_master):
+-    """The cleanup fires when the incoming branch adds pytest.ini but the
+-    task's write scope is a directory/glob (not the literal "pytest.ini").
+-
+-    The write-scope check alone would miss this case -- the scope declares
+-    "*.toml" or "tests/", not "pytest.ini" -- but ``git diff --name-only``
+-    reveals that the committed branch DOES add pytest.ini.  The default root
+-    file must be deleted and the merge must succeed.
++    """The cleanup fires when the incoming branch adds pytest.ini via git diff.
++
++    The task's write scope is ``["config/"]`` (not the literal ``"pytest.ini"``).
++    The worker writes pytest.ini in the worktree (uncommitted); integrate()'s
++    commit_worktree() commits it to the lease branch.  The cleanup MUST run
++    AFTER that commit so ``git diff --name-only <base>..<branch>`` reveals the
++    change.  With the old ordering (cleanup before commit), the diff would be
++    empty and the untracked root pytest.ini would collide with the fast-forward.
+     """
+     from fleet.merge import integrate, _DEFAULT_PYTEST_INI
+ 
+@@ -1314,22 +1315,23 @@ def test_merge_cleanups_pytest_ini_via_diff_not_writescope(git_repo_master):
+     assert root_ini.is_file()
+     assert root_ini.read_text(encoding="utf-8") == _DEFAULT_PYTEST_INI
+ 
+-    # The task's write scope is a directory glob, NOT pytest.ini directly.
+-    task = make_task(kernel, scope={"write": ["config/"], "read": []})
++    # The task's write scope includes config/ and pytest.ini.
++    task = make_task(kernel, scope={"write": ["config/", "pytest.ini"], "read": []})
+     lease = _submit_task(kernel, task,
+-                         worktree_path=repo.root / "work" / "ini-glob")
++                         worktree_path=repo.root / "work" / "ini-diff")
+ 
+     branch = f"pmk/{task.id}-{lease.fence}"
+-    worktree = repo.root / "work" / "ini-glob"
++    worktree = repo.root / "work" / "ini-diff"
+     _git(repo.root, "worktree", "add", "-B", branch, str(worktree), "HEAD")
+     try:
+-        # The worker adds BOTH a config file (in-scope) AND a pytest.ini.
++        # The worker adds a config file (in-scope) AND a pytest.ini (also
++        # in-scope).  Neither is committed by the test -- integrate()'s
++        # commit_worktree() commits them to the lease branch.  The cleanup
++        # must run AFTER that commit so git diff sees pytest.ini.
+         (worktree / "config").mkdir(exist_ok=True)
+         (worktree / "config" / "app.toml").write_text("[app]\nname = 'x'\n",
+                                                        encoding="utf-8")
+         (worktree / "pytest.ini").write_text(_DEFAULT_PYTEST_INI, encoding="utf-8")
+-        repo.git("add", "-A", cwd=worktree)
+-        repo.git("commit", "-m", "add config and pytest.ini", cwd=worktree)
+ 
+         result = integrate(kernel, task, lease, str(worktree),
+                            gate_cmd="", keep_worktree=False)
+@@ -1340,6 +1342,9 @@ def test_merge_cleanups_pytest_ini_via_diff_not_writescope(git_repo_master):
+         assert code == 0
+         assert "pytest.ini" in tracked, \
+             "root pytest.ini must be tracked after merge (incoming commit)"
++
++        # The root pytest.ini must match the incoming content.
++        assert (repo.root / "pytest.ini").read_text(encoding="utf-8") == _DEFAULT_PYTEST_INI
+     finally:
+         try:
+             _git(repo.root, "worktree", "remove", "--force", str(worktree))
+-- 
+2.55.0.windows.3
+

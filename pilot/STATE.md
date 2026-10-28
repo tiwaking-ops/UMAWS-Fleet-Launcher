@@ -49,7 +49,7 @@
     the merge queue, the Overseer runner, the project lifecycle, the manual
     launcher port. **3 507 lines.**
   - `src/console/` — FastAPI Console on 127.0.0.1 with SSE and 7 tabs.
-  - `gateway/quotagate/` — the hierarchical quota engine (M0–M2 core).
+  - `src/quotagate/` — the hierarchical quota engine (M0–M2 core).
   - `tests/fleet/fakecli.py` + synthetic fixtures.
   - **Caliber 1.55.2 installed and pinned** (operator approved). Spikes
     **S1, S2, S3, S4 and S5 complete** — see
