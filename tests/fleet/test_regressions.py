@@ -1295,13 +1295,14 @@ def test_merge_leaves_pytest_ini_for_unrelated_change(git_repo_master):
 
 
 def test_merge_cleanups_pytest_ini_via_diff_not_writescope(git_repo_master):
-    """The cleanup fires when the incoming branch adds pytest.ini but the
-    task's write scope is a directory/glob (not the literal "pytest.ini").
+    """The cleanup fires when the incoming branch adds pytest.ini via git diff.
 
-    The write-scope check alone would miss this case -- the scope declares
-    "*.toml" or "tests/", not "pytest.ini" -- but ``git diff --name-only``
-    reveals that the committed branch DOES add pytest.ini.  The default root
-    file must be deleted and the merge must succeed.
+    The task's write scope is ``["config/"]`` (not the literal ``"pytest.ini"``).
+    The worker writes pytest.ini in the worktree (uncommitted); integrate()'s
+    commit_worktree() commits it to the lease branch.  The cleanup MUST run
+    AFTER that commit so ``git diff --name-only <base>..<branch>`` reveals the
+    change.  With the old ordering (cleanup before commit), the diff would be
+    empty and the untracked root pytest.ini would collide with the fast-forward.
     """
     from fleet.merge import integrate, _DEFAULT_PYTEST_INI
 
@@ -1314,22 +1315,23 @@ def test_merge_cleanups_pytest_ini_via_diff_not_writescope(git_repo_master):
     assert root_ini.is_file()
     assert root_ini.read_text(encoding="utf-8") == _DEFAULT_PYTEST_INI
 
-    # The task's write scope is a directory glob, NOT pytest.ini directly.
-    task = make_task(kernel, scope={"write": ["config/"], "read": []})
+    # The task's write scope includes config/ and pytest.ini.
+    task = make_task(kernel, scope={"write": ["config/", "pytest.ini"], "read": []})
     lease = _submit_task(kernel, task,
-                         worktree_path=repo.root / "work" / "ini-glob")
+                         worktree_path=repo.root / "work" / "ini-diff")
 
     branch = f"pmk/{task.id}-{lease.fence}"
-    worktree = repo.root / "work" / "ini-glob"
+    worktree = repo.root / "work" / "ini-diff"
     _git(repo.root, "worktree", "add", "-B", branch, str(worktree), "HEAD")
     try:
-        # The worker adds BOTH a config file (in-scope) AND a pytest.ini.
+        # The worker adds a config file (in-scope) AND a pytest.ini (also
+        # in-scope).  Neither is committed by the test -- integrate()'s
+        # commit_worktree() commits them to the lease branch.  The cleanup
+        # must run AFTER that commit so git diff sees pytest.ini.
         (worktree / "config").mkdir(exist_ok=True)
         (worktree / "config" / "app.toml").write_text("[app]\nname = 'x'\n",
                                                        encoding="utf-8")
         (worktree / "pytest.ini").write_text(_DEFAULT_PYTEST_INI, encoding="utf-8")
-        repo.git("add", "-A", cwd=worktree)
-        repo.git("commit", "-m", "add config and pytest.ini", cwd=worktree)
 
         result = integrate(kernel, task, lease, str(worktree),
                            gate_cmd="", keep_worktree=False)
@@ -1340,6 +1342,9 @@ def test_merge_cleanups_pytest_ini_via_diff_not_writescope(git_repo_master):
         assert code == 0
         assert "pytest.ini" in tracked, \
             "root pytest.ini must be tracked after merge (incoming commit)"
+
+        # The root pytest.ini must match the incoming content.
+        assert (repo.root / "pytest.ini").read_text(encoding="utf-8") == _DEFAULT_PYTEST_INI
     finally:
         try:
             _git(repo.root, "worktree", "remove", "--force", str(worktree))

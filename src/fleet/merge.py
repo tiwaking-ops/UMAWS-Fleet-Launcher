@@ -141,21 +141,12 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
         return result
 
     # --- pytest.ini collision cleanup (T-0009) ---
-    # ``pmk init`` writes a default ``pytest.ini`` to the repo root.  When a
-    # task's lease branch *also* adds a ``pytest.ini``, git sees two untracked
-    # files at the same path and the fast-forward refuses to overwrite the
-    # untracked working-tree copy, failing the merge.
-    #
-    # We only clean up when the incoming branch actually changes pytest.ini --
-    # either because the task's write scope declares it, or because it appears
-    # in the branch's diff against the default branch.  This check must run
-    # AFTER commit_worktree so the branch ref exists and the diff is visible.
-    # An unrelated merge (one that does not touch pytest.ini) must leave the
-    # Kernel-written root file in place.
-    #
+    # Must run AFTER commit_worktree so the branch ref has the commit and
+    # ``git diff --name-only <base>..<branch>`` reveals the incoming change.
     # If the root-level pytest.ini is UNTRACKED and byte-identical to the
-    # Kernel's default, delete it so the incoming commit re-creates it tracked.
-    # Never delete a tracked or user-modified file.
+    # Kernel's default, delete it so the fast-forward below won't refuse to
+    # overwrite an untracked working-tree copy.  Never delete a tracked or
+    # user-modified file.
     _cleanup_default_pytest_ini(repo, task, branch)
 
     # Recorded defect, fixed 2026-10-24: a clean worktree used to
@@ -306,32 +297,33 @@ def _cleanup_default_pytest_ini(repo, task, branch: str) -> None:
     untracked files at the same path and the fast-forward refuses to
     overwrite the untracked working-tree copy (T-0009).
 
-    We only act when the incoming branch actually changes ``pytest.ini``
-    — either because the task's write scope declares it, or because it
-    appears in ``git diff --name-only <base>..<branch>``.  An unrelated
-    merge must leave the Kernel-written root file untouched.
+    We only act when the incoming branch actually changes ``pytest.ini`` --
+    either because the task's write scope declares it, or because it appears
+    in ``git diff --name-only <base>..<branch>``.  This check must run AFTER
+    ``commit_worktree`` so the branch ref has the commit and the diff is
+    visible.  An unrelated merge (one that does not touch pytest.ini) must
+    leave the Kernel-written root file in place.
 
     If the root-level ``pytest.ini`` is **untracked** and **byte-identical**
-    to the Kernel default, it is deleted — the incoming commit will re-create
+    to the Kernel default, it is deleted -- the incoming commit will re-create
     it tracked.  A file that is **tracked** or **user-modified** is left
     untouched.
     """
     from pathlib import Path
 
     # Only proceed if the incoming branch adds or modifies pytest.ini.
-    if "pytest.ini" not in task.write_scope:
-        base = repo.default_branch()
-        code, changed, _ = repo.git("diff", "--name-only", f"{base}..{branch}")
-        if code != 0 or "pytest.ini" not in changed.split():
-            return  # unrelated merge — leave the root pytest.ini alone
+    base = repo.default_branch()
+    code, changed, _ = repo.git("diff", "--name-only", f"{base}..{branch}")
+    if code != 0 or "pytest.ini" not in changed.split():
+        return  # unrelated merge -- leave the root pytest.ini alone
 
     target = Path(repo.root) / "pytest.ini"
     if not target.is_file():
         return
-    # Check if it's tracked by git — never touch tracked files.
+    # Check if it's tracked by git -- never touch tracked files.
     code, tracked, _ = repo.git("ls-files", "--", "pytest.ini")
     if code == 0 and tracked.strip():
-        return  # tracked — leave it alone
+        return  # tracked -- leave it alone
     # Check if it's byte-identical to the default.
     try:
         content = target.read_text(encoding="utf-8")
