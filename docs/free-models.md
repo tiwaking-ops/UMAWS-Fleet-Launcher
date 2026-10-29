@@ -107,6 +107,224 @@ Requires `ZYPHRA_API_KEY` env var.
 
 OpenCode's model list (via its config or `opencode models`) shows the Ollama cloud beam model as `ollama-cloud/beam`, not `beam:cloud`. This is the identifier to use in profiles and adapter configs for opencode.
 
+## AnyRouter provider — ANYROUTER_API_KEY
+
+```json
+"anyrouter": {
+  "baseUrl": "https://anyrouter.win/v1",
+  "api": "openai-completions",
+  "apiKey": "{env:ANYROUTER_API_KEY}",
+  "models": [
+    {
+      "id": "anyrouter/free",
+      "name": "AnyRouter Free",
+      "contextWindow": null,
+      "maxTokens": null
+    },
+    {
+      "id": "apple/foundation-model",
+      "name": "Apple Foundation Model",
+      "contextWindow": 4000,
+      "maxTokens": null
+    },
+    {
+      "id": "cohere/north-mini-code",
+      "name": "North Mini Code",
+      "contextWindow": 256000,
+      "maxTokens": null
+    },
+    {
+      "id": "deepseek/deepseek-v4-flash",
+      "name": "DeepSeek-V4-Flash",
+      "contextWindow": 128000,
+      "maxTokens": null
+    },
+    {
+      "id": "dots-studio/dots-3-note-preview",
+      "name": "Dots3-Note Preview",
+      "contextWindow": 512000,
+      "maxTokens": null
+    },
+    {
+      "id": "hal-x/thx-01",
+      "name": "THX-01",
+      "contextWindow": 1000,
+      "maxTokens": null
+    },
+    {
+      "id": "liquid/lfm-2.5-2.6b",
+      "name": "LFM 2.5 2.6B",
+      "contextWindow": 66000,
+      "maxTokens": null
+    },
+    {
+      "id": "meta/muse-glimmer-30b",
+      "name": "Muse Glimmer 30B",
+      "contextWindow": 131000,
+      "maxTokens": null
+    },
+    {
+      "id": "minimax/minimax-m3.1-flash",
+      "name": "MiniMax M3.1 Flash",
+      "contextWindow": 1000000,
+      "maxTokens": null
+    },
+    {
+      "id": "nvidia/nemotron-3-embed-1b",
+      "name": "Nemotron 3 Embed 1B",
+      "contextWindow": 33000,
+      "maxTokens": null
+    },
+    {
+      "id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+      "name": "Nemotron-3 Nano Omni 30B-A3B (Reasoning)",
+      "contextWindow": 256000,
+      "maxTokens": null
+    },
+    {
+      "id": "nvidia/nemotron-3-ultra-550b-a55b",
+      "name": "Nemotron 3 Ultra 550B",
+      "contextWindow": 1000000,
+      "maxTokens": null
+    },
+    {
+      "id": "nvidia/nemotron-3.5-bolt-e4b",
+      "name": "Nemotron 3.5 Bolt E4B",
+      "contextWindow": 66000,
+      "maxTokens": null
+    },
+    {
+      "id": "nvidia/nemotron-3.5-content-safety",
+      "name": "Nemotron 3.5 Content Safety",
+      "contextWindow": 128000,
+      "maxTokens": null
+    },
+    {
+      "id": "nvidia/nemotron-3.5-embed-1b",
+      "name": "Nemotron 3.5 Embed 1B",
+      "contextWindow": 33000,
+      "maxTokens": null
+    },
+    {
+      "id": "nvidia/nemotron-3.5-embed-8b",
+      "name": "Nemotron 3.5 Embed 8B",
+      "contextWindow": 33000,
+      "maxTokens": null
+    },
+    {
+      "id": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "name": "Nemotron 3.5 Lightning 30B A3B",
+      "contextWindow": 1000000,
+      "maxTokens": null
+    },
+    {
+      "id": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "name": "Nemotron 3.5 Super VL 120B A12B",
+      "contextWindow": 1000000,
+      "maxTokens": null
+    },
+    {
+      "id": "nvidia/nemotron-parse-2.0",
+      "name": "Nemotron Parse 2.0",
+      "contextWindow": 8000,
+      "maxTokens": null
+    },
+    {
+      "id": "nvidia/riva-translate-4b-instruct-v2",
+      "name": "Riva Translate 4B Instruct v2",
+      "contextWindow": 4000,
+      "maxTokens": null
+    },
+    {
+      "id": "openai/gpt-oss-20b",
+      "name": "GPT-OSS 20B",
+      "contextWindow": 131000,
+      "maxTokens": null
+    },
+    {
+      "id": "poolside/laguna-s-2.1",
+      "name": "Laguna S 2.1",
+      "contextWindow": 262000,
+      "maxTokens": null
+    },
+    {
+      "id": "poolside/laguna-xs-2.1",
+      "name": "Laguna XS 2.1",
+      "contextWindow": 262000,
+      "maxTokens": null
+    },
+    {
+      "id": "qwen/qwen3-8b",
+      "name": "Qwen3-8B",
+      "contextWindow": 128000,
+      "maxTokens": null
+    },
+    {
+      "id": "recursive/flint-v1.0",
+      "name": "Flint",
+      "contextWindow": 262000,
+      "maxTokens": null
+    },
+    {
+      "id": "reflection/beam-1.0",
+      "name": "Beam 1.0",
+      "contextWindow": 262000,
+      "maxTokens": null
+    },
+    {
+      "id": "scira/amos-1-large",
+      "name": "Amos 1 Large",
+      "contextWindow": 131000,
+      "maxTokens": null
+    },
+    {
+      "id": "scira/amos-1-mini",
+      "name": "Amos 1 Mini",
+      "contextWindow": 9000,
+      "maxTokens": null
+    },
+    {
+      "id": "scira/amos-1-small",
+      "name": "Amos 1 Small",
+      "contextWindow": 262000,
+      "maxTokens": null
+    },
+    {
+      "id": "stealth/glyph-cluster",
+      "name": "Glyph Cluster",
+      "contextWindow": 256000,
+      "maxTokens": null
+    },
+    {
+      "id": "xingchen-agi/xing4.0-29b-a4b",
+      "name": "Xing4.0 29B A4B",
+      "contextWindow": 262000,
+      "maxTokens": null
+    }
+  ]
+}
+```
+
+Requires `ANYROUTER_API_KEY` env var.
+
+## OpenCode provider
+
+Run a model directly:
+```
+opencode run -m opencode/big-pickle "Review this project for bugs"
+```
+
+| Model name | Full OpenCode model ID |
+|------------|------------------------|
+| Big Pickle | `opencode/big-pickle` |
+| Beam Free | `opencode/beam-free` |
+| DeepSeek V4.1 Flash Free | `opencode/deepseek-v4.1-flash-free` |
+| GLM 5.3 Flash Free | `opencode/glm-5.3-flash-free` |
+| Flint 40B Free | `opencode/flint-40b-free` |
+| MiMo V2.6 Flash Free | `opencode/mimo-v2.6-flash-free` |
+| Nemotron 3.5 Lightning Free | `opencode/nemotron-3.5-lightning-free` |
+| Nemotron 3.5 Super VL Free | `opencode/nemotron-3.5-super-vl-free` |
+
 ## Note
 
 Kenari rate limit is account-wide (50 req/day), so prefer the single
