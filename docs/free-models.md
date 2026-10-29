@@ -325,6 +325,96 @@ opencode run -m opencode/big-pickle "Review this project for bugs"
 | Nemotron 3.5 Lightning Free | `opencode/nemotron-3.5-lightning-free` |
 | Nemotron 3.5 Super VL Free | `opencode/nemotron-3.5-super-vl-free` |
 
+## OpenRouter provider — OPENROUTER_API_KEY
+
+```json
+"openrouter": {
+  "package": "@opencode/ai/providers/openrouter",
+  "models": {
+    "openrouter/free": {
+      "name": "OpenRouter Free Router",
+      "modelID": "openrouter/free"
+    },
+    "nvidia/nemotron-3-ultra:free": {
+      "name": "NVIDIA Nemotron 3 Ultra (free)",
+      "modelID": "nvidia/nemotron-3-ultra:free",
+      "limit": { "context": 1000000 }
+    },
+    "nvidia/nemotron-3.5-super-vl:free": {
+      "name": "NVIDIA Nemotron 3.5 Super VL (free)",
+      "modelID": "nvidia/nemotron-3.5-super-vl:free",
+      "limit": { "context": 1000000 }
+    },
+    "nvidia/nemotron-3.5-lightning:free": {
+      "name": "NVIDIA Nemotron 3.5 Lightning (free)",
+      "modelID": "nvidia/nemotron-3.5-lightning:free",
+      "limit": { "context": 1000000 }
+    },
+    "poolside/laguna-s-2.1:free": {
+      "name": "Poolside Laguna S 2.1 (free)",
+      "modelID": "poolside/laguna-s-2.1:free",
+      "limit": { "context": 262000 }
+    },
+    "dots-studio/dots-3-note-preview:free": {
+      "name": "Dots Studio Dots3-Note Preview (free)",
+      "modelID": "dots-studio/dots-3-note-preview:free",
+      "limit": { "context": 512000 }
+    },
+    "thinkingmachines/inkling:free": {
+      "name": "Thinking Machines Inkling (free)",
+      "modelID": "thinkingmachines/inkling:free",
+      "limit": { "context": 1050000 }
+    },
+    "thinkingmachines/inkling-small:free": {
+      "name": "Thinking Machines Inkling Small (free)",
+      "modelID": "thinkingmachines/inkling-small:free",
+      "limit": { "context": 1050000 }
+    },
+    "recursive/flint:free": {
+      "name": "Recursive Flint (free)",
+      "modelID": "recursive/flint:free",
+      "limit": { "context": 262000 }
+    },
+    "cohere/north-mini-code:free": {
+      "name": "Cohere North Mini Code (free)",
+      "modelID": "cohere/north-mini-code:free",
+      "limit": { "context": 256000, "output": 64000 }
+    },
+    "poolside/laguna-xs-2.1:free": {
+      "name": "Poolside Laguna XS 2.1 (free)",
+      "modelID": "poolside/laguna-xs-2.1:free",
+      "limit": { "context": 262000, "output": 32000 }
+    },
+    "xingchen-agi/xing4.0-29b-a4b:free": {
+      "name": "XingChen Xing4.0 29B A4B (free)",
+      "modelID": "xingchen-agi/xing4.0-29b-a4b:free",
+      "limit": { "context": 262000 }
+    },
+    "nvidia/nemotron-3-nano-omni:free": {
+      "name": "NVIDIA Nemotron 3 Nano Omni (free)",
+      "modelID": "nvidia/nemotron-3-nano-omni:free",
+      "limit": { "context": 300000 }
+    },
+    "liquid/lfm2.5-2.6b:free": {
+      "name": "LiquidAI LFM2.5-2.6B (free)",
+      "modelID": "liquid/lfm2.5-2.6b:free",
+      "limit": { "context": 66000 }
+    },
+    "nvidia/llama-nemotron-rerank-vl-1b-v2:free": {
+      "name": "NVIDIA Llama Nemotron Rerank VL 1B V2 (free)",
+      "modelID": "nvidia/llama-nemotron-rerank-vl-1b-v2:free"
+    },
+    "nvidia/nemotron-3.5-content-safety:free": {
+      "name": "NVIDIA Nemotron 3.5 Content Safety (free)",
+      "modelID": "nvidia/nemotron-3.5-content-safety:free",
+      "limit": { "context": 128000 }
+    }
+  }
+}
+```
+
+Requires `OPENROUTER_API_KEY` env var.
+
 ## Note
 
 Kenari rate limit is account-wide (50 req/day), so prefer the single
