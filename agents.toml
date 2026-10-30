@@ -189,3 +189,15 @@ models = [
   "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
   "ollama-cloud/beam",
 ]
+
+[[profile]]
+id = "fake"
+adapter = "fake"
+family = "unknown"
+priority = 99
+max_concurrent = 1
+via_gateway = false
+roles = ["implement", "review", "plan"]
+argv_new = []
+argv_resume = []
+scenario = "ok"

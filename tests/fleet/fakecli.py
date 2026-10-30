@@ -203,9 +203,11 @@ def main(argv: list[str] | None = None) -> int:
     target_path = cwd / target_rel
     try:
         target_path.parent.mkdir(parents=True, exist_ok=True)
+        marker = "pi" if target_rel == "pi-test.txt" else "hello"
         target_path.write_text(
             f"fakecli deterministic output\nsession={session_id}\n"
-            f"attempts={attempts}\norder_bytes={len(order)}\n",
+            f"attempts={attempts}\norder_bytes={len(order)}\n"
+            f"goal_ref_marker={marker}\n",
             encoding="utf-8")
     except OSError as exc:
         log(f"fakecli: cannot write: {exc}")

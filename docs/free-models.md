@@ -415,6 +415,54 @@ opencode run -m opencode/big-pickle "Review this project for bugs"
 
 Requires `OPENROUTER_API_KEY` env var.
 
+## Google provider — GEMINI_API_KEY
+
+These are Google Gemini models. They are rate limited.
+
+| Model | RPM | TPM | RPD |
+|-------|-----|-----|-----|
+| Gemini 3 Flash | 9 | 250K | 20 |
+| Gemini 3.1 Flash Lite | 17 | 250K | 500 |
+| Gemini 3.8 Flash | 5 | 250K | 20 |
+| Gemini 3.5 Flash Lite | 15 | 250K | 500 |
+
+Token limits verified from Google's official model documentation:
+- All four Gemini 3 models: context 1,048,576; max output 65,536.
+
+Account quotas are separate from these model limits. Model IDs are inferred from the displayed account names; verify exact IDs in Google AI Studio if requests fail.
+
+```json
+"google": {
+  "name": "Google",
+  "env": ["GEMINI_API_KEY"],
+  "package": "@opencode/ai/providers/google",
+  "models": {
+    "gemini-3-flash": {
+      "name": "Gemini 3 Flash",
+      "modelID": "gemini-3-flash",
+      "limit": { "context": 1048576, "output": 65536 }
+    },
+    "gemini-3.1-flash-lite": {
+      "name": "Gemini 3.1 Flash Lite",
+      "modelID": "gemini-3.1-flash-lite",
+      "limit": { "context": 1048576, "output": 65536 }
+    },
+    "gemini-3.8-flash": {
+      "name": "Gemini 3.8 Flash",
+      "modelID": "gemini-3.8-flash",
+      "limit": { "context": 1048576, "output": 65536 }
+    },
+    "gemini-3.5-flash-lite": {
+      "name": "Gemini 3.5 Flash Lite",
+      "modelID": "gemini-3.5-flash-lite",
+      "limit": { "context": 1048576, "output": 65536 }
+    }
+  }
+}
+```
+
+Requires `GEMINI_API_KEY` env var.
+
 ## Note
 
 Kenari rate limit is account-wide (50 req/day), so prefer the single
