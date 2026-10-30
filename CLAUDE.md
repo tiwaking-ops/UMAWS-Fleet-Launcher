@@ -45,3 +45,13 @@ This project uses [Caliber](https://github.com/caliber-ai-org/ai-setup) to keep 
 Configs update automatically before each commit via `caliber refresh`.
 If the pre-commit hook is not set up, run `/setup-caliber` to configure everything automatically.
 <!-- /caliber:managed:sync -->
+
+## Handoff
+
+If I type the word "handoff" (with or without a slash), treat it as `/handoff` and follow the instructions in [`.claude/commands/handoff.md`](.claude/commands/handoff.md).
+
+- This generates a `HANDOFF.md` file in the repo root summarizing goal, what's DONE, IN PROGRESS, NEXT, decisions, known problems, key file paths, and verification commands.
+- If I do not understand a command, I will ask you. I will never invent a plausible-sounding reply.
+- If I am in a fresh session with no memory of prior work, I will tell you immediately and write the handoff from repo state only, labeled as such.
+- I will never claim an action was done unless I can show evidence (file path, command output, diff).
+<!-- /caliber:non-managed -->
