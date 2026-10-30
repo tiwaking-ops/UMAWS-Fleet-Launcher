@@ -48,10 +48,10 @@ If the pre-commit hook is not set up, run `/setup-caliber` to configure everythi
 
 ## Handoff
 
-If I type the word "handoff" (with or without a slash), treat it as `/handoff` and follow the instructions in [`.claude/commands/handoff.md`](.claude/commands/handoff.md).
+Run the handoff-generation procedure ONLY when my entire message is exactly `handoff` or `/handoff`.
 
-- This generates a `HANDOFF.md` file in the repo root summarizing goal, what's DONE, IN PROGRESS, NEXT, decisions, known problems, key file paths, and verification commands.
-- If I do not understand a command, I will ask you. I will never invent a plausible-sounding reply.
-- If I am in a fresh session with no memory of prior work, I will tell you immediately and write the handoff from repo state only, labeled as such.
-- I will never claim an action was done unless I can show evidence (file path, command output, diff).
+- A message that mentions `HANDOFF.md` or the word "handoff" inside a longer sentence (e.g. "read HANDOFF.md and continue") is NOT the command. In that case: read the file, summarise it, and continue the work. Never overwrite `HANDOFF.md` unless I ran `/handoff`.
+- Before overwriting `HANDOFF.md`, copy the old one to `HANDOFF.previous.md`.
+- If unsure which I mean, ask one short question.
+- If I do not understand what to do, I will ask. I will never invent a plausible-sounding reply.
 <!-- /caliber:non-managed -->

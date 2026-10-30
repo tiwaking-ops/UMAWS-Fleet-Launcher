@@ -1,0 +1,1 @@
+- [UMAWS completion work](memory/umaws-completion.md) — Full build-out: tests pass, evidence verified, server rebound noted, docs not overwritten (no /handoff)
