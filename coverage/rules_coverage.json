@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "rules_dir": "docs/rules",
+  "counts": {
+    "paths": 52,
+    "covered": 52,
+    "uncovered": 0,
+    "rule_files": 3,
+    "rule_files_matching": 3
+  },
+  "rules": [
+    {
+      "file": "fleet-spawning.md",
+      "globs": [
+        "src/fleet/**"
+      ],
+      "match_count": 20,
+      "matching": true,
+      "matched_paths": [
+        "src/fleet/__init__.py",
+        "src/fleet/adapters/__init__.py",
+        "src/fleet/adapters/base.py",
+        "src/fleet/adapters/fake.py",
+        "src/fleet/adapters/generic.py",
+        "src/fleet/classify.py",
+        "src/fleet/conductor.py",
+        "src/fleet/dispatcher.py",
+        "src/fleet/harness.py",
+        "src/fleet/legacy.py",
+        "src/fleet/merge.py",
+        "src/fleet/order.py",
+        "src/fleet/overseer.py",
+        "src/fleet/profiles.py",
+        "src/fleet/project.py",
+        "src/fleet/provenance.py",
+        "src/fleet/recover.py",
+        "src/fleet/select.py",
+        "src/fleet/spawn.py",
+        "src/fleet/state.py"
+      ]
+    },
+    {
+      "file": "kernel-writing.md",
+      "globs": [
+        "src/pmk/**",
+        ".pm/**"
+      ],
+      "match_count": 16,
+      "matching": true,
+      "matched_paths": [
+        "src/pmk/__init__.py",
+        "src/pmk/api.py",
+        "src/pmk/briefing.py",
+        "src/pmk/bundle.py",
+        "src/pmk/cli.py",
+        "src/pmk/clock.py",
+        "src/pmk/context.py",
+        "src/pmk/events.py",
+        "src/pmk/models.py",
+        "src/pmk/pdd.py",
+        "src/pmk/plat.py",
+        "src/pmk/policy.py",
+        "src/pmk/sentinel.py",
+        "src/pmk/state.py",
+        "src/pmk/store.py",
+        "src/pmk/views.py"
+      ]
+    },
+    {
+      "file": "windows-platform.md",
+      "globs": [
+        "**/*"
+      ],
+      "match_count": 52,
+      "matching": true,
+      "matched_paths": [
+        "src/cna/tools/coverage.py",
+        "src/cna/tools/rules_index.py",
+        "src/console/__init__.py",
+        "src/console/app.py",
+        "src/console/static/index.html",
+        "src/fleet/__init__.py",
+        "src/fleet/adapters/__init__.py",
+        "src/fleet/adapters/base.py",
+        "src/fleet/adapters/fake.py",
+        "src/fleet/adapters/generic.py",
+        "src/fleet/classify.py",
+        "src/fleet/conductor.py",
+        "src/fleet/dispatcher.py",
+        "src/fleet/harness.py",
+        "src/fleet/legacy.py",
+        "src/fleet/merge.py",
+        "src/fleet/order.py",
+        "src/fleet/overseer.py",
+        "src/fleet/profiles.py",
+        "src/fleet/project.py",
+        "src/fleet/provenance.py",
+        "src/fleet/recover.py",
+        "src/fleet/select.py",
+        "src/fleet/spawn.py",
+        "src/fleet/state.py",
+        "src/pmk/__init__.py",
+        "src/pmk/api.py",
+        "src/pmk/briefing.py",
+        "src/pmk/bundle.py",
+        "src/pmk/cli.py",
+        "src/pmk/clock.py",
+        "src/pmk/context.py",
+        "src/pmk/events.py",
+        "src/pmk/models.py",
+        "src/pmk/pdd.py",
+        "src/pmk/plat.py",
+        "src/pmk/policy.py",
+        "src/pmk/sentinel.py",
+        "src/pmk/state.py",
+        "src/pmk/store.py",
+        "src/pmk/views.py",
+        "src/quotagate/RESPONSE_TIME.md",
+        "src/quotagate/__init__.py",
+        "src/quotagate/__main__.py",
+        "src/quotagate/config.py",
+        "src/quotagate/config.toml",
+        "src/quotagate/engine.py",
+        "src/quotagate/errors.py",
+        "src/quotagate/latency.py",
+        "src/quotagate/main.py",
+        "src/quotagate/provenance.py",
+        "src/quotagate/routing.py"
+      ]
+    }
+  ],
+  "uncovered_paths": []
+}
