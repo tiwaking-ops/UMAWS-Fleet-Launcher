@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "generator": "src/cna/tools/rules_index.py",
+  "source": {
+    "rules_dir": "docs/rules",
+    "pinned_commit": "95ee4790e9c6e7b8ef5a65156231afc93523f21a",
+    "files": [
+      "fleet-spawning.md",
+      "kernel-writing.md",
+      "windows-platform.md"
+    ]
+  },
+  "documents": [
+    {
+      "path": "fleet-spawning.md",
+      "sha256": "ec3f0cbdd13d18ea87adc986b66a7306ecc1667027e691dfacf7eaa74532cdd7",
+      "bytes": 506,
+      "lines": 13,
+      "title": "Fleet Spawning & Recovery",
+      "frontmatter": {},
+      "sections": [
+        {
+          "level": 1,
+          "number": "1",
+          "title": "Fleet Spawning & Recovery",
+          "line": 6,
+          "anchor": "fleet-spawning-recovery",
+          "slug": "fleet-spawning-recovery",
+          "children": []
+        }
+      ],
+      "anchors": [
+        {
+          "id": "fleet-spawning-recovery",
+          "kind": "section",
+          "line": 6,
+          "section": "1",
+          "section_title": "Fleet Spawning & Recovery",
+          "anchor_id": "fleet-spawning-recovery",
+          "text": "Fleet Spawning & Recovery"
+        }
+      ],
+      "xrefs": [],
+      "tables": [],
+      "checksum": null
+    },
+    {
+      "path": "kernel-writing.md",
+      "sha256": "caf6c50e5630fa39b91e2524c367c45a912531a499b9e0a634a9f1cbacd99053",
+      "bytes": 551,
+      "lines": 13,
+      "title": "Kernel Writing & State Invariants",
+      "frontmatter": {},
+      "sections": [
+        {
+          "level": 1,
+          "number": "1",
+          "title": "Kernel Writing & State Invariants",
+          "line": 7,
+          "anchor": "kernel-writing-state-invariants",
+          "slug": "kernel-writing-state-invariants",
+          "children": []
+        }
+      ],
+      "anchors": [
+        {
+          "id": "kernel-writing-state-invariants",
+          "kind": "section",
+          "line": 7,
+          "section": "1",
+          "section_title": "Kernel Writing & State Invariants",
+          "anchor_id": "kernel-writing-state-invariants",
+          "text": "Kernel Writing & State Invariants"
+        }
+      ],
+      "xrefs": [],
+      "tables": [],
+      "checksum": null
+    },
+    {
+      "path": "windows-platform.md",
+      "sha256": "46a3f57a418adc0c3be373790975a12e0b07d037e204d353b280a43204a84a84",
+      "bytes": 444,
+      "lines": 11,
+      "title": "Windows Platform Constraints",
+      "frontmatter": {},
+      "sections": [
+        {
+          "level": 1,
+          "number": "1",
+          "title": "Windows Platform Constraints",
+          "line": 6,
+          "anchor": "windows-platform-constraints",
+          "slug": "windows-platform-constraints",
+          "children": []
+        }
+      ],
+      "anchors": [
+        {
+          "id": "windows-platform-constraints",
+          "kind": "section",
+          "line": 6,
+          "section": "1",
+          "section_title": "Windows Platform Constraints",
+          "anchor_id": "windows-platform-constraints",
+          "text": "Windows Platform Constraints"
+        }
+      ],
+      "xrefs": [],
+      "tables": [],
+      "checksum": null
+    }
+  ],
+  "anchors": {
+    "fleet-spawning-recovery": {
+      "id": "fleet-spawning-recovery",
+      "kind": "section",
+      "line": 6,
+      "section": "1",
+      "section_title": "Fleet Spawning & Recovery",
+      "anchor_id": "fleet-spawning-recovery",
+      "text": "Fleet Spawning & Recovery",
+      "document": "fleet-spawning.md"
+    },
+    "kernel-writing-state-invariants": {
+      "id": "kernel-writing-state-invariants",
+      "kind": "section",
+      "line": 7,
+      "section": "1",
+      "section_title": "Kernel Writing & State Invariants",
+      "anchor_id": "kernel-writing-state-invariants",
+      "text": "Kernel Writing & State Invariants",
+      "document": "kernel-writing.md"
+    },
+    "windows-platform-constraints": {
+      "id": "windows-platform-constraints",
+      "kind": "section",
+      "line": 6,
+      "section": "1",
+      "section_title": "Windows Platform Constraints",
+      "anchor_id": "windows-platform-constraints",
+      "text": "Windows Platform Constraints",
+      "document": "windows-platform.md"
+    }
+  },
+  "xrefs": [],
+  "tables": [],
+  "warnings": [],
+  "stats": {
+    "documents": 3,
+    "sections": 3,
+    "anchors": 3,
+    "xrefs": 0,
+    "resolved_xrefs": 0,
+    "unresolved_xrefs": 0,
+    "tables": 0,
+    "warnings": 0
+  }
+}
