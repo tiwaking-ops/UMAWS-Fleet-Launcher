@@ -3,7 +3,7 @@
   "generator": "src/cna/tools/rules_index.py",
   "source": {
     "rules_dir": "docs/rules",
-    "pinned_commit": "95ee4790e9c6e7b8ef5a65156231afc93523f21a",
+    "pinned_commit": "75a037f27346a7cd920a765a2f3cae965b1e07a3",
     "files": [
       "fleet-spawning.md",
       "kernel-writing.md",

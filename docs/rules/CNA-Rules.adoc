@@ -1,0 +1,178 @@
+:numbered:
+:xrefstyle: short
+:doctype: book
+:front-cover-image: image:images/The_Campaign_for_North_Africa_cover.jpg[]
+:title-page-background-image: image:images/The_Campaign_for_North_Africa_cover.jpg[]
+
+= The Campaign for North Africa : The dessert war 1940-43
+:toc:
+
+====
+
+*Read This First*
+
+The rules of this SPI simulation game are organized in a format known as the *Case System*. This system of organization divides the rules into *Major Sections* (each of which deals with an important aspect of play). These Sections are numbered sequentially as well as being named.
+
+Each of these Major Sections is introduced by a *General Rule*, which briefly describes the subject of the Section. Many times this General Rule is followed by a *Procedure*, which describes the basic action the player will take when using the rules in that Section. Finally, the bulk of each Major Section consists of *Cases*. These are the specific detailed rules that actually regulate play.
+
+Each of these Cases is also numbered. The numbering follows a logical system based upon the number of the Major Section of which the Cases are a part. A Case with the number `6.5`, for example, is the fifth Primary Case of the sixth Major Section of the rules. Many times these Primary Cases are further subdivided into *Secondary Cases*. A Secondary Case is recognizable by the fact that it has two digits to the right of its decimal point.
+
+Each Major Section can have as many as nine Primary Cases, and each Primary Case can have as many as nine Secondary Cases. The numbering system is meant as an organizational aid. Using it, players can always easily tell where a Case is located in the rules. As a further aid, an outline of the Major Sections and Primary Cases is given at the beginning of the rules
+
+*How the Section and Case Numbers Work*
+
+* Major Section Number
+* Primary Case Number
+* Secondary Case Number
+
+Example:
+
+----
+6.531
+----
+
+The preceding example would be the number of the third Secondary Case of the fifth Primary Case of the sixth Major Section of the rules.
+
+*How to Learn to Play the Game*
+
+Familiarize yourself with all of the components. Read all of the General Rules and Procedures and read the titles of the Primary Cases. Set up the game for play (after reading the pertinent Section) and play a trial game against yourself, referring to the rules only when you have a question.
+
+This procedure may take you a few hours, but it is the fastest and most entertaining way to learn the rules short of having a friend teach them to you.
+
+You should not attempt to learn the rules word-for-word. Memorizing all that detail is a task of which few of us are capable. SPI rules are written to be as complete as possible—they are not designed to be memorized. The Case numbering system makes it easy to look up rules when you are in doubt.
+
+Absorbing the rules in this manner (as you play) is a much better approach to game mastery than attempting to study them as if cramming for a test.
+
+We hope you enjoy this SPI game. Should you have any difficulty interpreting the rules, please write to SPI, phrasing your questions so that they can be answered by a simple sentence, word, or number. You must enclose a stamped, self-addressed envelope. We cannot guarantee a proper answer should you choose to phone in your question (the right person is not always available, and since SPI has published hundreds of games, no one individual is capable of answering all questions).
+
+====
+
+include::sections/section-01.adoc[]
+
+include::sections/section-02.adoc[]
+
+include::sections/section-03.adoc[]
+
+include::sections/section-04.adoc[]
+
+include::sections/section-05.adoc[]
+
+include::sections/section-06.adoc[]
+
+include::sections/section-07.adoc[]
+
+include::sections/section-08.adoc[]
+
+include::sections/section-09.adoc[]
+
+include::sections/section-10.adoc[]
+
+include::sections/section-11.adoc[]
+
+include::sections/section-12.adoc[]
+
+include::sections/section-13.adoc[]
+
+include::sections/section-14.adoc[]
+
+include::sections/section-15.adoc[]
+
+include::sections/section-16.adoc[]
+
+include::sections/section-17.adoc[]
+
+include::sections/section-18.adoc[]
+
+include::sections/section-19.adoc[]
+
+include::sections/section-20.adoc[]
+
+include::sections/section-21.adoc[]
+
+include::sections/section-22.adoc[]
+
+include::sections/section-23.adoc[]
+
+include::sections/section-24.adoc[]
+
+include::sections/section-25.adoc[]
+
+include::sections/section-26.adoc[]
+
+include::sections/section-27.adoc[]
+
+include::sections/section-28.adoc[]
+
+include::sections/section-29.adoc[]
+
+include::sections/section-30.adoc[]
+
+include::sections/section-31.adoc[]
+
+include::sections/section-32.adoc[]
+
+include::sections/section-33.adoc[]
+
+include::sections/section-34.adoc[]
+
+include::sections/section-35.adoc[]
+
+include::sections/section-36.adoc[]
+
+include::sections/section-37.adoc[]
+
+include::sections/section-38.adoc[]
+
+include::sections/section-39.adoc[]
+
+include::sections/section-40.adoc[]
+
+include::sections/section-41.adoc[]
+
+include::sections/section-42.adoc[]
+
+include::sections/section-43.adoc[]
+
+include::sections/section-44.adoc[]
+
+include::sections/section-45.adoc[]
+
+include::sections/section-46.adoc[]
+
+include::sections/section-47.adoc[]
+
+include::sections/section-48.adoc[]
+
+include::sections/section-49.adoc[]
+
+include::sections/section-50.adoc[]
+
+include::sections/section-51.adoc[]
+
+include::sections/section-52.adoc[]
+
+include::sections/section-53.adoc[]
+
+include::sections/section-54.adoc[]
+
+include::sections/section-55.adoc[]
+
+include::sections/section-56.adoc[]
+
+include::sections/section-57.adoc[]
+
+include::sections/section-58.adoc[]
+
+include::sections/section-59.adoc[]
+
+include::sections/section-60.adoc[]
+
+include::sections/section-61.adoc[]
+
+include::sections/section-62.adoc[]
+
+include::sections/section-63.adoc[]
+
+include::sections/section-64.adoc[]
+
+include::sections/section-65.adoc[]

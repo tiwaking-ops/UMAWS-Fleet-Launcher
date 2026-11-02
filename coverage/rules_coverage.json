@@ -2,8 +2,8 @@
   "schema_version": 1,
   "rules_dir": "docs/rules",
   "counts": {
-    "paths": 52,
-    "covered": 52,
+    "paths": 64,
+    "covered": 64,
     "uncovered": 0,
     "rule_files": 3,
     "rule_files_matching": 3
@@ -14,7 +14,7 @@
       "globs": [
         "src/fleet/**"
       ],
-      "match_count": 20,
+      "match_count": 22,
       "matching": true,
       "matched_paths": [
         "src/fleet/__init__.py",
@@ -28,6 +28,7 @@
         "src/fleet/harness.py",
         "src/fleet/legacy.py",
         "src/fleet/merge.py",
+        "src/fleet/oracle_lint.py",
         "src/fleet/order.py",
         "src/fleet/overseer.py",
         "src/fleet/profiles.py",
@@ -35,6 +36,7 @@
         "src/fleet/provenance.py",
         "src/fleet/recover.py",
         "src/fleet/select.py",
+        "src/fleet/selftest.py",
         "src/fleet/spawn.py",
         "src/fleet/state.py"
       ]
@@ -71,9 +73,13 @@
       "globs": [
         "**/*"
       ],
-      "match_count": 52,
+      "match_count": 64,
       "matching": true,
       "matched_paths": [
+        "src/cna/engine/__init__.py",
+        "src/cna/engine/actions.py",
+        "src/cna/engine/decision.py",
+        "src/cna/engine/errors.py",
         "src/cna/tools/coverage.py",
         "src/cna/tools/rules_index.py",
         "src/console/__init__.py",
@@ -90,6 +96,7 @@
         "src/fleet/harness.py",
         "src/fleet/legacy.py",
         "src/fleet/merge.py",
+        "src/fleet/oracle_lint.py",
         "src/fleet/order.py",
         "src/fleet/overseer.py",
         "src/fleet/profiles.py",
@@ -97,6 +104,7 @@
         "src/fleet/provenance.py",
         "src/fleet/recover.py",
         "src/fleet/select.py",
+        "src/fleet/selftest.py",
         "src/fleet/spawn.py",
         "src/fleet/state.py",
         "src/pmk/__init__.py",
@@ -125,7 +133,13 @@
         "src/quotagate/latency.py",
         "src/quotagate/main.py",
         "src/quotagate/provenance.py",
-        "src/quotagate/routing.py"
+        "src/quotagate/routing.py",
+        "src/umaws_fleet.egg-info/PKG-INFO",
+        "src/umaws_fleet.egg-info/SOURCES.txt",
+        "src/umaws_fleet.egg-info/dependency_links.txt",
+        "src/umaws_fleet.egg-info/entry_points.txt",
+        "src/umaws_fleet.egg-info/requires.txt",
+        "src/umaws_fleet.egg-info/top_level.txt"
       ]
     }
   ],
