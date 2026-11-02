@@ -246,7 +246,7 @@ class Harness:
             slot = spawn_mod.spawn_slot(
                 self.repo, task_id=task.id, profile_id=profile.id,
                 adapter=adapter, profile=profile.raw or profile.to_dict(),
-                prompt=order_mod.FIXED_PROMPT, worktree=worktree,
+                prompt=order_mod.order_prompt(worktree), worktree=worktree,
                 fence=lease.fence, index=0, env=self._env(profile))
         except (OSError, ValueError) as exc:
             result.outcome = "failed"
@@ -459,7 +459,7 @@ class Harness:
                 self.repo, task_id=run.task.id, profile_id=run.profile.id,
                 adapter=run.adapter,
                 profile=run.profile.raw or run.profile.to_dict(),
-                prompt=order_mod.FIXED_PROMPT, worktree=run.worktree,
+                prompt=order_mod.order_prompt(run.worktree), worktree=run.worktree,
                 fence=run.lease.fence, index=run.fix_rounds,
                 env=self._env(run.profile))
         except (OSError, ValueError):

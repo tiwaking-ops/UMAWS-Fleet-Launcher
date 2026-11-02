@@ -36,6 +36,10 @@ RESULT_FILE = "RESULT.md"
 FIXED_PROMPT = "Read .pmwork/ORDER.md and carry out the task exactly as written."
 
 
+def order_prompt(worktree: str | Path) -> str:
+    return f"Read {order_path(worktree)} and carry out the task exactly as written."
+
+
 def order_path(worktree: str | Path) -> Path:
     return Path(worktree) / ORDER_DIR / ORDER_FILE
 

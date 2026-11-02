@@ -432,7 +432,7 @@ class Dispatcher:
                     self.repo, task_id=run.task.id, profile_id=run.profile.id,
                     adapter=run.adapter,
                     profile=run.profile.raw or run.profile.to_dict(),
-                    prompt=order_mod.FIXED_PROMPT, worktree=run.worktree,
+                    prompt=order_mod.order_prompt(run.worktree), worktree=run.worktree,
                     fence=run.lease.fence, index=9,
                     env=self.harness._env(run.profile))
             except (OSError, ValueError):
@@ -467,7 +467,7 @@ class Dispatcher:
             new_slot = spawn_mod.spawn_slot(
                 self.repo, task_id=run.task.id, profile_id=profile.id,
                 adapter=adapter, profile=raw,
-                prompt=order_mod.FIXED_PROMPT, worktree=run.worktree,
+                prompt=order_mod.order_prompt(run.worktree), worktree=run.worktree,
                 fence=run.lease.fence, index=8,
                 env=self.harness._env(profile),
                 mode=mode, session=run.session or None)
