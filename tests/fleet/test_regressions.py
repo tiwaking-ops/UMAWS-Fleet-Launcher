@@ -1431,3 +1431,105 @@ def test_integrate_rejects_corrupt_bundle(git_repo_master):
     assert exc.value.reason == "invalid_bundle"
     from pmk.models import DONE
     assert kernel.state().tasks[task.id].state != DONE
+
+
+# ---------------------------------------------------------------------------
+# R-02 / R-03 / R-09 / R-10 / R-11: worktree isolation and main-tree checks
+# ---------------------------------------------------------------------------
+
+def test_order_prompt_returns_absolute_path():
+    """R-03: order_prompt must contain the absolute worktree path."""
+    from fleet.order import order_prompt
+    prompt = order_prompt("C:/temp/work/T-001-1")
+    # order_prompt uses pathlib Path, which on Windows returns backslash paths
+    assert ".pmwork\\ORDER.md" in prompt
+    assert "T-001-1" in prompt
+    assert "Read" in prompt
+
+
+def test_validate_agent_claims_no_changes_fast_fail(tmp_path):
+    """R-02: implement card with no changes outside .pmwork/ fails fast."""
+    from fleet.harness import _validate_agent_claims
+    from unittest.mock import MagicMock
+
+    worktree = tmp_path / "wt"
+    worktree.mkdir()
+    (worktree / ".pmwork").mkdir()
+    (worktree / ".pmwork" / "RESULT.md").write_text("done", encoding="utf-8")
+
+    task = MagicMock()
+    task.id = "001"
+    task.type = "implement"
+    task.write_scope = ["out.txt"]
+    task.read_scope = []
+    problems = _validate_agent_claims(task, worktree, "")
+    assert any("NO_CHANGES" in p for p in problems)
+
+
+def test_validate_agent_claims_result_md_task_id_mismatch(tmp_path):
+    """R-02: RESULT.md task id mismatch is flagged."""
+    from fleet.harness import _validate_agent_claims
+    from unittest.mock import MagicMock
+
+    worktree = tmp_path / "wt"
+    worktree.mkdir()
+    (worktree / ".pmwork").mkdir()
+    (worktree / ".pmwork" / "RESULT.md").write_text("T-999 done", encoding="utf-8")
+
+    task = MagicMock()
+    task.id = "001"
+    task.type = "implement"
+    task.write_scope = ["out.txt"]
+    task.read_scope = []
+    problems = _validate_agent_claims(task, worktree, "")
+    assert any("task id mismatch" in p for p in problems)
+
+
+def test_main_tree_check_refuses_lease_with_scope_conflict(git_repo_master):
+    """R-09: harness refuses to lease when main tree has uncommitted changes in write scope."""
+    from fleet.harness import Harness
+    from fleet.profiles import Profile
+    from fleet.state import FleetState
+
+    repo = git_repo_master
+    kernel = _make_kernel_from_repo(repo)
+    write_agents(repo, [fake_profile()])
+
+    task = make_task(kernel, scope={"write": ["src/thing.py"], "read": []})
+    # Create an uncommitted change in main tree inside the write scope
+    (repo.root / "src" / "thing.py").write_text("out-of-band\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo.root), "add", "src/thing.py"],
+                   check=True, capture_output=True)
+
+    harness = Harness(kernel, FleetState())
+    profile = Profile.from_dict(fake_profile())
+    run, result = harness.start(task, profile)
+    assert run is None
+    assert result is not None
+    assert result.outcome == "failed"
+    assert "main tree has uncommitted changes in write scope" in result.error
+
+
+def test_agent_started_includes_main_tree_status(git_repo_master):
+    """R-11: AGENT_STARTED event payload includes main_tree_status."""
+    from fleet.harness import Harness
+    from fleet.profiles import Profile
+    from fleet.state import FleetState
+
+    repo = git_repo_master
+    kernel = _make_kernel_from_repo(repo)
+    write_agents(repo, [fake_profile()])
+
+    task = make_task(kernel, scope={"write": ["out.txt"], "read": []})
+    # Change a file OUTSIDE the write scope so lease is allowed
+    (repo.root / "README.md").write_text("main-tree-change\n", encoding="utf-8")
+
+    harness = Harness(kernel, FleetState())
+    profile = Profile.from_dict(fake_profile())
+    run, result = harness.start(task, profile)
+    assert run is not None
+    events = kernel.events()
+    started = [e for e in events if e.type == "AGENT_STARTED"]
+    assert len(started) == 1
+    assert "main_tree_status" in started[0].payload
+

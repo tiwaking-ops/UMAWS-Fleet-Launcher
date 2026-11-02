@@ -151,6 +151,12 @@ def worktree_status(repo, worktree: str | Path) -> str:
     return out if code == 0 else ""
 
 
+def main_tree_status(repo) -> str:
+    """``git status --porcelain`` for the main working tree (repo root)."""
+    code, out, err = repo.git("status", "--porcelain", "--untracked-files=all")
+    return out if code == 0 else ""
+
+
 def worktree_status_detail(repo, worktree: str | Path) -> dict:
     """``git status --porcelain`` with the exit code and stderr.
 

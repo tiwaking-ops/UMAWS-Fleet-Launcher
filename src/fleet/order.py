@@ -64,6 +64,23 @@ def render_order(task, lease=None, *, constitution: str = "",
                  f"      Read: {', '.join(task.read_scope) or '-'}")
     lines.append("")
 
+    # Worktree isolation warning (fleet amendment D-L7 / overseer fix)
+    worktree = getattr(lease, "worktree", "") if lease else ""
+    if worktree:
+        lines.append(f"## Your worktree (operate ONLY here)")
+        lines.append(f"   Absolute worktree path: {worktree}")
+        lines.append("")
+        lines.append("   WARNING: The main working tree may contain uncommitted files from other")
+        lines.append("   tasks or out-of-band changes. Do NOT verify your work against the main")
+        lines.append("   tree. Operate, run oracles, and write RESULT.md ONLY inside this worktree.")
+        lines.append("")
+
+    if task.agent_hint:
+        lines.append("## Worktree instructions (from agent_hint)")
+        for hint_line in task.agent_hint.splitlines():
+            lines.append(f"   {hint_line}")
+        lines.append("")
+
     lines.append("## Check first (premises)")
     if task.premises:
         for premise in task.premises:

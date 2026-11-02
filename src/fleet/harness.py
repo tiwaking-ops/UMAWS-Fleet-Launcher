@@ -115,6 +115,38 @@ def _hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
 
 
+def _validate_agent_claims(task, worktree: str | Path, log_tail: str) -> list[str]:
+    """R-02: structural checks on agent claims before oracles run."""
+    problems: list[str] = []
+    wt = Path(worktree)
+
+    # 1. Task ID in RESULT.md must match the leased task ID
+    result_path = wt / ".pmwork" / "RESULT.md"
+    if result_path.is_file():
+        try:
+            text = result_path.read_text(encoding="utf-8", errors="replace")
+            if f"T-{task.id}" not in text and task.id not in text:
+                problems.append(f"RESULT.md task id mismatch: expected {task.id}")
+        except OSError:
+            pass
+
+    # 2. NO_CHANGES fast-fail for implement cards with empty worktree diff
+    if task.type == "implement":
+        try:
+            code, out, _ = subprocess.run(
+                ["git", "status", "--porcelain", "--untracked-files=all"],
+                cwd=str(wt), capture_output=True, text=True, timeout=30)
+        except Exception:
+            out = ""
+        changed = [line[3:].strip() for line in out.splitlines() if len(line) > 3 and not line.startswith("??")]
+        # ignore .pmwork/ noise
+        changed = [p for p in changed if not p.startswith(".pmwork/")]
+        if not changed:
+            problems.append("NO_CHANGES: implement card exited with no changes outside .pmwork/")
+
+    return problems
+
+
 def run_command(command: str, cwd: str | Path, *,
                 timeout: int = 600) -> tuple[int, str, str]:
     """Run one acceptance command in the worktree.
@@ -242,6 +274,23 @@ class Harness:
             attempt=lease.attempt, fence=lease.fence)
         order_mod.write_order(worktree, order_text)
 
+        # R-09: refuse to lease if main tree has uncommitted changes in write scope
+        main_tree_changes = spawn_mod.main_tree_status(self.repo)
+        scope_conflict = False
+        if main_tree_changes and task.write_scope:
+            from pmk.models import scope_overlaps
+            changed_paths = []
+            for line in main_tree_changes.splitlines():
+                if len(line) > 3:
+                    changed_paths.append(line[3:].strip())
+            overlapping = [p for p in changed_paths if scope_overlaps([p], task.write_scope)]
+            if overlapping:
+                scope_conflict = True
+                result.outcome = "failed"
+                result.error = (f"main tree has uncommitted changes in write scope: "
+                                f"{', '.join(overlapping)}")
+                return None, result
+
         try:
             slot = spawn_mod.spawn_slot(
                 self.repo, task_id=task.id, profile_id=profile.id,
@@ -254,6 +303,9 @@ class Harness:
             self._give_up(lease, result, "spawn failed")
             return None, result
 
+        # R-11: record main-tree git status at spawn for later comparison
+        main_status = spawn_mod.main_tree_status(self.repo)
+
         state = self.fleet_state.profile(profile.id)
         state.last_used = time.time()
         self.fleet_state.save()
@@ -264,7 +316,8 @@ class Harness:
             payload={"profile": profile.id, "adapter": profile.adapter,
                      "pid": slot.pid, "creation_time": slot.creation_time,
                      "worktree": str(worktree), "log": slot.log_path,
-                     "degraded": slot.degraded})
+                     "degraded": slot.degraded,
+                     "main_tree_status": main_status})
 
         run = LeaseRun(task=task, profile=profile, lease=lease, adapter=adapter,
                        slot=slot, worktree=worktree, started_at=now,
@@ -331,7 +384,8 @@ class Harness:
             "AGENT_EXITED", subject=run.task.id, fence=run.lease.fence,
             payload={"profile": run.profile.id, "exit_code": exit_code,
                      "class": failure_class, "log": run.slot.log_path,
-                     "session": run.session, "stalled": stalled})
+                     "session": run.session, "stalled": stalled,
+                     "main_tree_status": spawn_mod.main_tree_status(self.repo)})
 
         if failure_class != classes.OK:
             return self._recover(run, result, failure_class, log_tail)
@@ -343,6 +397,13 @@ class Harness:
         served = self._record_provenance(run)
 
         # -- the oracles decide -------------------------------------------
+        # R-02: validate agent claims before trusting oracles
+        claim_errors = _validate_agent_claims(run.task, run.worktree, log_tail)
+        if claim_errors:
+            result.outcome = "failed"
+            result.error = "; ".join(claim_errors)
+            return result
+
         oracle_results = run_oracles(run.task, run.worktree)
         result.oracles = [o.to_obj() for o in oracle_results]
         if not oracle_results or all(o.ok for o in oracle_results):
