@@ -1,0 +1,213 @@
+[#65_0]
+== IN CONCLUSION
+
+We have attempted, in Campaign for North Africa, to provide the hobby with the
+most accurate and most stimulating simulation yet undertaken. Very little is
+abstracted (mostly the naval game), and the Players are given as much to do as
+we considered humanly feasible. CNA is a difficult and complex game; it is not
+for the novice, to be sure. It is our (both designer and developer) opinion that
+we have, in the main, succeeded in our endeavor. CNA was playtested for nearly
+two years an extensive list of "veteran" testers, most of whom were chosen for
+their insight and gaming acumen. Many researchers were used—including the
+inimitable Richard Garcyznski—more than on any other project. The amount of work
+put into the game was enormous; the amount of information available is almost
+mind-boggling. We hope that the amount of fun is just as great.
+
+[nonumbering]
+=== DESIGNER'S NOTES In Brief
+
+A game such as CNA certainly could use — nay, demands — extensive background
+information as to where and why. Unfortunately, to do this subject justice would
+require a veritable book. And you already have enough to read with this game.
+I'll simply try to cover a few subjects generally.
+
+The general research was done mostly by me; the specifics were done by a host of
+others. The task was divided into areas — Italian OB, German air,
+logistics, etc. It was done over a period of two years, and provided many hours
+of confusion and some laughter. (We felt that being provided with a complete OB
+for German bakery companies was a bit much...although the temptation to use them
+was great.)
+
+The scale of the game was decided by its scope and size — and the map
+configuration. The sources are listed in the bibliography, and suffice to say
+the game-maps are borrowed from several conflicting sources. Often the designer
+had to make difficult decisions as to which tracks existed and which simply
+filled in the blank spaces on an Italian map.  The tracks proved most difficult
+— I don't think there are two maps that agree — but defining things-such as
+sand-gravel, rough, and salt marsh was equally taxing. The map of the game is as
+accurate as we could get it on the scale presented.  The greatest liberties, or
+shall we say, abstractions, are with ridges, slopes, and escarpments. Again the
+effort was, at the scale given, to present effect rather than strict
+geographical accuracy.
+
+The system itself was developed rather quickly.  The first problem tackled was
+the theory and application of mobile desert warfare. Several approaches were
+tried, most were unsatisfactory.  What I wanted was a system that would enable
+units to move as far as the player wanted them to, but within the limits of fuel
+and fatigue. And I found the germ for such an idea in an unlikely place: Mick
+Uhl's Gettysburg '77. From that game came the general idea for the Continual
+Movement System. Actually, the system did not take full effect until I came up
+with the idea for Cohesion Points — and, of course, a workable set of numbers
+for such. Both of these provided the game the one thing I wanted to prove — that
+mobile units were more powerful not because they had more "combat points" but
+because they were more mobile.
+
+After the movement system fell into place it took several weeks to come up with
+a combat system.  The idea was to provide a tactical feel with an operational
+game. (The system for CNA is remarkably similar to Frank Chadwick's Operation:
+Crusader.) Of course, the backbone for the combat system is the OB work — and
+especially the values given to each unit. Lord knows where some of these came
+from, but I do know that I have a mountain of yellow sheets in my basement with
+a lot of mathematical computations. Tanks and guns were done strictly on
+relative strengths — using the Italians as a base for the lowest. The same with
+infantry. I'm sure questions will arise as to why some infantry is 2/2, some
+1/2, some 1/1, etc. A lot has to do with weaponry, some with background and
+training, and some is fairly subjective. The strengths themselves are not the
+balancing factor, the Morale Level is. And Morale Level was based on
+performance, training and general esprit de corps. (The morale system was taken
+from my own Veracruz, another unusual source.)
+
+Combat, however, is not what this game is about.  Logistics is the subject, and
+trucks are the thesis.  And from the very beginning that is what I
+concentrated on. Most of the design work went into making the logistics system
+work. Hundreds of computations on breakdown rates, fuel consumption, tonnage
+capacities, etc., were done using available statistics and charts. One of the
+hardest jobs was the Replacement Charts. It is one thing to determine how much a
+man weighs, and thus a battalion; it is another to determine how much ship space
+he takes up. The same can be said for guns and other equipment. We had a fairly
+accurate picture of Axis shipping tonnage, but there was little information
+available as to wkat was shipped on what and how. The real problem was not
+coming up with all this information, it was integrating it so that everything
+meshed. Luckily, the logistics system proved to be relatively trouble-free.
+
+Not so for the air system, That was hell. We were working with individual planes
+— a conceit of the designer, admittedly — and thus the combat system had to be
+tactical. However, this was an operational game and I had no desire to get
+involved in an African version of Air War. It took a long evening of fiddling
+with a calculator to come up with the complicated series of computations that we
+used to arrive at our air strengths. This was possible only when I came up with
+a combat system. If you ask me, the whole thing is a bit much — but then you
+could say that of the entire game. I would have scrapped the whole shebang had
+not the playtesters enjoyed it so much. As it is, the air system is a game
+within itself, with all its logistical problems and planning. Oh, yes — having
+the air commander roll for refit for each plane individually is a good way of
+passing time while the land game is on.
+
+The main question with CNA is, “Why?” The answer, superficially, is because
+that's what the feedback said you wanted. But that's a cop-out. I did CNA as a
+definitive and informationally overpowering simulation because I wanted to see
+how far I could take simulation gaming and still survive. CNA is virtually
+unplayable — as a game. It is, for the most part, a source of information. Yet,
+if it is approached from the point of view of an experience, a lesson in
+history, then CNA can provide remarkable insights into a fascinating campaign.
+One does not “play” CNA, one immerses himself in it. Some of you will, no doubt,
+drown; most will just tread water. But a few of you will find the swim
+refreshing.
+
+A word as to the accuracy of all this information.  Let's face it, I am not the
+definitive scholar on North Africa — it's not even my main area of interest.
+There are bound to be some mistakes, some all-too-subjective assumptions, and
+some pure baloney. But all of it is based on hard research. As I have said
+elsewhere, if you have better information, use it. (And let me know, too....)
+This is a system for your enjoyment; it is not an ironclad contract between
+gamer and designer. One thing I do know, from all the research we did, this —
+CNA —is the first commerically available source to publish a complete
+battalion-level Order of Battle for all sides at all times during Africa. Just
+think how many games you can devise from that alone!
+
+Some brief words of thanks to those involved.  CNA took a long time (as those
+who ordered the game two years ago will no doubt attest to). Along the way many
+people gave freely (and not-sofreely) of their time and energy. To Redmond
+Simonsen goes the credit for coming up with the idea for this game — and he
+knows how I feel about that brainstorm. To our fearless leader, Jim Dunnigan, a
+devotee of the Torquemada School of Persuasion, goes some dubious thanks for
+assigning me to this project. An honest vote of thanks to my very good friend
+Howard Barasch, for spending many hours with his voluminous notes on the
+campaign. And to my two OB researchers —
+
+David Ryan and, especially, the incredible Richard Garzcynski, I can only say
+that they saved my proverbial rear-end more than once. But most of all, I would
+like to thank the game's developer, Marty Goldberger. Marty stuck with this
+project through worse than I had to do. I may have designed it, but he had to
+make heads or tails of it...and he was the one who took all the grief when we
+screwed up. A remarkably dogged individual, Marty G. provided a sense of
+structure and parameter that was sorely needed. And finally, much gratitude goes
+to my wife Karen, who can now stop saying, “Africa?  Are you still working on
+that damn game!”
+
+BIBLIOGRAPHY FOR CNA
+A Brief Note
+
+The books and references listed here are not an extensive or complete list of
+all works consulted.  Some works were too general to be of use, and while they
+provided interesting background you could not say they were used as a source.
+Other works are not listed simply because, in the long delay in putting the game
+together, we just lost track of the exact title (the book having been returned
+to its owner, etc.) Other works, such as the Commonwealth histories — including
+New Zealand, Australian, Indian, and South African — were definitely used but
+can usually be found in any standard work on the subject. The same can be said
+for the famous Playfair volumes, the fourbook work on the British effort in the
+Mediterranean. Playfair is an incredible work, but it is flawed. It is difficult
+to read, having been written by committee, as it were, and there is much
+information that is missing, as well as some that is wrong.  Altogether,
+however, it is still the single most important source.
+
+Finally, it must be noted that our two main OB researchers, the estimable
+Messrs. Garzcynski and Ryan, made use of a large number of unit histories,
+military studies, microfilms, and private letters and correspondence.
+
+[bibliography]
+== Bibliography
+
+* [[[riccio1977]]] Ralph Riccio. _Italian Tanks and Fighting Vehicles of World War 2_. Pique Publications, Oxon, England, 1977.
+
+* [[[shores1976]]] Christopher Shores. _Regia Aeronautica_. Squadron/Signal Publications, Michigan, 1976.
+
+* [[[angelucci1978]]] Enzo Angelucci and Paolo Matricardi. _World War II Airplanes, Volume I_. Rand McNally & Co., New York, 1978.
+
+* [[[taylor1969]]] John Taylor. _Combat Aircraft of the World_. Putnam's Sons, Inc., New York, 1969.
+
+* [[[kelger-desert]]] Jon Jeffrey Kelger. _Italian Armor in the Desert_. (Source unknown; this was a photocopy of an article.)
+
+* [[[kelger-alamein]]] Jon Jeffrey Kegler. _Italian Armor at El Alamein_. (See previous entry.)
+
+* [[[benvenuti]]] Bruno Benvenuti. _A Short History of the Italian Medium Tank_. (Another photocopied magazine article.)
+
+* [[[bogart1977]]] Peter Bogart. _The Vulnerability of the Manned Airborne Weapon System_. International Defense Review, 1977.
+
+* [[[afy-g2]]] _AFY-G2_. Baron Publishing Company, California. (A series of magazines, from which several articles were consulted.)
+
+* [[[bender1973]]] Roger J. Bender and Richard D. Law. _Uniforms, Organization, and History of the Afrika Korps_. Bender Publishing, 1973.
+
+* [[[agar-hamilton1957]]] Agar-Hamilton and Turner. _The Sidi-Rezeg Battles, 1941_. Oxford University Press, Capetown, 1957.
+
+* [[[armour1971]]] _Armour Camouflage and Markings: North Africa, 1940-1943_. Published privately, Ontario, Canada, 1971.
+
+* [[[mellenthin1955]]] Maj. Gen. von Mellenthin. _Panzer Battles_. University of Oklahoma, Harman, 1955.
+
+* [[[arena1972]]] Nino Arena. _I Paracadutisti_. S.T.E.M., Mucchi, 1972.
+
+* [[[italian-official]]] _Stato Maggiore Dell'Escercito Ufficio Storio_ (The Italian Official Histories). Eight volumes.
+
+* [[[desert-tracks]]] _Desert Tracks_. Baron Publishing Co., 1978.
+
+* [[[tessin]]] Georg Tessin. _Verbande und Truppen der deutsches Wehrmacht und Waffen SS in Zweiten Weltkrieg_ (The standard German Order of Battle work). Frankfurt, date unknown.
+
+* [[[senger1969]]] F. M. von Senger und Etterlin. _German Tanks of World War II_. Galahad Books, New York, 1969.
+
+* [[[franzi1978]]] Emil Franzi. _Artillery of the Second World War_. Whitehouse Press, Tucson, Arizona, 1978.
+
+* [[[joslin]]] H. Joslin. _Orders of Battle_. HMSO, London (British Orders of Battle — the standard reference.)
+
+* [[[crow]]] Duncan Crow. _Commonwealth Armoured Formations of World War II_. Profile Publications, England.
+
+[discrete]
+=== Map Sources
+
+* [[[map-sonder1]]] _Sonderangabe I, 1941_. 1:400,000 Cyrenaika
+
+* [[[map-sonder2]]] _Sonderangabe II, 1941_. 1:2,000,000 Libyen
+
+* [[[map-geo]]] _Geographical Section, General Staff No 4076_. 1:100,000
+
+* [[[map-world]]] _World (Africa)_. 1:1,000,000 Series 1301, Edition 6AMS, US Army Map Service
