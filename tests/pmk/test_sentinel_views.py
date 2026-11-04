@@ -11,6 +11,14 @@ from pmk.sentinel import check
 from conftest import make_bundle, make_card
 
 
+def _head_commit(kernel) -> str:
+    """Get the current HEAD commit from the kernel's repo."""
+    code, out, _ = kernel.repo.git("rev-parse", "HEAD")
+    if code == 0:
+        return out.strip()
+    return ""
+
+
 # ---------------------------------------------------------------------------
 # Sentinel
 # ---------------------------------------------------------------------------
@@ -59,7 +67,7 @@ def test_sentinel_detects_promotion_without_a_bundle(kernel):
     lease = kernel.claim(card.id, holder="p")
     kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence))
     kernel.verify(card.id, lease.fence, ok=True)
-    kernel.integrate(card.id, lease.fence)
+    kernel.integrate(card.id, lease.fence, commit=_head_commit(kernel))
     # Remove the bundle: the promotion now has no evidence (I6).
     import shutil
     shutil.rmtree(kernel.repo.evidence_dir / f"EB-{card.id}-{lease.fence}")

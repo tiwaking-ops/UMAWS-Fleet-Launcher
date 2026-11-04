@@ -23,6 +23,15 @@ def repo(tmp_path: Path) -> Repo:
     """A repository with the layout, the constitution, and no log yet."""
     r = Repo(tmp_path / "repo")
     r.ensure_layout()
+    # Initialize git repo with an initial commit so HEAD exists
+    import subprocess
+    subprocess.run(["git", "init"], cwd=r.root, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=r.root, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=r.root, capture_output=True)
+    # Create an initial file and commit
+    (r.root / "README.md").write_text("# Test Repo\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=r.root, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=r.root, capture_output=True)
     # The constitution must exist for the pins to be meaningful (I8') and
     # for the briefing to carry the rules (CIP Part B 14.4).
     constitution = Path(__file__).resolve().parents[2] / ".pm" / "constitution.md"

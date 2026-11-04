@@ -31,10 +31,6 @@ ORDER_FILE = "ORDER.md"
 HANDOFF_FILE = "HANDOFF.md"
 RESULT_FILE = "RESULT.md"
 
-#: The one sentence every CLI receives.  Plain ASCII: no quotes, no percent
-#: signs, nothing that a shell or a ``.cmd`` shim would reinterpret.
-FIXED_PROMPT = "Read .pmwork/ORDER.md and carry out the task exactly as written."
-
 
 def order_prompt(worktree: str | Path) -> str:
     return f"Read {order_path(worktree)} and carry out the task exactly as written."
@@ -53,7 +49,8 @@ def result_path(worktree: str | Path) -> Path:
 
 
 def render_order(task, lease=None, *, constitution: str = "",
-                 handoff: str = "", attempt: int = 1, fence: int = 0) -> str:
+                 handoff: str = "", attempt: int = 1, fence: int = 0,
+                 worktree: str | Path | None = None) -> str:
     """Render the work order for *task*."""
     lines: list[str] = []
     lines.append(f"# Work order {task.id} (attempt {attempt}, lease fence {fence})")
@@ -64,16 +61,23 @@ def render_order(task, lease=None, *, constitution: str = "",
                  f"      Read: {', '.join(task.read_scope) or '-'}")
     lines.append("")
 
-    # Worktree isolation warning (fleet amendment D-L7 / overseer fix)
-    worktree = getattr(lease, "worktree", "") if lease else ""
-    if worktree:
+    # Worktree isolation warning with absolute paths for every write scope entry
+    wt = str(worktree) if worktree else (getattr(lease, "worktree", "") if lease else "")
+    if wt:
         lines.append(f"## Your worktree (operate ONLY here)")
-        lines.append(f"   Absolute worktree path: {worktree}")
+        lines.append(f"   Absolute worktree path: {wt}")
         lines.append("")
         lines.append("   WARNING: The main working tree may contain uncommitted files from other")
         lines.append("   tasks or out-of-band changes. Do NOT verify your work against the main")
         lines.append("   tree. Operate, run oracles, and write RESULT.md ONLY inside this worktree.")
         lines.append("")
+        # Absolute destination paths for every scope.write entry
+        if task.write_scope:
+            lines.append("   Absolute destination paths (write scope):")
+            for scope_path in task.write_scope:
+                abs_path = Path(wt) / scope_path
+                lines.append(f"     {abs_path}")
+            lines.append("")
 
     if task.agent_hint:
         lines.append("## Worktree instructions (from agent_hint)")

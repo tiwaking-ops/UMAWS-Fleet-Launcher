@@ -10,6 +10,14 @@ from pmk.models import (BLOCKED, DONE, LEASED, PROPOSED, READY, REWORK,
 from conftest import make_bundle, make_card
 
 
+def _head_commit(kernel) -> str:
+    """Get the current HEAD commit from the kernel's repo."""
+    code, out, _ = kernel.repo.git("rev-parse", "HEAD")
+    if code == 0:
+        return out.strip()
+    return ""
+
+
 # ---------------------------------------------------------------------------
 # Tasks and admission
 # ---------------------------------------------------------------------------
@@ -205,7 +213,7 @@ def test_integrate_promotes_to_done(kernel):
     lease = kernel.claim(card.id, holder="p")
     kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence))
     kernel.verify(card.id, lease.fence, ok=True)
-    kernel.integrate(card.id, lease.fence)
+    kernel.integrate(card.id, lease.fence, commit=_head_commit(kernel))
     assert kernel.state().tasks[card.id].state == DONE
 
 

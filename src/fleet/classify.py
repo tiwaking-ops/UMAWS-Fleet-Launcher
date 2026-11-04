@@ -31,13 +31,14 @@ MODEL_GONE = "MODEL_GONE"
 STALL = "STALL"
 CRASH = "CRASH"
 UNKNOWN = "UNKNOWN"
+NO_CHANGES = "NO_CHANGES"
 
-FAILURE_CLASSES = (QUOTA, AUTH, NETWORK, MODEL_GONE, STALL, CRASH, UNKNOWN)
+FAILURE_CLASSES = (QUOTA, AUTH, NETWORK, MODEL_GONE, STALL, CRASH, UNKNOWN, NO_CHANGES)
 
 #: The order patterns are tested in.  The first class whose pattern matches
 #: wins.  Order matters only in that a more specific class must come before
 #: a more general one.
-CLASS_ORDER = (QUOTA, AUTH, MODEL_GONE, NETWORK, CRASH)
+CLASS_ORDER = (QUOTA, AUTH, MODEL_GONE, NETWORK, CRASH, NO_CHANGES)
 
 
 @dataclass

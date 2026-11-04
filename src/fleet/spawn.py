@@ -157,6 +157,30 @@ def main_tree_status(repo) -> str:
     return out if code == 0 else ""
 
 
+def main_tree_status_z(repo) -> list[tuple[str, str]]:
+    """``git status --porcelain -z --untracked-files=all`` for the main working tree.
+
+    Returns a list of (status_xy, path) tuples. Each entry is NUL-separated.
+    Status XY: index=X, worktree=Y. Path may contain " -> " for renames.
+    """
+    code, out, err = repo.git("status", "--porcelain", "-z", "--untracked-files=all")
+    if code != 0 or not out:
+        return []
+    entries = []
+    parts = out.split('\0')
+    for part in parts:
+        if not part:
+            continue
+        if len(part) < 3:
+            continue
+        status_xy = part[:2]
+        path = part[3:] if len(part) > 3 else ""
+        if not path:
+            continue
+        entries.append((status_xy, path))
+    return entries
+
+
 def worktree_status_detail(repo, worktree: str | Path) -> dict:
     """``git status --porcelain`` with the exit code and stderr.
 

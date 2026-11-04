@@ -464,9 +464,10 @@ def test_the_work_order_is_written_and_the_prompt_is_fixed(fake_kernel):
     text = order.read_text(encoding="utf-8")
     assert task.id in text
     assert "The harness will run these itself" in text
-    from fleet.order import FIXED_PROMPT
-    assert FIXED_PROMPT.isascii()
-    assert "%" not in FIXED_PROMPT and '"' not in FIXED_PROMPT
+    from fleet.order import order_prompt
+    prompt = order_prompt(run.worktree)
+    assert prompt.isascii()
+    assert "%" not in prompt and '"' not in prompt
 
 
 def test_a_scope_violation_is_detected(fake_kernel):

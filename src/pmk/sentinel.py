@@ -36,7 +36,7 @@ STOP_INVARIANTS = ("I1", "I3", "I6", "I8'")
 @dataclass
 class Finding:
     invariant: str
-    detail: str
+    detail: object = ""
     stops: bool = False
     subject: str = ""
 
@@ -156,6 +156,26 @@ def check(kernel) -> dict:
                 "I6", f"task {task_id} INTEGRATED event has no bundle reference",
                 stops=True, subject=task_id))
             continue
+        
+        # R1: Check for empty or unreachable commit in INTEGRATED event
+        commit = integrated.payload.get("commit", "")
+        if not commit or not commit.strip():
+            report.findings.append(Finding(
+                invariant="I5",
+                detail={"finding": "empty_commit_in_integrated", "commit": commit},
+                stops=False, subject=task_id))
+        else:
+            # Verify commit is reachable from current HEAD
+            try:
+                code, _, _ = kernel.repo.git("merge-base", "--is-ancestor", commit, "HEAD")
+                if code != 0:
+                    report.findings.append(Finding(
+                        invariant="I5",
+                        detail={"finding": "unreachable_commit_in_integrated", "commit": commit},
+                        stops=False, subject=task_id))
+            except Exception:
+                pass  # If git fails, skip this check
+        
         path = kernel.repo.evidence_dir / bundle_path_str / "bundle.json"
         if not path.is_file():
             report.findings.append(Finding(

@@ -24,7 +24,16 @@ from pmk.sentinel import check
 
 from conftest import make_bundle, make_card
 
+
 HUMAN = Actor.human("test-operator")
+
+
+def _head_commit(kernel: Kernel) -> str:
+    """Get the current HEAD commit from the kernel's repo."""
+    code, out, _ = kernel.repo.git("rev-parse", "HEAD")
+    if code == 0:
+        return out.strip()
+    return ""
 
 
 def _promote_with_failing_oracle(kernel, card, lease):
@@ -42,7 +51,7 @@ def test_integrate_refuses_a_promotion_with_a_failing_oracle(kernel):
     _promote_with_failing_oracle(kernel, card, lease)
 
     with pytest.raises(KernelError) as exc:
-        kernel.integrate(card.id, lease.fence, commit="test-commit")
+        kernel.integrate(card.id, lease.fence, commit=_head_commit(kernel))
 
     assert exc.value.reason == "invalid_bundle"
     assert any("oracle" in p for p in exc.value.details.get("problems", []))
@@ -62,7 +71,7 @@ def test_integrate_refuses_a_promotion_without_a_bundle(kernel):
     shutil.rmtree(kernel.repo.evidence_dir / f"EB-{card.id}-{lease.fence}")
 
     with pytest.raises(KernelError) as exc:
-        kernel.integrate(card.id, lease.fence, commit="test-commit")
+        kernel.integrate(card.id, lease.fence, commit=_head_commit(kernel))
 
     assert exc.value.reason == "no_bundle"
     assert kernel.state().tasks[card.id].state != DONE
@@ -75,7 +84,7 @@ def test_integrate_allows_a_promotion_with_a_passing_oracle(kernel):
     kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
     kernel.verify(card.id, lease.fence, ok=True)
 
-    result = kernel.integrate(card.id, lease.fence, commit="test-commit")
+    result = kernel.integrate(card.id, lease.fence, commit=_head_commit(kernel))
 
     assert result["ok"] is True
     assert kernel.state().tasks[card.id].state == DONE
@@ -98,9 +107,9 @@ def test_sentinel_detects_promotion_with_failing_oracle(kernel):
     # Force the promotion past the Kernel's new guard, the way the T-0003
     # path did: write the INTEGRATING/INTEGRATED events directly.
     kernel.record_event("INTEGRATING", subject=card.id, fence=lease.fence,
-                        payload={"commit": "forced"})
+                        payload={"commit": _head_commit(kernel)})
     kernel.record_event("INTEGRATED", subject=card.id, fence=lease.fence,
-                        payload={"commit": "forced",
+                        payload={"commit": _head_commit(kernel),
                                  "bundle": f"EB-{card.id}-{lease.fence}"})
 
     assert kernel.state().tasks[card.id].state == DONE
@@ -127,9 +136,9 @@ def test_sentinel_silent_for_revoked_task_with_failing_bundle(kernel):
 
     # Promote (force past the guard).
     kernel.record_event("INTEGRATING", subject=card.id, fence=lease.fence,
-                        payload={"commit": "forced"})
+                        payload={"commit": _head_commit(kernel)})
     kernel.record_event("INTEGRATED", subject=card.id, fence=lease.fence,
-                        payload={"commit": "forced",
+                        payload={"commit": _head_commit(kernel),
                                  "bundle": f"EB-{card.id}-{lease.fence}"})
     assert kernel.state().tasks[card.id].state == DONE
 
@@ -150,7 +159,7 @@ def test_sentinel_is_quiet_for_a_healthy_promotion(kernel):
     lease = kernel.claim(card.id, holder="p")
     kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
     kernel.verify(card.id, lease.fence, ok=True)
-    kernel.integrate(card.id, lease.fence, commit="test-commit")
+    kernel.integrate(card.id, lease.fence, commit=_head_commit(kernel))
 
     report = check(kernel)
     assert not any(f["invariant"] == "I5" for f in report["findings"]), report["findings"]
@@ -196,7 +205,7 @@ def test_sentinel_does_not_flag_valid_reintegration(kernel):
     lease = kernel.claim(card.id, holder="p")
     kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
     kernel.verify(card.id, lease.fence, ok=True)
-    kernel.integrate(card.id, lease.fence, commit="test-commit")
+    kernel.integrate(card.id, lease.fence, commit=_head_commit(kernel))
 
     # Revoking *after* a valid integration should NOT produce an I4 finding.
     kernel.revoke(card.id, lease.fence, reason="post-integration review")
@@ -263,7 +272,7 @@ def test_void_refused_for_done(kernel):
     lease = kernel.claim(card.id, holder="p")
     kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
     kernel.verify(card.id, lease.fence, ok=True)
-    kernel.integrate(card.id, lease.fence, commit="test-commit")
+    kernel.integrate(card.id, lease.fence, commit=_head_commit(kernel))
     assert kernel.state().tasks[card.id].state == DONE
     with pytest.raises(KernelError) as exc:
         kernel.task_void(card.id, reason="too late", actor=HUMAN)
@@ -397,7 +406,7 @@ def test_verify_from_done_fails(kernel):
     lease = kernel.claim(card.id, holder="p")
     kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
     kernel.verify(card.id, lease.fence, ok=True)
-    kernel.integrate(card.id, lease.fence, commit="test-commit")
+    kernel.integrate(card.id, lease.fence, commit=_head_commit(kernel))
     assert kernel.state().tasks[card.id].state == DONE
     with pytest.raises(KernelError) as exc:
         kernel.verify(card.id, lease.fence, ok=True)
@@ -468,3 +477,156 @@ def test_task_create_type_check_runs_before_admission(kernel):
     created = [e for e in kernel.events() if e.type == "TASK_CREATED"]
     assert len(created) == 1
     assert card.id == created[0].subject
+
+
+# ---------------------------------------------------------------------------
+# R1: B3 integrate commit validation tests
+# ---------------------------------------------------------------------------
+
+def test_integrate_refuses_empty_commit(kernel):
+    """integrate() must refuse an empty commit sha."""
+    card = make_card(kernel)
+    lease = kernel.claim(card.id, holder="p")
+    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
+    kernel.verify(card.id, lease.fence, ok=True)
+
+    with pytest.raises(KernelError) as exc:
+        kernel.integrate(card.id, lease.fence, commit="")
+    assert exc.value.reason == "invalid_integration"
+    assert "non-empty commit sha" in exc.value.details["problems"][0]
+
+
+def test_integrate_refuses_unknown_commit(kernel):
+    """integrate() must refuse a commit that doesn't exist."""
+    card = make_card(kernel)
+    lease = kernel.claim(card.id, holder="p")
+    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
+    kernel.verify(card.id, lease.fence, ok=True)
+
+    with pytest.raises(KernelError) as exc:
+        kernel.integrate(card.id, lease.fence, commit="unknown1234")
+    assert exc.value.reason == "invalid_integration"
+    assert "not a valid commit object" in exc.value.details["problems"][0]
+
+
+def test_integrate_refuses_unreachable_commit(kernel):
+    """integrate() must refuse a commit not reachable from HEAD (not in main's history)."""
+    card = make_card(kernel)
+    lease = kernel.claim(card.id, holder="p")
+    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
+    kernel.verify(card.id, lease.fence, ok=True)
+
+    # Create a commit on a divergent branch (not reachable from HEAD)
+    import subprocess
+    repo_root = kernel.repo.root
+    default_branch = kernel.repo.default_branch()
+    # Create a new branch with a commit
+    subprocess.run(["git", "checkout", "-b", "divergent"], cwd=repo_root, capture_output=True)
+    (repo_root / "divergent.txt").write_text("divergent\n", encoding="utf-8")
+    subprocess.run(["git", "add", "divergent.txt"], cwd=repo_root, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "divergent commit"], cwd=repo_root, capture_output=True)
+    code, divergent_commit, _ = kernel.repo.git("rev-parse", "HEAD")
+    divergent_commit = divergent_commit.strip()
+    # Go back to default branch
+    subprocess.run(["git", "checkout", default_branch], cwd=repo_root, capture_output=True)
+
+    with pytest.raises(KernelError) as exc:
+        kernel.integrate(card.id, lease.fence, commit=divergent_commit)
+    assert exc.value.reason == "invalid_integration"
+    assert "not reachable from HEAD" in exc.value.details["problems"][0]
+
+
+def test_integrate_allows_ancestor_commit(kernel):
+    """integrate() must allow a commit that is an ancestor of HEAD (in main's history)."""
+    card = make_card(kernel)
+    lease = kernel.claim(card.id, holder="p")
+    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
+    kernel.verify(card.id, lease.fence, ok=True)
+
+    # Use HEAD itself (which is an ancestor of itself)
+    result = kernel.integrate(card.id, lease.fence, commit=_head_commit(kernel))
+    assert result["ok"] is True
+    assert kernel.state().tasks[card.id].state == "DONE"
+
+
+def test_integrate_refuses_descendant_not_in_main(kernel):
+    """integrate() must refuse a commit that is a descendant of HEAD but not in main's history.
+    
+    This simulates a commit made on a branch that hasn't been merged to main yet.
+    """
+    card = make_card(kernel)
+    lease = kernel.claim(card.id, holder="p")
+    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
+    kernel.verify(card.id, lease.fence, ok=True)
+
+    # Create a new branch from HEAD and add a commit (descendant of HEAD, not in main)
+    import subprocess
+    repo_root = kernel.repo.root
+    default_branch = kernel.repo.default_branch()
+    head_commit = _head_commit(kernel)
+    subprocess.run(["git", "checkout", "-b", "feature-branch", head_commit], cwd=repo_root, capture_output=True)
+    (repo_root / "feature.txt").write_text("feature\n", encoding="utf-8")
+    subprocess.run(["git", "add", "feature.txt"], cwd=repo_root, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "feature commit"], cwd=repo_root, capture_output=True)
+    code, feature_commit, _ = kernel.repo.git("rev-parse", "HEAD")
+    feature_commit = feature_commit.strip()
+    # Go back to default branch
+    subprocess.run(["git", "checkout", default_branch], cwd=repo_root, capture_output=True)
+
+    # The feature commit is a descendant of HEAD but not in main's history
+    with pytest.raises(KernelError) as exc:
+        kernel.integrate(card.id, lease.fence, commit=feature_commit)
+    assert exc.value.reason == "invalid_integration"
+    assert "not reachable from HEAD" in exc.value.details["problems"][0]
+
+
+def test_sentinel_finding_empty_commit_in_integrated(kernel):
+    """Sentinel must record a finding for INTEGRATED event with empty commit."""
+    from pmk.sentinel import check
+    card = make_card(kernel)
+    lease = kernel.claim(card.id, holder="p")
+    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
+    kernel.verify(card.id, lease.fence, ok=True)
+
+    # Force an INTEGRATED event with empty commit (simulating a bypass)
+    kernel.record_event("INTEGRATING", subject=card.id, fence=lease.fence,
+                        payload={"commit": ""})
+    kernel.record_event("INTEGRATED", subject=card.id, fence=lease.fence,
+                        payload={"commit": "", "bundle": f"EB-{card.id}-{lease.fence}"})
+
+    report = check(kernel)
+    findings = [f for f in report["findings"] if f["invariant"] == "I5" and f.get("detail", {}).get("finding") == "empty_commit_in_integrated"]
+    assert findings, f"expected empty_commit_in_integrated finding, got: {report['findings']}"
+    assert findings[0]["subject"] == card.id
+
+
+def test_sentinel_finding_unreachable_commit_in_integrated(kernel):
+    """Sentinel must record a finding for INTEGRATED event with unreachable commit."""
+    from pmk.sentinel import check
+    card = make_card(kernel)
+    lease = kernel.claim(card.id, holder="p")
+    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence, ok=True))
+    kernel.verify(card.id, lease.fence, ok=True)
+
+    # Create a divergent commit
+    import subprocess
+    repo_root = kernel.repo.root
+    default_branch = kernel.repo.default_branch()
+    subprocess.run(["git", "checkout", "-b", "divergent2"], cwd=repo_root, capture_output=True)
+    (repo_root / "divergent2.txt").write_text("divergent2\n", encoding="utf-8")
+    subprocess.run(["git", "add", "divergent2.txt"], cwd=repo_root, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "divergent2 commit"], cwd=repo_root, capture_output=True)
+    code, divergent_commit, _ = kernel.repo.git("rev-parse", "HEAD")
+    divergent_commit = divergent_commit.strip()
+    subprocess.run(["git", "checkout", default_branch], cwd=repo_root, capture_output=True)
+
+    # Force an INTEGRATED event with unreachable commit
+    kernel.record_event("INTEGRATING", subject=card.id, fence=lease.fence,
+                        payload={"commit": divergent_commit})
+    kernel.record_event("INTEGRATED", subject=card.id, fence=lease.fence,
+                        payload={"commit": divergent_commit, "bundle": f"EB-{card.id}-{lease.fence}"})
+
+    report = check(kernel)
+    findings = [f for f in report["findings"] if f["invariant"] == "I5" and f.get("detail", {}).get("finding") == "unreachable_commit_in_integrated"]
+    assert findings, f"expected unreachable_commit_in_integrated finding, got: {report['findings']}"
+    assert findings[0]["subject"] == card.id

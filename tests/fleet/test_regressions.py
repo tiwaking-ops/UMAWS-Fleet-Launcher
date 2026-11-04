@@ -831,13 +831,16 @@ def test_closing_when_only_void_tasks_remain(git_repo_master):
     # Start from RUNNING.
     kernel.project_set_state("RUNNING", reason="starting")
 
+    # Get a real commit sha from the repo (the initial commit).
+    _, real_commit, _ = repo.git("rev-parse", "HEAD")
+
     # Create one DONE task (doesn't block close) and one VOID task (doesn't
     # block close either).
     task_done = make_task(kernel, scope={"write": ["src/thing.py"], "read": []})
     lease = kernel.claim(task_done.id, holder="p")
     kernel.submit(task_done.id, lease.fence, _make_valid_bundle(task_done.id, lease.fence))
     kernel.verify(task_done.id, lease.fence, ok=True)
-    kernel.integrate(task_done.id, lease.fence, commit="done")
+    kernel.integrate(task_done.id, lease.fence, commit=real_commit.strip())
     assert kernel.state().tasks[task_done.id].state == DONE
 
     task_void = make_task(kernel, scope={"write": ["src/thing2.py"], "read": []})
@@ -1506,7 +1509,7 @@ def test_main_tree_check_refuses_lease_with_scope_conflict(git_repo_master):
     run, result = harness.start(task, profile)
     assert run is None
     assert result is not None
-    assert result.outcome == "failed"
+    assert result.outcome == "blocked"
     assert "main tree has uncommitted changes in write scope" in result.error
 
 

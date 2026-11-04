@@ -300,6 +300,12 @@ class Kernel:
                                   type=card.type,
                                   valid=list(TASK_TYPES))
             problems = card.admission_errors()
+            # R3: Oracle lint at creation time (before auto-admit)
+            if not problems:
+                from pmk.oracle_lint import lint_oracles_at_admission
+                oracle_errors = lint_oracles_at_admission(list(card.oracles))
+                if oracle_errors:
+                    problems.extend(oracle_errors)
             self._append("TASK_CREATED", actor=actor, subject=card.id,
                          payload={"card": card.to_obj(),
                                   "admission_errors": problems})
@@ -329,6 +335,12 @@ class Kernel:
             if problems:
                 raise KernelError("admission_failed", task=task_id,
                                   problems=problems)
+            # R3: Oracle lint at admission time (before claim)
+            from pmk.oracle_lint import lint_oracles_at_admission
+            oracle_errors = lint_oracles_at_admission(list(card.oracles))
+            if oracle_errors:
+                raise KernelError("admission_failed", task=task_id,
+                                  problems=oracle_errors)
             if card.state != PROPOSED:
                 raise KernelError("bad_transition", task=task_id,
                                   current=card.state, target=READY)
@@ -638,6 +650,10 @@ class Kernel:
         failed, which is exactly what happened to T-0003 (the bundle
         recorded ``ok: false, exit: 1`` and the task was still
         promoted).
+
+        Additionally, the commit must be non-empty and must be reachable
+        from main (git merge-base --is-ancestor), ensuring content
+        actually lands in HEAD.
         """
         with self._locked():
             state = self.state()
@@ -667,6 +683,46 @@ class Kernel:
             if problems:
                 raise KernelError("invalid_bundle", task=task_id,
                                   problems=problems)
+
+            # -- B3 (R1): require non-empty commit that is valid and reachable from main ---
+            if not commit or not commit.strip():
+                # Sentinel finding: INTEGRATED with empty commit
+                self._append("SENTINEL_FINDING", actor=Actor.kernel(), subject=task_id,
+                             fence=fence, payload={"invariant": "I5",
+                                                  "finding": "empty_commit_in_integrated",
+                                                  "commit": commit})
+                raise KernelError("invalid_integration", task=task_id,
+                                  problems=["INTEGRATED requires a non-empty commit sha"])
+            
+            # Validate the commit is a real git object (commit-ish)
+            try:
+                code, out, err = self.repo.git("rev-parse", "--verify", f"{commit}^{{commit}}")
+                if code != 0:
+                    raise KernelError("invalid_integration", task=task_id,
+                                      problems=[f"commit {commit[:12]} is not a valid commit object: {err or out}"])
+            except KernelError:
+                raise
+            except Exception as exc:
+                raise KernelError("invalid_integration", task=task_id,
+                                  problems=[f"git rev-parse validation failed: {exc}"])
+            
+            # Verify commit is reachable from main (i.e., commit is an ancestor of HEAD,
+            # meaning the commit is in main's history and lands in main)
+            try:
+                code, out, err = self.repo.git("merge-base", "--is-ancestor", commit, "HEAD")
+                if code != 0:
+                    # Sentinel finding: INTEGRATED with unreachable commit
+                    self._append("SENTINEL_FINDING", actor=Actor.kernel(), subject=task_id,
+                                 fence=fence, payload={"invariant": "I5",
+                                                      "finding": "unreachable_commit_in_integrated",
+                                                      "commit": commit})
+                    raise KernelError("invalid_integration", task=task_id,
+                                      problems=[f"commit {commit[:12]} is not reachable from HEAD (not in main's history)"])
+            except KernelError:
+                raise
+            except Exception as exc:
+                raise KernelError("invalid_integration", task=task_id,
+                                  problems=[f"git merge-base check failed: {exc}"])
 
             self._append("INTEGRATING", actor=actor, subject=task_id, fence=fence,
                          payload={"commit": commit})
