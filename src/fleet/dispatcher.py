@@ -26,6 +26,7 @@ from pathlib import Path
 
 from pmk.api import Kernel, KernelError
 from pmk.plat import free_ram_mb
+from pmk.policy import enforce_fleet_config, get_profiles_with_errors, load_agents
 
 from . import order as order_mod
 from . import recover
@@ -71,8 +72,6 @@ class Dispatcher:
         self._backoff_max_s = 300.0    # cap at 5 minutes
         self._stop = threading.Event()
 
-    # ------------------------------------------------------------------
-    # D-A1: exponential backoff on refused claims
     # ------------------------------------------------------------------
     def _backoff_delay(self, task_id: str) -> float:
         """Exponential backoff delay for a task: start 5s, cap 300s (D-A1)."""
@@ -265,6 +264,8 @@ class Dispatcher:
                 break
 
             excluded = self.failed_profiles.get(task.id, set())
+            # B-R4b: Also exclude profiles with fleet config errors
+            excluded = excluded | getattr(self, "_refused_profiles", set())
             implementer_family = self._implementer_family(task, state)
             implementer_served = self._implementer_served(task, state)
             selection = select_mod.select_profile(
@@ -415,6 +416,8 @@ class Dispatcher:
             fleet_cap=self.max_total_agents(), total_running=len(self.runs),
             implementer_family=self._implementer_family(task, state),
             implementer_served=self._implementer_served(task, state))
+        # B-R4b: Also exclude profiles with fleet config errors
+        excluded = excluded | getattr(self, "_refused_profiles", set())
         for candidate in selection.candidates:
             if candidate.profile.id in excluded:
                 continue
@@ -555,7 +558,22 @@ class Dispatcher:
         One loop supervises every slot.  It is event-driven in the sense
         that it sleeps on the tick interval rather than spinning, but it
         does not use one thread per slot.
+
+        B-R4b: Enforce fleet configuration errors at startup. If agents.toml
+        has errors (duplicate ids, unknown overseer profiles), record a
+        FLEET_CONFIG_ERRORS event and refuse to start.
         """
+        # B-R4b: Enforce fleet configuration
+        agents = load_agents(self.kernel.repo)
+        ok, errors = enforce_fleet_config(self.kernel, agents)
+        if not ok:
+            raise RuntimeError(
+                f"Fleet configuration has errors; refusing to start:\n" +
+                "\n".join(f"  - {e}" for e in errors))
+
+        # Store refused profiles for selection
+        self._refused_profiles = get_profiles_with_errors(agents)
+
         tick = float(self.fleet_config.get("dispatch_tick_s", 5))
         deadline = None if max_seconds is None else time.time() + max_seconds
         while not self._stop.is_set():

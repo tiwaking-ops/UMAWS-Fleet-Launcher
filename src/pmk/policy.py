@@ -151,24 +151,161 @@ def check_pins(repo) -> dict:
 
 
 def load_agents(repo) -> dict:
-    """Load ``agents.toml`` â€” the Fleet profiles (fleet amendment 12.A).
+    """Load ``agents.toml`` — the Fleet profiles (fleet amendment 12.A).
 
-    Returns ``{"fleet": {...}, "overseer": {...}, "profiles": [...]}``.
+    Returns ``{"fleet": {...}, "overseer": {...}, "profiles": [...], "errors": [...], "cap_keys": [...]}``.
     An unreadable file yields an empty profile list rather than an
     exception: a broken profile file must not take the Kernel down.
+
+    Validates (collects errors, does not raise):
+    - No duplicate profile ids
+    - Overseer profile names must match existing profile ids
+    - Reports which key enforces the concurrency cap (fleet.max_total_agents vs fleet.fleet_cap)
     """
     path = Path(repo.agents_path)
     if not path.is_file():
-        return {"fleet": {}, "overseer": {}, "profiles": []}
+        return {"fleet": {}, "overseer": {}, "profiles": [], "errors": ["agents.toml: file not found"], "cap_keys": []}
     try:
-        data = tomllib.loads(read_text(path))
-    except (OSError, tomllib.TOMLDecodeError):
-        return {"fleet": {}, "overseer": {}, "profiles": []}
+        text = read_text(path)
+        data = tomllib.loads(text)
+    except OSError as exc:
+        return {"fleet": {}, "overseer": {}, "profiles": [], "errors": [f"agents.toml: read error: {exc}"], "cap_keys": []}
+    except tomllib.TOMLDecodeError as exc:
+        # tomllib.TOMLDecodeError has .lineno and .colno attributes (Python 3.11+)
+        line_info = ""
+        if hasattr(exc, 'lineno') and exc.lineno:
+            line_info = f" at line {exc.lineno}"
+            if hasattr(exc, 'colno') and exc.colno:
+                line_info += f", column {exc.colno}"
+        return {"fleet": {}, "overseer": {}, "profiles": [], "errors": [f"agents.toml: TOML parse error{line_info}: {exc}"], "cap_keys": []}
+
+    profiles = list(data.get("profile", []) or [])
+    fleet = data.get("fleet", {}) or {}
+    overseer = data.get("overseer", {}) or {}
+
+    errors: list[str] = []
+
+    # R4: Validate no duplicate profile ids
+    seen_ids = set()
+    duplicate_ids = []
+    for profile in profiles:
+        pid = profile.get("id")
+        if pid:
+            if pid in seen_ids:
+                duplicate_ids.append(pid)
+            else:
+                seen_ids.add(pid)
+    if duplicate_ids:
+        errors.append(f"agents.toml: duplicate profile ids: {', '.join(duplicate_ids)}")
+
+    # R4: Validate overseer profile names exist
+    overseer_profiles = overseer.get("profiles", []) if isinstance(overseer, dict) else []
+    if not isinstance(overseer_profiles, list):
+        overseer_profiles = []
+    unknown_overseer = [name for name in overseer_profiles if name not in seen_ids]
+    if unknown_overseer:
+        errors.append(f"agents.toml: overseer profiles not found in profiles: {', '.join(unknown_overseer)}")
+
+    # R4: Report which key enforces concurrency cap
+    cap_keys = []
+    if "max_total_agents" in fleet:
+        cap_keys.append("fleet.max_total_agents")
+    if "fleet_cap" in fleet:
+        cap_keys.append("fleet.fleet_cap")
+
     return {
-        "fleet": data.get("fleet", {}) or {},
-        "overseer": data.get("overseer", {}) or {},
-        "profiles": list(data.get("profile", []) or []),
+        "fleet": fleet,
+        "overseer": overseer,
+        "profiles": profiles,
+        "errors": errors,
+        "cap_keys": cap_keys,
     }
+
+
+def enforce_fleet_config(kernel, agents: dict | None = None) -> tuple[bool, list[str]]:
+    """Enforce fleet configuration errors at runtime.
+
+    Called by dispatcher, overseer, and console at startup. On errors:
+    - Records ONE FLEET_CONFIG_ERRORS event (deduplicated by hash of error list)
+    - Refuses leases from profiles named in errors (all profiles on file-level error)
+    - Returns (False, errors) if there are errors, (True, []) otherwise.
+
+    The dispatcher/overseer/console should check the return value and refuse
+    to start if there are errors.
+
+    Note: Uses kernel.events() (normal read path) rather than read_all(repair=True)
+    to avoid torn-tail repair on a read path. The repair=True path is intended
+    for recovery scenarios (e.g., sentinel checking a potentially corrupted log)
+    and may truncate a partially-written event. Using the normal read path
+    ensures we don't accidentally truncate a partially-written event during
+    normal startup.
+    """
+    from pmk.events import Actor
+    import hashlib
+
+    if agents is None:
+        agents = load_agents(kernel.repo)
+
+    errors = agents.get("errors", [])
+    if not errors:
+        return True, []
+
+    # Deduplicate: compute hash of sorted error list
+    error_hash = hashlib.sha256("\n".join(sorted(errors)).encode("utf-8")).hexdigest()[:16]
+
+    # Check if we already recorded this exact error set
+    events = kernel.events()
+    for ev in reversed(events):
+        if ev.type == "FLEET_CONFIG_ERRORS":
+            payload_hash = ev.payload.get("error_hash", "")
+            if payload_hash == error_hash:
+                # Already recorded this error set
+                return False, errors
+
+    # Record the error event
+    kernel.record_event("FLEET_CONFIG_ERRORS", actor=Actor.kernel(),
+                        payload={"errors": errors, "error_hash": error_hash})
+
+    return False, errors
+
+
+def get_profiles_with_errors(agents: dict) -> set[str]:
+    """Return the set of profile ids that should be refused due to config errors.
+
+    - On file-level errors (TOML parse, missing file, read error), refuse ALL profiles.
+    - On duplicate id errors, refuse the duplicate profiles.
+    - On unknown overseer profile errors, refuse the unknown profiles.
+    """
+    refused = set()
+    errors = agents.get("errors", [])
+
+    if not errors:
+        return refused
+
+    profiles = agents.get("profiles", [])
+
+    # Check for file-level errors (these affect all profiles)
+    for err in errors:
+        if err.startswith("agents.toml: file not found") or \
+           err.startswith("agents.toml: read error:") or \
+           err.startswith("agents.toml: TOML parse error"):
+            # File-level error - refuse all profiles
+            refused.update(p.get("id") for p in profiles if p.get("id"))
+            return refused
+
+    for err in errors:
+        if "duplicate profile ids:" in err:
+            # Extract duplicate ids
+            dup_part = err.split("duplicate profile ids:", 1)[1].strip()
+            for pid in [p.strip() for p in dup_part.split(",")]:
+                refused.add(pid)
+        elif "overseer profiles not found in profiles:" in err:
+            # Extract unknown overseer profiles
+            unk_part = err.split("overseer profiles not found in profiles:", 1)[1].strip()
+            for name in [n.strip() for n in unk_part.split(",")]:
+                refused.add(name)
+
+    return refused
 
 
 def profile_by_id(repo, profile_id: str) -> dict | None:

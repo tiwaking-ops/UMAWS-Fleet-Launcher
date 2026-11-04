@@ -416,6 +416,35 @@ def cmd_fleet_profiles(args) -> int:
     return 0
 
 
+def cmd_fleet_check(args) -> int:
+    """Validate agents.toml and report errors + concurrency cap key."""
+    from pmk.policy import load_agents
+    kernel = _kernel(args)
+    agents = load_agents(kernel.repo)
+    
+    fleet = agents.get("fleet", {})
+    cap_keys = agents.get("cap_keys", [])
+    
+    # Report current value of the enforced cap key
+    cap_values = {}
+    if "fleet.max_total_agents" in cap_keys:
+        cap_values["fleet.max_total_agents"] = fleet.get("max_total_agents")
+    if "fleet.fleet_cap" in cap_keys:
+        cap_values["fleet.fleet_cap"] = fleet.get("fleet_cap")
+    
+    result = {
+        "ok": len(agents["errors"]) == 0,
+        "errors": agents["errors"],
+        "cap_keys": agents["cap_keys"],
+        "cap_values": cap_values,
+        "profiles_count": len(agents["profiles"]),
+        "overseer_profiles": agents["overseer"].get("profiles", []),
+    }
+    
+    _out(result)
+    return 0 if result["ok"] else 1
+
+
 def cmd_fleet_enable(args) -> int:
     from pmk.events import Actor
     kernel = _kernel(args)
@@ -917,6 +946,8 @@ def build_parser() -> argparse.ArgumentParser:
         .set_defaults(func=cmd_fleet_status)
     fleet.add_parser("profiles", help="list the profiles") \
         .set_defaults(func=cmd_fleet_profiles)
+    fleet.add_parser("check", help="validate agents.toml; report errors and concurrency cap key") \
+        .set_defaults(func=cmd_fleet_check)
 
     enable = fleet.add_parser("enable", help="enable a profile")
     enable.add_argument("profile_id")

@@ -28,6 +28,7 @@ from pydantic import BaseModel
 
 from pmk.api import Kernel, KernelError
 from pmk.events import Actor
+from pmk.policy import enforce_fleet_config, load_agents
 from fleet.conductor import Conductor
 from fleet.dispatcher import Dispatcher
 from fleet.overseer import OverseerRunner
@@ -50,6 +51,14 @@ class Console:
         # unpinned repository, and the sentinel's I8' check would have
         # nothing to check.
         self.kernel.init()
+        # B-R4b: Enforce fleet configuration at startup
+        agents = load_agents(self.kernel.repo)
+        ok, errors = enforce_fleet_config(self.kernel, agents)
+        if not ok:
+            raise RuntimeError(
+                f"Fleet configuration has errors; refusing to start:\n" +
+                "\n".join(f"  - {e}" for e in errors))
+
         # Default to the project-local fleet state (.pm/fleet/fleet-state.json)
         # so Console sessions never pollute the shared %LOCALAPPDATA% file.
         if fleet_state_path is None:
