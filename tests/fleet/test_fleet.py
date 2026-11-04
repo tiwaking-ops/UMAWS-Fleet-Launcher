@@ -717,3 +717,28 @@ def test_blocked_task_backoff_no_spam(fake_kernel, clock):
     # Backoff start 5s, cap 300s: T2 is blocked for the whole 10 minutes
     # and produces at most one FLEET_BLOCKED event.
     assert len(events) <= 5, [e.type for e in events]
+
+
+def test_no_changes_branch_reached_via_fake_cli(fake_kernel):
+    """Reach the NO_CHANGES branch of Harness._finish through a real fake-CLI run.
+
+    The fake CLI exits 0 without writing any files outside .pmwork/. This
+    exercises the NO_CHANGES check in _validate_agent_claims and verifies that
+    the attempt is classified as NO_CHANGES with no AttributeError.
+    """
+    from fleet.profiles import Profile
+    task = make_task(fake_kernel, oracles=["python -c \"print('ok')\""])
+    harness = _harness(fake_kernel)
+    # Use the no-changes scenario: fake CLI exits 0 without writing files
+    profile_no_changes = Profile(
+        id="fake-no-changes",
+        adapter="fake",
+        family="fake",
+        raw={"scenario": "no-changes"},
+        enabled=True,
+    )
+    result = harness.run(task, profile_no_changes)
+    # NO_CHANGES triggers the recovery ladder (L0 -> immediate restart)
+    assert result.outcome == "recovery"
+    assert result.failure_class == "NO_CHANGES"
+    assert "NO_CHANGES" in str(result.decision)

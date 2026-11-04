@@ -126,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--scenario", default="ok",
                         choices=["ok", "quota", "auth", "network",
                                  "model-gone", "crash", "hang", "slow",
-                                 "oracle-fail-then-ok"])
+                                 "oracle-fail-then-ok", "no-changes"])
     parser.add_argument("--session-id", default=None)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--cwd", default=None)
@@ -138,6 +138,11 @@ def main(argv: list[str] | None = None) -> int:
     if not cwd.is_dir():
         log(f"fakecli: worktree does not exist: {cwd}")
         return 66
+
+    # no-changes: exit immediately without writing any files
+    if args.scenario == "no-changes":
+        log("fakecli: no-changes scenario — exiting 0 without writing any files")
+        return 0
 
     # -- resume ------------------------------------------------------------
     stored = load_session(cwd)
