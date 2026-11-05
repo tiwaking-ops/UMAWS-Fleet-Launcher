@@ -20,16 +20,24 @@ from __future__ import annotations
 import threading
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from pmk.api import Kernel, KernelError
+from pmk.clock import parse_iso
+from pmk.events import Actor
+from pmk.models import LEASED
 
 from . import merge as merge_mod
 from . import project as project_mod
+from . import spawn as spawn_mod
 from .dispatcher import Dispatcher
 from .overseer import OverseerRunner
 
 #: The Dispatcher pauses for more than this long -> the project stalls.
 DISPATCH_PAUSE_LIMIT_S = 1800
+
+#: After a failed reap of one lease, wait this long before trying it again.
+REAP_RETRY_S = 300
 
 
 @dataclass
@@ -43,6 +51,8 @@ class Conductor:
     last_periodic: float = 0.0
     last_wake_reason: str = ""
     notes: list = field(default_factory=list)
+    #: (task id, fence) -> monotonic time before which a failed reap is not retried.
+    _reap_retry_at: dict = field(default_factory=dict, repr=False)
     _stop = threading.Event()
 
     # ------------------------------------------------------------------
@@ -372,6 +382,147 @@ class Conductor:
         return results
 
     # ------------------------------------------------------------------
+    # Lease expiry: orphaned leases only
+    # ------------------------------------------------------------------
+    def lease_ttl_seconds(self) -> float:
+        """The lease time-to-live from policy, in seconds (default 20 minutes)."""
+        minutes = float(self.kernel.policy().get("lease", {})
+                        .get("ttl_minutes", 20))
+        return minutes * 60.0
+
+    @staticmethod
+    def last_heartbeat(lease) -> datetime | None:
+        """The later of ``granted_at`` and ``renewed_at``, or ``None`` if
+        neither can be read.  ``expires_at`` is not used: ``claim`` never sets it."""
+        beats = []
+        for text in (lease.granted_at, lease.renewed_at):
+            if not text:
+                continue
+            try:
+                beats.append(parse_iso(str(text)))
+            except ValueError:
+                continue
+        return max(beats) if beats else None
+
+    def expired_leases(self, state=None) -> list:
+        """Leases that are orphaned and past their TTL, as
+        ``(task id, lease, age in seconds)``.
+
+        A lease is considered only when its task is exactly ``LEASED`` (a
+        submitted, verifying, integrating or finished task keeps its lease
+        record but is not running), the project is not PAUSED or DONE and
+        the stop-the-line flag is clear.  A lease this process supervises is
+        never expired: the harness renews it every ``renew_every`` seconds
+        and has its own stall detection.  The harness renews on the
+        dispatcher's thread, so a lease can look old while another lease is
+        finishing; only a lease nobody supervises is an orphan.
+        """
+        state = state or self.kernel.state()
+        if state.project_state in (project_mod.PAUSED, project_mod.DONE):
+            return []
+        if self.kernel.stopped():
+            return []
+        now = self.kernel.clock.now()
+        ttl = self.lease_ttl_seconds()
+        expired = []
+        for task_id, lease in sorted(state.leases.items()):
+            card = state.tasks.get(task_id)
+            if card is None or card.state != LEASED:
+                continue
+            run = self.dispatcher.runs.get(task_id)
+            if run is not None and run.lease.fence == lease.fence:
+                continue
+            beat = self.last_heartbeat(lease)
+            if beat is None:
+                continue
+            age = (now - beat).total_seconds()
+            if age > ttl:
+                expired.append((task_id, lease, age))
+        return expired
+
+    def reap_expired_leases(self) -> list:
+        """Stop and revoke leases whose supervisor is gone.
+
+        For each orphan past its TTL: stop the agent process if it is still
+        the recorded process (pid and creation time must both match), then
+        revoke the lease so the task returns to READY.  A failure at any
+        step is recorded as ``LEASE_REAP_FAILED`` and that lease is not
+        retried for ``REAP_RETRY_S``; the other leases are still handled.
+        If the process is alive and cannot be stopped, the lease is not
+        revoked.
+        """
+        results: list[dict] = []
+        state = self.kernel.state()
+        for task_id, lease, age in self.expired_leases(state):
+            key = (task_id, lease.fence)
+            retry_at = self._reap_retry_at.get(key)
+            if (retry_at is not None
+                    and self.kernel.clock.monotonic() < retry_at):
+                continue
+            info = {"task": task_id, "fence": lease.fence, "age_s": int(age)}
+            try:
+                results.append(self._reap_one(state, task_id, lease, age, info))
+            except Exception as exc:                # noqa: BLE001
+                results.append(self._reap_failed(
+                    info, key, "unexpected", f"{type(exc).__name__}: {exc}"))
+        return results
+
+    def _reap_one(self, state, task_id: str, lease, age: float,
+                  info: dict) -> dict:
+        key = (task_id, lease.fence)
+        stopped = None
+        started = None
+        for event in reversed(state.events):
+            if (event.type == "AGENT_STARTED" and event.subject == task_id
+                    and event.fence == lease.fence):
+                started = event
+                break
+        if started is not None:
+            payload = started.payload or {}
+            pid = payload.get("pid")
+            creation_time = payload.get("creation_time")
+            if pid is not None and creation_time is not None:
+                slot = spawn_mod.Slot(
+                    task_id=task_id, profile_id=str(payload.get("profile", "")),
+                    adapter=str(payload.get("adapter", "")), argv=[],
+                    pid=int(pid), creation_time=int(creation_time))
+                if spawn_mod.slot_alive(slot):
+                    ok, message = spawn_mod.kill_slot(slot)
+                    stopped = {"pid": int(pid), "ok": bool(ok),
+                               "message": str(message)}
+                    if not ok:
+                        return self._reap_failed(info, key, "kill", str(message))
+            elif pid is not None:
+                stopped = {"pid": int(pid), "ok": False,
+                           "message": "creation time not recorded; not stopped"}
+        minutes = int(age // 60)
+        ttl_minutes = self.lease_ttl_seconds() / 60.0
+        try:
+            new_fence = self.kernel.revoke(
+                task_id, lease.fence, actor=Actor.kernel(),
+                reason=(f"lease expired: no heartbeat for {minutes} min "
+                        f"(ttl {ttl_minutes:g} min)"))
+        except KernelError as exc:
+            return self._reap_failed(info, key, "revoke", str(exc))
+        self._reap_retry_at.pop(key, None)
+        payload = dict(info, new_fence=new_fence)
+        if stopped is not None:
+            payload["process"] = stopped
+        self.kernel.record_event("LEASE_REAPED", actor=Actor.kernel(),
+                                 subject=task_id, fence=lease.fence,
+                                 payload=payload)
+        return dict(payload, reaped=True)
+
+    def _reap_failed(self, info: dict, key: tuple, stage: str,
+                     message: str) -> dict:
+        self._reap_retry_at[key] = self.kernel.clock.monotonic() + REAP_RETRY_S
+        payload = dict(info, stage=stage, error=message)
+        self.kernel.record_event("LEASE_REAP_FAILED", actor=Actor.kernel(),
+                                 subject=info["task"], fence=info["fence"],
+                                 payload=payload)
+        return dict(payload, reaped=False)
+
+    # ------------------------------------------------------------------
     # Stalling
     # ------------------------------------------------------------------
     def check_stall(self) -> str:
@@ -408,6 +559,10 @@ class Conductor:
         merged = self.drain_merge_queue()
         if merged:
             result["merged"] = merged
+
+        reaped = self.reap_expired_leases()
+        if reaped:
+            result["reaped"] = reaped
 
         advanced = self.advance()
         result["state"] = advanced["state"]
