@@ -53,40 +53,94 @@ class Conductor:
     notes: list = field(default_factory=list)
     #: (task id, fence) -> monotonic time before which a failed reap is not retried.
     _reap_retry_at: dict = field(default_factory=dict, repr=False)
+    #: reason -> (fingerprint, monotonic time) of the last wake attempted for it.
+    _wake_seen: dict = field(default_factory=dict, repr=False)
+    #: (reason, fingerprint) of the wake that detect_wake_reason last returned.
+    _wake_candidate: tuple | None = field(default=None, repr=False)
     _stop = threading.Event()
 
     # ------------------------------------------------------------------
     # Wake detection
     # ------------------------------------------------------------------
+    def wake_retry_seconds(self) -> float:
+        """How long the same reason, for the same facts, stays quiet (policy
+        ``recovery.wake_retry_s``, default 30 minutes)."""
+        return float(self.kernel.policy().get("recovery", {})
+                     .get("wake_retry_s", 1800))
+
+    def _wake_is_new(self, reason: str, fingerprint: str) -> bool:
+        """Has *reason* not been attempted for this fingerprint recently?
+
+        Wakes are edge-triggered: a reason fires when the facts behind it
+        change, or again after ``wake_retry_seconds``.  Without this an open
+        queue item woke the Overseer on every tick, for as long as it stayed
+        open.
+        """
+        seen = self._wake_seen.get(reason)
+        if seen is None:
+            return True
+        old_fingerprint, when = seen
+        if old_fingerprint != fingerprint:
+            return True
+        return (self.kernel.clock.monotonic() - when) >= self.wake_retry_seconds()
+
     def detect_wake_reason(self) -> str:
         """Why should the Overseer be woken now?
 
         The order matters: the most specific reason wins, so the Overseer
         is never woken for ``replan`` when it actually needs to write the
         PDD.
+
+        Wakes are edge-triggered (see :meth:`_wake_is_new`), and nothing wakes
+        the Overseer while the project is PAUSED.  ``human-message`` wakes do
+        not come through here: the Console calls the runner directly.  The
+        periodic wake is returned only when no reason applies at all.
         """
+        self._wake_candidate = None
         state = self.kernel.state()
+        if state.project_state == project_mod.PAUSED:
+            return ""
         repo = self.kernel.repo
         pdd = repo.root / project_mod.PDD_PATH
         plan_tasks = [t for t in state.task_list() if t.type == "plan"]
         other_tasks = [t for t in state.task_list() if t.type != "plan"]
 
+        candidates: list[tuple[str, str]] = []
+
         if plan_tasks and not pdd.is_file():
-            return "needs-pdd"
+            candidates.append(("needs-pdd",
+                               ",".join(sorted(t.id for t in plan_tasks))))
 
         if pdd.is_file() and not other_tasks:
-            return "needs-decomposition"
+            candidates.append(("needs-decomposition", "pdd-without-tasks"))
 
-        if [t for t in state.task_list() if t.state in ("SUBMITTED", "VERIFYING")]:
-            return "review"
+        reviewing = [t for t in state.task_list()
+                     if t.state in ("SUBMITTED", "VERIFYING")]
+        if reviewing:
+            candidates.append(("review", ",".join(
+                sorted(f"{t.id}:{t.state}" for t in reviewing))))
 
-        if [q for q in state.queue if q["state"] == "open"]:
-            return "incident"
+        open_items = [q for q in state.queue if q["state"] == "open"]
+        if open_items:
+            candidates.append(("incident", ",".join(
+                sorted(str(q["id"]) for q in open_items))))
 
         ready = state.ready_tasks()
         if not ready and other_tasks and state.project_state not in (
                 project_mod.DONE, project_mod.CLOSING):
-            return "replan"
+            candidates.append(("replan", ",".join(
+                sorted(f"{t.id}:{t.state}" for t in state.task_list()))))
+
+        if candidates:
+            # The most specific reason wins, as before: while a higher
+            # reason applies, no lower reason fires, even when the higher one
+            # is quiet.  A quiet reason also silences the periodic wake; it
+            # fires again by itself after wake_retry_seconds.
+            reason, fingerprint = candidates[0]
+            if self._wake_is_new(reason, fingerprint):
+                self._wake_candidate = (reason, fingerprint)
+                return reason
+            return ""
 
         now = time.time()
         periodic = float(self.overseer.periodic_s)
@@ -95,6 +149,30 @@ class Conductor:
             return "periodic"
 
         return ""
+
+    def _note_wake_attempt(self, reason: str, wake) -> None:
+        """Remember that *reason* was attempted, unless the runner merely
+        deferred it (debounce or the hourly bound): a deferred wake must be
+        tried again on a later tick."""
+        candidate = self._wake_candidate
+        if candidate is None or candidate[0] != reason:
+            return
+        error = str(getattr(wake, "error", "") or "")
+        if not getattr(wake, "started", False) and (
+                error.startswith("debounced") or error.startswith("hourly bound")):
+            return
+        self._wake_seen[reason] = (candidate[1], self.kernel.clock.monotonic())
+
+    def maybe_wake(self) -> dict | None:
+        """Decide whether to wake the Overseer, and do it.  Returns the wake
+        record, or ``None`` when nothing warrants a wake."""
+        reason = self.detect_wake_reason()
+        if not reason:
+            return None
+        wake = self.overseer.wake(reason)
+        self.last_wake_reason = reason
+        self._note_wake_attempt(reason, wake)
+        return wake.to_dict()
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -570,11 +648,9 @@ class Conductor:
         if "close_check" in advanced:
             result["close_check"] = advanced["close_check"]
 
-        reason = self.detect_wake_reason()
-        if reason:
-            wake = self.overseer.wake(reason)
-            result["wake"] = wake.to_dict()
-            self.last_wake_reason = reason
+        woke = self.maybe_wake()
+        if woke:
+            result["wake"] = woke
 
         stall = self.check_stall()
         if stall:
