@@ -435,6 +435,36 @@ def cmd_worktree_prune(args) -> int:
     return 0
 
 
+def cmd_worktree_archive(args) -> int:
+    """Capture a worktree's uncommitted work (REC-02).
+
+    Additive: it copies diff, untracked files and RESULT.md into
+    ``<root>/stranded/<task>-<fence>/`` and deletes nothing.
+    """
+    kernel = _kernel(args)
+    state = kernel.state()
+    from . import worktrees as wts
+    if args.name:
+        targets = [kernel.repo.work_dir / args.name]
+    elif args.task:
+        targets = [p for p in wts.iter_dirs(kernel.repo)
+                   if wts.parse_name(p.name)[0] == args.task]
+    else:  # --all-dirty
+        targets = [p for p in wts.iter_dirs(kernel.repo)
+                   if wts.is_dirty(kernel.repo, p)]
+    if not targets:
+        _out({"targets": [], "note": "nothing to capture"})
+        return 0
+    if args.dry_run:
+        _out({"dry_run": True, "targets": [p.name for p in targets]})
+        return 0
+    results = [wts.archive_tree(kernel.repo, state, p,
+                                target_root=args.target) for p in targets]
+    _out({"archived": results,
+          "count": sum(1 for r in results if r.get("archived"))})
+    return 0
+
+
 def cmd_supersede(args) -> int:
     """Record that a task's content landed under a different commit (REC-11)."""
     kernel = _kernel(args)
@@ -968,8 +998,21 @@ def build_parser() -> argparse.ArgumentParser:
     wt_prune.add_argument("--allow-active", action="store_true",
                           help="also consider observed-LEASED trees (not recommended)")
     wt_prune.add_argument("--archive", action="store_true",
-                          help="capture before pruning (REC-02; not yet implemented)")
+                          help="capture each dirty tree (REC-02) and verify "
+                               "the capture before pruning it")
     wt_prune.set_defaults(func=cmd_worktree_prune)
+    wt_archive = worktree.add_parser(
+        "archive", help="capture a worktree's uncommitted work (REC-02)")
+    archive_group = wt_archive.add_mutually_exclusive_group(required=True)
+    archive_group.add_argument("--name", help="one worktree, e.g. T-0101-54")
+    archive_group.add_argument("--task", help="every worktree of a task, e.g. T-0101")
+    archive_group.add_argument("--all-dirty", dest="all_dirty",
+                               action="store_true",
+                               help="every worktree with uncommitted content")
+    wt_archive.add_argument("--target",
+                            help="archive root (default: <root>/stranded)")
+    wt_archive.add_argument("--dry-run", dest="dry_run", action="store_true")
+    wt_archive.set_defaults(func=cmd_worktree_archive)
 
     queue = sub.add_parser("queue", help="human decision queue") \
         .add_subparsers(dest="queue_command", required=True)

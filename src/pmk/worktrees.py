@@ -20,11 +20,19 @@ Nothing here is on the coordination hot path: ``pmk status`` and
 
 from __future__ import annotations
 
+import hashlib
+import json
+import shutil
+import tarfile
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 #: The per-lease worktree directory (``Repo.work_dir``).
 WORKTREE_SUBDIR = "work"
+
+#: Where REC-02 captures land, relative to the repository root.
+ARCHIVE_SUBDIR = "stranded"
 
 #: A Kernel-managed worktree that is not a lease and must never be pruned.
 CONTEXT_SYNC_NAME = "context-sync"
@@ -125,6 +133,145 @@ def stats(repo, state=None, *, with_git: bool = False) -> dict:
     }
 
 
+def is_dirty(repo, path: Path) -> bool:
+    """Public wrapper over the git-status check."""
+    return _dirty(repo, path)[0]
+
+
+# ---------------------------------------------------------------------------
+# REC-02 -- capture (archive) before any reclaim
+# ---------------------------------------------------------------------------
+
+def archive_root(repo) -> Path:
+    return Path(repo.root) / ARCHIVE_SUBDIR
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    try:
+        with path.open("rb") as fh:
+            for chunk in iter(lambda: fh.read(65536), b""):
+                h.update(chunk)
+    except OSError:
+        return ""
+    return h.hexdigest()
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _tar_untracked(worktree: Path, files: list[str], tar_path: Path) -> int:
+    """Write *files* (relative to *worktree*) into *tar_path*.  Returns count."""
+    written = 0
+    with tarfile.open(tar_path, "w") as tf:
+        for rel in files:
+            full = worktree / rel
+            try:
+                tf.add(full, arcname=rel)
+                written += 1
+            except (OSError, ValueError):
+                continue
+    return written
+
+
+def archive_tree(repo, state, path: Path, *, target_root: Path | None = None) -> dict:
+    """Capture one worktree's uncommitted work (REC-02).
+
+    Writes ``<root>/stranded/<task>-<fence>/`` containing:
+
+    * ``diff.patch``      -- ``git diff HEAD --binary`` (all tracked changes);
+    * ``untracked.tar``   -- every untracked, non-ignored file;
+    * ``RESULT.md``       -- a copy of the agent's own result, when present;
+    * ``manifest.json``   -- task, fence, base commit, counts and sha256s.
+
+    This **only copies**; it never modifies or deletes the worktree.  The
+    manifest's sha256s make the capture independently verifiable.
+    """
+    path = Path(path)
+    task_id, fence = parse_name(path.name)
+    root = Path(target_root) if target_root else archive_root(repo)
+    dest = root / (f"{task_id}-{fence}" if fence is not None else path.name)
+
+    code, base, _ = repo.git("rev-parse", "HEAD", cwd=path)
+    base = base.strip() if code == 0 else ""
+
+    code, diff, err = repo.git("diff", "HEAD", "--binary", "--", ".",
+                               cwd=path)
+    if code != 0:
+        return {"name": path.name, "archived": False,
+                "reason": (err.strip() or "git diff failed")}
+
+    code, others, _ = repo.git("ls-files", "--others", "--exclude-standard",
+                               "-z", "--", ".", cwd=path)
+    untracked = [p for p in others.split("\0") if p]
+
+    dest.mkdir(parents=True, exist_ok=True)
+    (dest / "diff.patch").write_text(diff, encoding="utf-8")
+    tar_path = dest / "untracked.tar"
+    written = _tar_untracked(path, untracked, tar_path)
+
+    result_src = path / ".pmwork" / "RESULT.md"
+    has_result = result_src.is_file()
+    if has_result:
+        shutil.copyfile(result_src, dest / "RESULT.md")
+
+    task = state.tasks.get(task_id) if state is not None else None
+    manifest = {
+        "task": task_id,
+        "fence": fence,
+        "worktree": path.name,
+        "state": task.state if task is not None else "?",
+        "base_commit": base,
+        "tracked_changes": bool(diff.strip()),
+        "untracked_count": len(untracked),
+        "untracked_packed": written,
+        "untracked_files": untracked[:500],
+        "result_md": has_result,
+        "diff_bytes": (dest / "diff.patch").stat().st_size,
+        "diff_sha256": _sha256_file(dest / "diff.patch"),
+        "untracked_tar_bytes": tar_path.stat().st_size,
+        "untracked_tar_sha256": _sha256_file(tar_path),
+        "archived_at": _now_iso(),
+    }
+    (dest / "manifest.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8")
+    return {"name": path.name, "archived": True, "dest": str(dest),
+            "diff_bytes": manifest["diff_bytes"], "untracked_count": len(untracked)}
+
+
+def verify_archive(dest: Path) -> tuple[bool, list[str]]:
+    """Re-read an archive and check its sha256s against ``manifest.json``."""
+    dest = Path(dest)
+    problems: list[str] = []
+    manifest_path = dest / "manifest.json"
+    if not manifest_path.is_file():
+        return False, ["manifest.json is missing"]
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return False, [f"manifest.json is unreadable: {exc}"]
+
+    diff = dest / "diff.patch"
+    if not diff.is_file():
+        problems.append("diff.patch is missing")
+    elif _sha256_file(diff) != manifest.get("diff_sha256"):
+        problems.append("diff.patch sha256 does not match the manifest")
+
+    tar_path = dest / "untracked.tar"
+    if not tar_path.is_file():
+        problems.append("untracked.tar is missing")
+    else:
+        if _sha256_file(tar_path) != manifest.get("untracked_tar_sha256"):
+            problems.append("untracked.tar sha256 does not match the manifest")
+        try:
+            with tarfile.open(tar_path, "r") as tf:
+                tf.getmembers()
+        except (OSError, tarfile.TarError) as exc:
+            problems.append(f"untracked.tar is unreadable: {exc}")
+    return (not problems), problems
+
+
 def prune(repo, state, *, dry_run: bool = True,
           older_than_days: float | None = None,
           keep_unmerged: bool = True,
@@ -140,25 +287,20 @@ def prune(repo, state, *, dry_run: bool = True,
     * if *older_than_days* is given, its task is ``VOID`` and the tree is at
       least that old.
 
-    ``archive=True`` is accepted for forward-compatibility with REC-02, but
-    because the capture path is not implemented it still refuses dirty
-    trees (with an explicit reason) rather than deleting unarchived work.
+    ``archive=True`` wires REC-02: a dirty tree is captured first, the
+    capture is verified, and only then does the tree become eligible for
+    removal.  While *dry_run* is true nothing is archived and nothing is
+    removed — the plan simply reports which dirty trees would be captured.
     """
     recs = records(repo, state)
     candidates: list[dict] = []
     skipped: list[dict] = []
+    archived: list[dict] = []
 
     for r in recs:
         if r["fence"] is None:
             skipped.append({"name": r["name"],
                             "reason": "not a lease worktree name"})
-            continue
-        if r["dirty"]:
-            reason = ("dirty tree; capture (REC-02) required before pruning"
-                      if not archive else
-                      "archive (REC-02) is not implemented; refusing to prune "
-                      "a dirty tree")
-            skipped.append({"name": r["name"], "reason": reason})
             continue
         if keep_unmerged and r["state"] == "LEASED":
             skipped.append({"name": r["name"], "reason": "active lease"})
@@ -169,6 +311,29 @@ def prune(repo, state, *, dry_run: bool = True,
                                 "reason": "not a VOID tree older than the "
                                           "threshold"})
                 continue
+        if r["dirty"]:
+            if not archive:
+                skipped.append({"name": r["name"],
+                                "reason": "dirty tree; capture (REC-02) "
+                                          "required before pruning"})
+                continue
+            if dry_run:
+                # A dry run must not write anything.
+                candidates.append(r)
+                continue
+            capture = archive_tree(repo, state, Path(r["path"]))
+            if not capture.get("archived"):
+                skipped.append({"name": r["name"],
+                                "reason": "capture failed: "
+                                          f"{capture.get('reason', 'unknown')}"})
+                continue
+            ok, problems = verify_archive(Path(capture["dest"]))
+            if not ok:
+                skipped.append({"name": r["name"],
+                                "reason": "capture not verified: "
+                                          + "; ".join(problems)})
+                continue
+            archived.append({"name": r["name"], "dest": capture["dest"]})
         candidates.append(r)
 
     removed: list[str] = []
@@ -187,8 +352,9 @@ def prune(repo, state, *, dry_run: bool = True,
         "dry_run": dry_run,
         "candidates": [c["name"] for c in candidates],
         "removed": removed,
+        "archived": archived,
         "skipped": skipped,
         "counts": {"candidates": len(candidates), "removed": len(removed),
-                   "skipped": len(skipped)},
+                   "archived": len(archived), "skipped": len(skipped)},
         "recoverable_bytes": sum(c["bytes"] for c in candidates),
     }

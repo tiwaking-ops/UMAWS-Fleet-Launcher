@@ -60,13 +60,23 @@ def test_prune_is_a_dry_run_by_default(kernel, repo, monkeypatch):
     assert (repo.work_dir / "T-0001-7").is_dir()   # nothing was removed
 
 
-def test_prune_skips_dirty_trees_even_with_archive(kernel, repo, monkeypatch):
+def test_prune_without_archive_skips_dirty_trees(kernel, repo, monkeypatch):
     (repo.work_dir / "T-0001-7").mkdir()
     monkeypatch.setattr(worktrees, "_dirty", lambda repo, path: (True, 3))
-    result = worktrees.prune(repo, kernel.state(), archive=True)
+    result = worktrees.prune(repo, kernel.state())          # no --archive
     assert result["candidates"] == []
     assert result["skipped"][0]["name"] == "T-0001-7"
     assert "REC-02" in result["skipped"][0]["reason"]
+
+
+def test_prune_with_archive_and_dry_run_lists_dirty_as_candidates(
+        kernel, repo, monkeypatch):
+    (repo.work_dir / "T-0001-7").mkdir()
+    monkeypatch.setattr(worktrees, "_dirty", lambda repo, path: (True, 3))
+    result = worktrees.prune(repo, kernel.state(), archive=True)   # dry run
+    assert result["dry_run"] is True
+    assert result["candidates"] == ["T-0001-7"]
+    assert not (repo.root / "stranded").exists()
 
 
 def test_prune_honours_the_void_age_threshold(kernel, repo, monkeypatch):
@@ -179,6 +189,80 @@ def test_a_hint_at_the_current_head_is_fine(kernel):
     card = make_card(kernel, agent_hint="Copy the corpus into docs/rules/.")
     lease = kernel.claim(card.id, holder="p")     # HEAD has not moved
     assert lease is not None
+
+
+# ---------------------------------------------------------------------------
+# REC-02 -- capture (archive) before reclaim
+# ---------------------------------------------------------------------------
+
+def _make_worktree(repo, name):
+    """Create a real git worktree at work/<name>."""
+    path = repo.work_dir / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "worktree", "add", "--detach", str(path), "HEAD"],
+                   cwd=repo.root, capture_output=True)
+    return path
+
+
+def test_archive_tree_captures_diff_untracked_and_manifest(kernel, repo):
+    import tarfile
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "README.md").write_text("# changed\n", encoding="utf-8")   # tracked
+    (tree / "new.py").write_text("print(1)\n", encoding="utf-8")       # untracked
+
+    result = worktrees.archive_tree(repo, kernel.state(), tree)
+    assert result["archived"] is True
+
+    dest = repo.root / "stranded" / "T-0001-1"
+    assert (dest / "manifest.json").is_file()
+    assert "README.md" in (dest / "diff.patch").read_text(encoding="utf-8")
+    with tarfile.open(dest / "untracked.tar") as tf:
+        assert "new.py" in tf.getnames()
+
+    ok, problems = worktrees.verify_archive(dest)
+    assert ok, problems
+    # The capture is additive: the worktree is untouched.
+    assert tree.is_dir()
+    assert (tree / "new.py").is_file()
+
+
+def test_verify_archive_detects_tampering(kernel, repo):
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "README.md").write_text("# changed\n", encoding="utf-8")
+    dest = worktrees.archive_tree(repo, kernel.state(), tree)["dest"]
+
+    with (repo.root / "stranded" / "T-0001-1" / "diff.patch").open(
+            "a", encoding="utf-8") as fh:
+        fh.write("tampered\n")
+    ok, problems = worktrees.verify_archive(repo.root / "stranded" / "T-0001-1")
+    assert not ok
+    assert any("diff.patch" in p for p in problems)
+
+
+def test_prune_archive_dry_run_writes_nothing(kernel, repo):
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "README.md").write_text("# changed\n", encoding="utf-8")
+    result = worktrees.prune(repo, kernel.state(), archive=True)
+    assert result["dry_run"] is True
+    assert result["candidates"] == ["T-0001-1"]
+    assert not (repo.root / "stranded").exists()
+    assert tree.is_dir()
+
+
+def test_prune_archive_captures_verifies_then_removes(kernel, repo):
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "README.md").write_text("# changed\n", encoding="utf-8")
+    (tree / "new.py").write_text("print(1)\n", encoding="utf-8")
+
+    result = worktrees.prune(repo, kernel.state(), dry_run=False, archive=True)
+    assert result["removed"] == ["T-0001-1"]
+    assert result["archived"][0]["name"] == "T-0001-1"
+    # The archive survives the reclaim and is verifiable.
+    dest = repo.root / "stranded" / "T-0001-1"
+    assert dest.is_dir()
+    ok, problems = worktrees.verify_archive(dest)
+    assert ok, problems
+    assert not tree.exists()
 
 
 # ---------------------------------------------------------------------------
