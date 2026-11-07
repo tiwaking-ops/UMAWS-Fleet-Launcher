@@ -2,7 +2,7 @@
 document:
   title: "Remediation Note: REC-02 Worktree Capture — Implementation and Single-Tree Verification"
   status: "Advisory implementation and verification record. Records what was built and proved; makes no governance decision, promotes nothing, reclaims nothing."
-  version: "1.0.0"
+  version: "1.1.0"
 provenance:
   author_llm:
     name: "DeepSeek V4.1 Flash"
@@ -119,6 +119,32 @@ Checks 5–6 fail on the pre-fix capture (D-1/D-2) and pass after the fix.
    before any reclaim.
 4. The incident report / proposal were **not edited** by this note; a status
    update to them is at the operator's discretion.
+
+---
+
+## Addendum (2026-11-08): REC-01 implemented, off by default
+
+With the capture gate confirmed above, REC-01 (reclaim a bumped lease's
+worktree) was implemented in commit `866a166`:
+
+- `worktrees.reclaim_after_capture()` is the single deletion path: it
+  archives the tree (REC-02), **verifies the archive**, and only then runs
+  `git worktree remove --force`. A tree whose capture does not verify is
+  **kept**.
+- The reaper (`Conductor._reap_one`) calls it after a successful revoke and
+  records `WORKTREE_RECLAIMED`. It never raises, so a reclaim failure
+  cannot undo the revoke.
+- It is gated by policy `worktree.reclaim_on_reap`, **default `false`**, and
+  in this repository it is **off** (the pinned `policy.toml` `[worktree]`
+  table does not set it). **No worktree was removed by this commit.**
+
+Scope: the give-up/quarantine path still keeps its worktree on purpose
+(the harness docstring and the incident report both say so); REC-01 here
+targets the dominant TTL-expiry reclaim. Give-up trees remain covered by
+the manual `pmk worktree prune --archive --yes`.
+
+To enable it, an operator edits `[worktree]` in the pinned `policy.toml`
+(a class-K, two-key change) and sets `reclaim_on_reap = true`.
 
 ---
 
