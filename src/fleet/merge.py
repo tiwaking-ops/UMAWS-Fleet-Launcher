@@ -47,6 +47,7 @@ validation_problems) so Kernel.integrate and merge.py cannot disagree.
 
 from __future__ import annotations
 
+import os
 import shutil
 import tempfile
 from dataclasses import dataclass, field
@@ -245,10 +246,17 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
                 if gate_cmd:
                     import subprocess
                     try:
+                        gate_env = os.environ.copy()
+                        src_path = str(Path(temp_wt) / "src")
+                        tests_path = str(Path(temp_wt) / "tests")
+                        pythonpath = os.path.pathsep.join(
+                            [src_path, tests_path, gate_env.get("PYTHONPATH", "")])
+                        gate_env["PYTHONPATH"] = pythonpath.strip(os.path.pathsep)
                         proc = subprocess.run(gate_cmd, shell=True, cwd=str(temp_wt),
                                               capture_output=True, timeout=900,
                                               text=True, encoding="utf-8",
-                                              errors="replace")
+                                              errors="replace",
+                                              env=gate_env)
                         result.gate_cmd = gate_cmd
                         result.gate_exit = proc.returncode
                     except (subprocess.SubprocessError, OSError) as exc:
