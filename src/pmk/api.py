@@ -250,7 +250,20 @@ class Kernel:
             "incidents": len(state.incidents),
             "stopped": self.stopped(),
             "chain": self.log.verify().summary(),
+            "worktrees": self._worktree_summary(),
         }
+
+    def _worktree_summary(self) -> dict:
+        """Lease-worktree count and bytes for ``pmk status`` (REC-06).
+
+        Filesystem only: git is not consulted, so ``pmk status`` stays
+        usable on a large ``work/`` tree.
+        """
+        try:
+            from . import worktrees
+            return worktrees.stats(self.repo)
+        except OSError:
+            return {"count": 0, "bytes": 0, "dirty": 0}
 
     # ------------------------------------------------------------------
     # Tasks
@@ -286,6 +299,7 @@ class Kernel:
                 attempts={"max": attempts_max},
                 priority=priority,
                 agent_hint=agent_hint,
+                hint_base_commit=(self._head_commit() if agent_hint else ""),
                 created_by=(actor or Actor(kind="overseer")).to_dict(),
             )
             # Reject unknown task types: the six recognised roles are
@@ -461,11 +475,42 @@ class Kernel:
                                   "this": left, "other": right})
         return conflicts
 
+    #: Tokens that mark an agent_hint as asserting tree contents (REC-13).
+    _HINT_STALE_TOKENS = ("docs/rules", "corpus", "cna-rules",
+                          "does not contain", "is absent", "are absent",
+                          "not contain")
+
+    def _stale_hint_reason(self, card) -> str:
+        """Return a reason when *card*'s agent_hint has gone stale (REC-13).
+
+        An agent_hint is a claim about the tree at card-creation time,
+        pinned to the HEAD recorded in ``hint_base_commit``.  When HEAD has
+        moved *and* the hint asserts the contents of the tree (the F-21
+        failure, where T-0145/T-0146 told agents to copy a corpus that was
+        already committed), refusing the lease is safer than letting the
+        agent undo completed work.
+        """
+        hint = (card.agent_hint or "").strip()
+        base = (getattr(card, "hint_base_commit", "") or "").strip()
+        if not hint or not base:
+            return ""
+        head = self._head_commit()
+        if not head or head == base:
+            return ""
+        low = hint.lower()
+        if any(token in low for token in self._HINT_STALE_TOKENS):
+            return (f"agent_hint was written against {base[:8]} but HEAD is "
+                    f"{head[:8]}; it asserts tree contents that may since "
+                    f"have been committed. Re-render the hint or clear "
+                    f"agent_hint before leasing.")
+        return ""
+
     def claim(self, task_id: str, *, holder: str, agent: str = "",
               role: str = "", session: str = "", worktree: str = "",
               pid: int | None = None, creation_time: int | None = None,
               actor: Actor | None = None,
-              allow_scope_conflict: bool = False) -> Lease:
+              allow_scope_conflict: bool = False,
+              allow_stale_hint: bool = False) -> Lease:
         """Claim a task for a lease, with a fencing token.
 
         Refuses when: the task is not READY, its dependencies are not done,
@@ -483,6 +528,11 @@ class Kernel:
                                   max_attempts=card.attempts.get("max"))
             if card.state != READY:
                 raise KernelError("not_ready", task=task_id, current=card.state)
+            if not allow_stale_hint:
+                stale = self._stale_hint_reason(card)
+                if stale:
+                    raise KernelError("stale_agent_hint", task=task_id,
+                                      detail=stale)
             unmet = [d for d in card.depends_on
                      if d in state.tasks and state.tasks[d].state != DONE]
             if unmet:
@@ -838,6 +888,31 @@ class Kernel:
             self._append("PINS_CHECKED", actor=Actor.kernel(),
                          payload=result)
         return result
+
+    def record_supersession(self, task_id: str, *, commit: str, ref: str = "",
+                            reason: str = "",
+                            actor: Actor | None = None) -> dict:
+        """Record that *task_id*'s content landed under a different commit.
+
+        REC-11: when a task's own branch is superseded and its content is
+        integrated elsewhere, the task's INTEGRATED event keeps an empty
+        ``commit``.  A SUPERSEDED_BY event closes that traceability gap and
+        clears the sentinel I5 empty-commit finding, without rewriting the
+        append-only log.
+        """
+        with self._locked():
+            state = self.state()
+            if task_id not in state.tasks:
+                raise KernelError("unknown_task", task=task_id)
+            if not commit or not commit.strip():
+                raise KernelError("invalid_supersession", task=task_id,
+                                  detail="commit must be non-empty")
+            event = self._append("SUPERSEDED_BY", actor=actor,
+                                 subject=task_id,
+                                 payload={"commit": commit.strip(),
+                                          "ref": ref, "reason": reason})
+            return {"task": task_id, "seq": event.seq,
+                    "commit": commit.strip()}
 
     def render_views(self, *, force: bool = False) -> dict:
         """Regenerate the views, debounced (fleet amendment D-L5).

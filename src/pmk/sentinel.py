@@ -160,10 +160,18 @@ def check(kernel) -> dict:
         # R1: Check for empty or unreachable commit in INTEGRATED event
         commit = integrated.payload.get("commit", "")
         if not commit or not commit.strip():
-            report.findings.append(Finding(
-                invariant="I5",
-                detail={"finding": "empty_commit_in_integrated", "commit": commit},
-                stops=False, subject=task_id))
+            # REC-11: an empty commit is cleared by a SUPERSEDED_BY event
+            # that records where the content actually landed.
+            superseded = any(
+                ev.type == "SUPERSEDED_BY" and ev.subject == task_id
+                and (ev.payload or {}).get("commit")
+                for ev in events)
+            if not superseded:
+                report.findings.append(Finding(
+                    invariant="I5",
+                    detail={"finding": "empty_commit_in_integrated",
+                            "commit": commit},
+                    stops=False, subject=task_id))
         else:
             # Verify commit is reachable from current HEAD
             try:
@@ -291,5 +299,33 @@ def check(kernel) -> dict:
             report.findings.append(Finding(
                 "I16", f"{path} was deleted out of band", stops=False,
                 subject=path))
+
+    # -- I17: the worktree store is bounded and fresh (REC-06) ------------
+    # Non-stopping.  Before the incident there was no observation over
+    # work/ at all; a stop-invariant would have been permanently red, so
+    # this is deliberately report-only.
+    report.checked.append("I17")
+    try:
+        from . import worktrees
+        recs = worktrees.records(kernel.repo, state, with_git=False)
+        if recs:
+            total = sum(r["bytes"] for r in recs)
+            cap_mib = int(policy.get("worktree_cap_mib", 2048))
+            if total > cap_mib * 1024 * 1024:
+                report.findings.append(Finding(
+                    "I17", f"work/ holds {len(recs)} worktrees totalling "
+                           f"{total / 1048576:.1f} MiB, over the {cap_mib} "
+                           f"MiB cap", stops=False, subject="work/"))
+            max_age = float(policy.get("worktree_max_age_days", 0) or 0)
+            if max_age:
+                for r in recs:
+                    if r["state"] == "VOID" and r["age_days"] > max_age:
+                        report.findings.append(Finding(
+                            "I17", f"{r['name']} belongs to a VOID task and "
+                                   f"is {r['age_days']:.0f} days old "
+                                   f"(> {max_age:.0f})",
+                            stops=False, subject=r["name"]))
+    except Exception:
+        pass
 
     return report.to_dict()

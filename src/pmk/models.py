@@ -81,6 +81,7 @@ class TaskCard:
     created_by: dict = field(default_factory=lambda: {"kind": "overseer"})
     priority: int = 100
     agent_hint: str = ""
+    hint_base_commit: str = ""
     state: str = PROPOSED
     attempt: int = 0
     fence: int = 0
@@ -144,6 +145,7 @@ class TaskCard:
             "created_by": self.created_by,
             "priority": self.priority,
             "agent_hint": self.agent_hint,
+            "hint_base_commit": self.hint_base_commit,
             "state": self.state,
             "attempt": self.attempt,
             "fence": self.fence,
@@ -168,6 +170,7 @@ class TaskCard:
             created_by=obj.get("created_by") or {"kind": "overseer"},
             priority=int(obj.get("priority", 100)),
             agent_hint=str(obj.get("agent_hint", "")),
+            hint_base_commit=str(obj.get("hint_base_commit", "")),
             state=str(obj.get("state", PROPOSED)),
             attempt=int(obj.get("attempt", 0)),
             fence=int(obj.get("fence", 0)),

@@ -364,11 +364,83 @@ def cmd_sweep(args) -> int:
             continue
     for task_id in expired:
         try:
+            _write_sweep_handoff(state.leases[task_id])
             kernel.revoke(task_id, state.leases[task_id].fence,
                           reason="lease TTL expired")
         except KernelError:
             continue
     _out({"expired": expired})
+    return 0
+
+
+def _write_sweep_handoff(lease) -> None:
+    """REC-05: write a handoff to a TTL-expired lease's worktree, if any.
+
+    The dominant loss mode (58 of 108 revocations) is a lease that expires;
+    the give-up path is not reached, so the reaper writes the note here.
+    Best-effort: a failure must not stop the revoke.
+    """
+    worktree = getattr(lease, "worktree", "") or ""
+    if not worktree:
+        return
+    try:
+        from pathlib import Path
+        from fleet import order as order_mod
+        if not Path(worktree).is_dir():
+            return
+        text = ("# Handoff - lease TTL expired\n\n"
+                "The previous attempt ran out of time (the lease TTL "
+                "expired) before submitting. Check `git status` for "
+                "uncommitted work before starting.\n")
+        order_mod.write_handoff(worktree, text)
+    except Exception:
+        pass
+
+
+def cmd_worktree_list(args) -> int:
+    """List the per-lease worktrees under ``work/`` (REC-04)."""
+    kernel = _kernel(args)
+    state = kernel.state()
+    from . import worktrees as wts
+    recs = wts.records(kernel.repo, state)
+    if args.json:
+        _out(recs)
+        return 0
+    if not recs:
+        print("no lease worktrees")
+        return 0
+    print("worktree          task    fence  state     dirty  entries    MiB  age_d")
+    for r in recs:
+        print("{:<17} {:<7} {:<6} {:<9} {:<6} {:>7} {:>6.1f} {:>6}".format(
+            r["name"], r["task"], str(r["fence"]), r["state"],
+            "yes" if r["dirty"] else "no", r["entries"],
+            r["bytes"] / 1048576, r["age_days"]))
+    total = sum(r["bytes"] for r in recs)
+    print(f"\n{len(recs)} worktrees, {total / 1048576:.1f} MiB, "
+          f"{sum(1 for r in recs if r['dirty'])} dirty")
+    return 0
+
+
+def cmd_worktree_prune(args) -> int:
+    """Reclaim clean lease worktrees (REC-04).  Dry run unless ``--yes``."""
+    kernel = _kernel(args)
+    state = kernel.state()
+    from . import worktrees as wts
+    result = wts.prune(kernel.repo, state,
+                       dry_run=not args.yes,
+                       older_than_days=args.void_older_than,
+                       keep_unmerged=not args.allow_active,
+                       archive=args.archive)
+    _out(result)
+    return 0
+
+
+def cmd_supersede(args) -> int:
+    """Record that a task's content landed under a different commit (REC-11)."""
+    kernel = _kernel(args)
+    _out(kernel.record_supersession(args.task, commit=args.commit,
+                                    ref=args.ref or "",
+                                    reason=args.reason or ""))
     return 0
 
 
@@ -870,6 +942,34 @@ def build_parser() -> argparse.ArgumentParser:
         .set_defaults(func=cmd_heartbeat)
     sub.add_parser("sweep", help="expire leases past their TTL") \
         .set_defaults(func=cmd_sweep)
+
+    supersede = sub.add_parser(
+        "supersede",
+        help="record that a task's content landed under a different commit (REC-11)")
+    supersede.add_argument("task")
+    supersede.add_argument("--commit", required=True,
+                           help="the commit that actually carries the content")
+    supersede.add_argument("--ref", help="the superseded branch/ref")
+    supersede.add_argument("--reason")
+    supersede.set_defaults(func=cmd_supersede)
+
+    worktree = sub.add_parser("worktree", help="list and prune lease worktrees") \
+        .add_subparsers(dest="worktree_command", required=True)
+    wt_list = worktree.add_parser("list", help="list the per-lease worktrees")
+    wt_list.add_argument("--json", action="store_true")
+    wt_list.set_defaults(func=cmd_worktree_list)
+    wt_prune = worktree.add_parser(
+        "prune", help="reclaim clean lease worktrees (dry-run by default)")
+    wt_prune.add_argument("--yes", action="store_true",
+                          help="actually remove (without it, a dry run)")
+    wt_prune.add_argument("--void-older-than", dest="void_older_than",
+                          type=float, default=None,
+                          help="only VOID-task trees older than N days")
+    wt_prune.add_argument("--allow-active", action="store_true",
+                          help="also consider observed-LEASED trees (not recommended)")
+    wt_prune.add_argument("--archive", action="store_true",
+                          help="capture before pruning (REC-02; not yet implemented)")
+    wt_prune.set_defaults(func=cmd_worktree_prune)
 
     queue = sub.add_parser("queue", help="human decision queue") \
         .add_subparsers(dest="queue_command", required=True)

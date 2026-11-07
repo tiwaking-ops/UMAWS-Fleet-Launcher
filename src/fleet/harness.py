@@ -718,6 +718,9 @@ class Harness:
 
     def _give_up(self, lease: Lease, result: LeaseResult, reason: str) -> None:
         """Revoke the lease, bump the fence and quarantine the worktree."""
+        # REC-05: write a handoff before the lease is revoked, so that a
+        # later attempt in a reused worktree is told what this one did.
+        self._write_giveup_handoff(lease, result, reason)
         try:
             self.kernel.revoke(lease.task_id, lease.fence, reason=reason)
         except KernelError:
@@ -726,6 +729,30 @@ class Harness:
             self.kernel.quarantine(lease.task_id, lease.fence, reason=reason,
                                    failure_class=result.failure_class)
         except KernelError:
+            pass
+
+    def _write_giveup_handoff(self, lease, result, reason: str) -> None:
+        """Best-effort handoff note for a worktree whose lease gave up.
+
+        REC-05: the give-up path previously wrote nothing a replacement
+        agent could read.  This is best-effort; a failure to write must not
+        break the revoke/quarantine that follows.
+        """
+        worktree = getattr(lease, "worktree", "") or ""
+        if not worktree:
+            return
+        try:
+            if not Path(worktree).is_dir():
+                return
+            failure_class = getattr(result, "failure_class", "") or "give_up"
+            text = (
+                f"# Handoff - previous attempt gave up ({failure_class})\n\n"
+                f"Reason: {reason}\n\n"
+                f"Before starting, check `git status` for uncommitted work "
+                f"left by the previous attempt. The lease fence was bumped, "
+                f"so this worktree is a fresh checkout unless it was reused.\n")
+            order_mod.write_handoff(worktree, text)
+        except Exception:
             pass
 
     # ------------------------------------------------------------------

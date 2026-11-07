@@ -33,7 +33,9 @@ RESULT_FILE = "RESULT.md"
 
 
 def order_prompt(worktree: str | Path) -> str:
-    return f"Read {order_path(worktree)} and carry out the task exactly as written."
+    return (f"Read {order_path(worktree)} and carry out the task exactly as "
+            f"written. If {handoff_path(worktree)} exists, read it first: it "
+            f"records what a previous attempt in this worktree did.")
 
 
 def order_path(worktree: str | Path) -> Path:
