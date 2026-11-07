@@ -77,6 +77,8 @@ renew_every = 60                     # [GUESS]
 # repository, so the default root is <repo>/work (decision D-01).
 root = "work"
 short_root = false
+# REC-01 (Q-077): reclaim a bumped lease's worktree, capture-first.
+reclaim_on_reap = true
 
 [harness]
 poll_seconds = 2                     # fleet amendment section 7.3 step 3
