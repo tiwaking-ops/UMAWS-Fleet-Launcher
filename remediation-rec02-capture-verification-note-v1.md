@@ -2,7 +2,7 @@
 document:
   title: "Remediation Note: REC-02 Worktree Capture — Implementation and Single-Tree Verification"
   status: "Advisory implementation and verification record. Records what was built and proved; makes no governance decision, promotes nothing, reclaims nothing."
-  version: "1.1.0"
+  version: "1.2.0"
 provenance:
   author_llm:
     name: "DeepSeek V4.1 Flash"
@@ -145,6 +145,29 @@ the manual `pmk worktree prune --archive --yes`.
 
 To enable it, an operator edits `[worktree]` in the pinned `policy.toml`
 (a class-K, two-key change) and sets `reclaim_on_reap = true`.
+
+---
+
+## Addendum 2 (2026-11-08): capture sweep of every dirty tree
+
+Operator approved action (a): a **capture sweep, no reclaim**.
+
+- **Dry run** listed **56** targets — every dirty tree.
+- **Capture**: `pmk worktree archive --all-dirty` archived **56 / 56**
+  (`count: 56`, no failures).
+- **Verification** of every archive (read-only): **56 / 56 fully verified**
+  — `verify_archive()` SHA-256s, `diff.patch` **byte-identical** to
+  `git diff HEAD` for its own tree, and **every** untracked member
+  byte-matches the live file. **460** untracked files captured.
+- **`stranded/`** now holds **56 trees, 4.82 MiB** total.
+- **`work/` unchanged**: the global status fingerprint is identical before
+  and after (`876f521335dca4f4c6a77d1019e1c18402d9fe04c0dc6a339d2562ee0ff98c31`),
+  98 trees / 56 dirty, **nothing reclaimed**.
+- State: project `PAUSED`; `worktree.reclaim_on_reap` still `false`.
+
+Every dirty tree's uncommitted work is now captured and independently
+verifiable. REC-01 may now be enabled by the operator without further
+capture work (the archives are retained indefinitely).
 
 ---
 
