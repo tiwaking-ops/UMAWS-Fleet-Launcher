@@ -10,11 +10,80 @@ _none_
 
 | id | topic | choice | when |
 |---|---|---|---|
-| Q-001 | D-19 — ratify the .pm/policy.toml change (Caliber command, managed_paths, managed_exclude, caliber_version) | ratify | 2026-10-22T19:35:05Z |
-| Q-002 | D-20 — ratify the G1 baseline of the 10 class C context files, the 4 sanitised block removals, and the .gitignore change | ratify | 2026-10-22T19:35:06Z |
-| Q-001 | Amendment v2 (gates classified by action, checkpoints, class K) — approve to bring into force | VOID - duplicate id, see decisions D-32; superseded by Q-003 | 2026-10-22T19:46:52Z |
+| Q-001 | D-19 â€” ratify the .pm/policy.toml change (Caliber command, managed_paths, managed_exclude, caliber_version) | ratify | 2026-10-22T19:35:05Z |
+| Q-002 | D-20 â€” ratify the G1 baseline of the 10 class C context files, the 4 sanitised block removals, and the .gitignore change | ratify | 2026-10-22T19:35:06Z |
+| Q-001 | Amendment v2 (gates classified by action, checkpoints, class K) â€” approve to bring into force | VOID - duplicate id, see decisions D-32; superseded by Q-003 | 2026-10-22T19:46:52Z |
 | Q-003 | Amendment v2 (gates classified by action, checkpoints, class K) - approve to bring into force | approve | 2026-10-22T19:53:10Z |
 | Q-004 | G4: enable Caliber auto-sync (mode dry-run to auto) | apply the diff above | 2026-10-23T08:47:55Z |
 | Q-005 | Dispatcher: AGENT_RESUMED event mislabelled when mode=new (D-53) | apply the diff, then re-run T-0003 and assert no AGENT_RESUMED with mode=new | 2026-10-30T00:30:49Z |
 | Q-006 | I4 finding for T-0003: task was integrated with revoked fence 3 (historical, seq 265 promoted, seq 281/282/283 revoked) | acknowledge | 2026-10-30T00:30:59Z |
 | Q-007 | I5 finding for T-0003: task was promoted with an invalid bundle (acceptance oracles failed) - STOP | rework T-0003 | 2026-10-30T00:31:14Z |
+| Q-008 | Missing fleet profile: overseer-beam | Create overseer-beam profile in agents.toml (requires operator action) | 2026-10-31T06:50:55Z |
+| Q-009 | Missing fleet profile: opencode-beam | Create opencode-beam profile in agents.toml (requires operator action) | 2026-10-31T06:51:00Z |
+| Q-010 | pmk project init --path ignored; project created inside UMAWS repo | Accept UMAWS repo as project root (move cfna work into testproject1 subfolder) | 2026-10-31T06:39:32Z |
+| Q-011 | How to start the Console (listens on http://127.0.0.1:8765) per Toy3 procedure | Run pmk project run --seconds 0 (project-level dispatch) | 2026-10-31T06:56:34Z |
+| Q-012 | Wave-1 stalled lease recovery | Conductor revoke-and-retry failed/stubbed leases, then dispatch | 2026-10-31T10:06:00Z |
+| Q-013 | Task write scopes are comma-joined single strings (15 tasks) and will fail scope_check on every submission | Void affected tasks (T-0008,T-0010-23) and let Overseer recreate with repeated --write entries | 2026-10-31T10:06:00Z |
+| Q-014 | The project stalled: lease T-0004 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T10:45:12Z |
+| Q-015 | The project stalled: lease T-0007 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T10:45:13Z |
+| Q-016 | The project stalled: lease T-0004 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T10:56:26Z |
+| Q-017 | The project stalled: lease T-0006 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T10:56:27Z |
+| Q-018 | The project stalled: lease T-0024 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T10:56:27Z |
+| Q-019 | I1 chain repair: remove orphan duplicate seq 1203 AGENT_STARTED T-0004 record, or retain and accept breach | quarantine orphan: conductor/operator removes the stray AGENT_STARTED line so seqs are contiguous | 2026-10-31T11:22:20Z |
+| Q-020 | The project stalled: lease T-0004 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T11:22:21Z |
+| Q-021 | The project stalled: lease T-0006 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T19:50:17Z |
+| Q-022 | The project stalled: lease T-0024 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T19:50:18Z |
+| Q-023 | The project stalled: lease T-0026 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T19:50:19Z |
+| Q-024 | Conductor repair outstanding: execute Q-019 orphan quarantine and revoke dead leases before decomposition | execute repair now (Conductor/operator removes stray seq-1203 line and revokes T-0006/T-0007/T-0024/T-0025/T-0026), then Overseer decomposes gap tasks | 2026-10-31T19:50:19Z |
+| Q-025 | The project stalled: lease T-0096 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T20:43:40Z |
+| Q-026 | Repair integration/environment before downstream dispatch | Option 1 | 2026-10-31T21:24:02Z |
+| Q-027 | The project stalled: lease T-0098 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T21:24:05Z |
+| Q-028 | The project stalled: lease T-0101 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T21:24:07Z |
+| Q-029 | The project stalled: lease T-0102 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T21:24:08Z |
+| Q-030 | The project stalled: lease T-0105 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T21:24:11Z |
+| Q-031 | The project stalled: lease T-0106 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T21:24:13Z |
+| Q-032 | The project stalled: lease T-0107 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T21:24:17Z |
+| Q-033 | The project stalled: lease T-0110 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T21:24:20Z |
+| Q-034 | The project stalled: lease T-0098 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T22:13:06Z |
+| Q-035 | The project stalled: lease T-0099 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T22:13:08Z |
+| Q-036 | The project stalled: lease T-0100 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T22:13:10Z |
+| Q-037 | The project stalled: lease T-0101 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T22:13:12Z |
+| Q-038 | The project stalled: lease T-0102 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T22:13:14Z |
+| Q-039 | The project stalled: lease T-0104 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T22:13:16Z |
+| Q-040 | The project stalled: lease T-0106 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T22:13:18Z |
+| Q-041 | The project stalled: lease T-0107 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T22:13:20Z |
+| Q-042 | The project stalled: lease T-0108 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T22:13:23Z |
+| Q-043 | The project stalled: lease T-0110 expired (TTL 20 min) without submission | fix the cause and resume | 2026-10-31T22:13:25Z |
+| Q-044 | Ratify un-promoted governance change: .pm/policy.toml ttl_minutes 20->120 plus persisted conductor auto-revoke patch (src/fleet/conductor.py) | ratify: keep ttl_minutes=120 and record conductor auto-revoke into main; then run pmk pins record and land the conductor patch after review | 2026-10-31T22:13:27Z |
+| Q-045 | Task T-0105 is blocked: attempts exhausted (3/3) | re-scope the task | 2026-10-31T22:13:28Z |
+| Q-046 | Task T-0106 is blocked: attempts exhausted (3/3) | re-scope the task | 2026-10-31T22:13:30Z |
+| Q-047 | The project stalled: lease T-0098 expired (TTL 120 min) without submission | fix the cause and resume | 2026-11-01T00:07:57Z |
+| Q-048 | The project stalled: lease T-0099 expired (TTL 120 min) without submission | fix the cause and resume | 2026-11-01T00:07:57Z |
+| Q-049 | The project stalled: lease T-0100 expired (TTL 120 min) without submission | fix the cause and resume | 2026-11-01T00:11:17Z |
+| Q-050 | The project stalled: lease T-0101 expired (TTL 120 min) without submission | fix the cause and resume | 2026-11-01T00:11:17Z |
+| Q-051 | The project stalled: lease T-0102 expired (TTL 120 min) without submission | fix the cause and resume | 2026-11-01T00:11:43Z |
+| Q-052 | The project stalled: lease T-0104 expired (TTL 120 min) without submission | fix the cause and resume | 2026-11-01T00:11:44Z |
+| Q-053 | The project stalled: lease T-0107 expired (TTL 120 min) without submission | fix the cause and resume | 2026-11-01T00:11:44Z |
+| Q-054 | The project stalled: lease T-0108 expired (TTL 120 min) without submission | fix the cause and resume | 2026-11-01T00:11:44Z |
+| Q-055 | The project stalled: lease T-0110 expired (TTL 120 min) without submission | fix the cause and resume | 2026-11-01T00:11:45Z |
+| Q-056 | The project stalled: lease T-0111 expired (TTL 120 min) without submission | fix the cause and resume | 2026-11-01T05:35:55Z |
+| Q-057 | The project stalled: lease T-0103 expired (TTL 120 min) without submission | fix the cause and resume | 2026-11-01T05:35:56Z |
+| Q-058 | The project stalled: lease T-0111 expired (TTL 120 min) without submission | fix the cause and resume | 2026-11-01T05:35:57Z |
+| Q-059 | I8' policy pin mismatch: .pm/policy.toml ttl_minutes changed 20->120 without two-key approval; pin not re-recorded; I8' stops=true blocks all promotion | ratify and re-record pin | 2026-11-01T06:32:16Z |
+| Q-060 | The project cannot be closed: the goal oracles still fail. | re-scope the goals | 2026-11-01T06:33:59Z |
+| Q-061 | Q-060 re-scope goals: define the re-scoped goal set for the stalled project | Focus on G-001 only (rules implemented, cited, covered) — create clean tasks for docs/rules/, docs/rules/index.json, coverage/rules_coverage.json, core engine module | 2026-11-01T06:44:05Z |
+| Q-062 | G-001 dispatch deadlock: void duplicate/probe/doomed tasks and integrate base leases before dispatch resumes | Option 1 (recommended): Conductor integrates base leases T-0112 (skeleton; RESULT.md present, smoke 2 passed) and T-0113 (vendor rules + manifest; RESULT.md present) first, then voids the junk/duplicate/doomed cards - T-0114, T-0115, T-0116, T-0117, T-0120 (no-oracle/trivial-oracle probes writing docs/rules/), T-0123 (dup of T-0121 and leased T-0113), T-0124 (dup of T-0122), T-0125 (doomed: scope lacks tests/test_coverage.py which does not exist in main; overlaps T-0118), T-0126 (dup of T-0119; scope lacks tests/test_engine_contract.py so oracle unsatisfiable) - and keeps the single clean chain T-0118 (coverage tool+test+json) / T-0119 (engine+test_engine_contract.py) / T-0121 then T-0122 (vendor rules then index.json). At verify time use strong oracles (e.g. manifest with >=66 files where the rule set allows; G-001 oracle checks index.json + coverage json existence). | 2026-11-01T08:59:38Z |
+| Q-063 | T-0127/T-0129 are scripted probe submissions with no source worktree and no evidence bundle - must NOT be integrated | Option 2: leave both SUBMITTED and hold all verify/integrate until the human audits the bundles manually - but they are already DONE and integrated into main (merge commits e7cea34 and 0fc8d0c). The work IS in main (pytest.ini, test_smoke.py, docs/rules/). | 2026-11-01T09:06:36Z |
+| Q-064 | Base-card defects and phantom submissions after Q-062: repair path for G-001 base | Option 1 (recommended): Conductor treats the completed work in EB-T-0112-94/EB-T-0113-95 as good but the task cards as corrupt, so it voids T-0113 + T-0128 (both carry the malformed oracle) and re-creates clean base cards with verifiable oracles (skeleton: pytest smoke on real tree; vendor rules: manifest >=66 files + checksums), verifying against the integrated main tree. Rejects or re-verifies the phantom submissions T-0127/T-0129 (no worktrees exist, claimed outputs tests/test_smoke.py and docs/rules/ are absent from main) - do not integrate empty bundles. Sweeps the dead T-0125 lease (pid gone, fence 96). Then runs Q-062 clean chain T-0118/T-0119/T-0121->T-0122 with strong oracles (index.json + coverage json existence; manifest >=66 where applicable). | 2026-11-01T09:02:37Z |
+| Q-065 | The project stalled: lease T-0112 expired (TTL 120 min) without submission | fix the cause and resume | 2026-11-01T09:02:46Z |
+| Q-066 | Q-063 premise is FALSIFIED: T-0127/T-0129 were integrated and are DONE (HEAD 0fc8d0c) - decide Q-063 as MOOT, do NOT void the base | Close Q-063 as moot: keep T-0127/T-0129 DONE and proceed with the running clean chain (T-0118/T-0119 + index card T-0130) | 2026-11-01T09:10:19Z |
+| Q-067 | The project stalled: lease T-0127 expired (TTL 120 min) without submission | fix the cause and resume | 2026-11-01T10:30:06Z |
+| Q-068 | G-001 rule corpus: full 66-file corpus (pinned 75a037f) vs integrated 3-doc corpus (pinned 95ee479) | adopt full 66-file corpus | 2026-11-01T11:25:04Z |
+| Q-069 | The project cannot be closed: the goal oracles still fail. | fix the failing goal by hand | 2026-11-01T11:06:08Z |
+| Q-070 | The project cannot be closed: the goal oracles still fail. | accept the project as incomplete | 2026-11-01T11:21:45Z |
+| Q-071 | The project stalled: lease T-0131 expired (TTL 120 min) without submission | fix the cause and resume | 2026-11-01T21:13:24Z |
+| Q-072 | The project stalled: lease T-0131 expired (TTL 120 min) without submission | fix the cause and resume - the stall cause was the relative-path order defect and the worktree-isolation gap (fixed in 77a8659, hardened in aed9aec); successor task T-0139 completed and the corpus landed in main at 1a5ec9b. Recorded by the operator on 2026-11-07. The project remains PAUSED by a separate operator decision; this decision does not unpause it. | 2026-11-06T12:31:25Z |
+| Q-073 | The project stalled: lease T-0136 expired (TTL 120 min) without submission | fix the cause and resume - the stall cause was the same relative-path order defect and worktree-isolation gap (fixed in 77a8659, hardened in aed9aec); successor task T-0139 completed and the corpus landed in main at 1a5ec9b. Recorded by the operator on 2026-11-07. The project remains PAUSED by a separate operator decision; this decision does not unpause it. | 2026-11-06T12:31:25Z |
+| Q-074 | T-0139 integration blocked: main's docs/rules/ holds an UNCOMMITTED pre-staged corpus (M manifest.json, M checksums.sha256, ?? CNA-Rules.adoc, ?? sections/ 65 files). T-0139's completed branch (pmk/T-0139-117, 66/66 sha256 vs pin 75a037f) cannot merge over uncommitted work; harness failed 3 times | Neither option 1 nor 2. Main's uncommitted corpus is off-pin (CRLF; CNA-Rules.adoc sha256 e585... vs pin 5654...). Land the corpus from the pin objects instead (tcanf-clone@75a037f, 66 files staged byte-exact at C:\temp\corpus-staging-75a037f, 66/66 git blob ids verified): back up main's docs/rules and coverage, replace with the staged files, regenerate manifest, checksums, index and coverage, add docs/rules/** -text to .gitattributes, commit once citing this decision. Branch pmk/T-0139-117 is superseded and stays unmerged. | 2026-11-02T20:54:21Z |
+| Q-075 | D-3 - revert lease ttl_minutes 120 -> 20 in .pm/policy.toml (orphan-only reaper now landed) | approve: restore ttl_minutes = 20 in .pm/policy.toml and re-record the policy pin. Per the operator's standing decision D-3 (pilot/decisions.md: revert TTL to 20, one decision id covering policy, pin and conductor change), conditional on the orphan-only lease reaper being landed and reviewed. Condition met 2026-11-06: commits 62af455 (lease reap) and 9eb39ad (edge-triggered wakes) applied to the live repo; 463 tests pass in the live tree; reviewer assessment v1.2.13 F-103 to F-107 accepts both. The 120-minute value was a working-tree-only edit; the committed value is 20. Dispatch stays paused, console stays stopped. | 2026-11-06T01:09:54Z |
+| Q-076 | Worktree lifecycle defect: 98 worker worktrees (886 MB) are never reclaimed, and 56 of them hold uncommitted work that was never merged. Authorise a fix at the point the lease fence bumps. | implement the reclaim-at-fence-bump fix now, per proposal-deepseek-umaws-fleet-worktree-lifecycle-remediation-v1.md (operator-approved 2026-11-07), on the binding condition that REC-02 capture (Phase 1) is implemented and verified before REC-01 reclaim ships (Phase 2); the worktree-lifecycle remediation is authorised but the project remains PAUSED until the Phase 0 gates and the operator answers in Section 10 of the proposal are closed. | 2026-11-07T06:28:40Z |
