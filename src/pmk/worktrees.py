@@ -9,10 +9,13 @@ This module is deliberately **read-mostly**:
 
 * :func:`records` and :func:`stats` only inspect the filesystem and git;
   they change nothing.
-* :func:`prune` is conservative and **dry-run by default**.  It refuses to
-  touch a tree with uncommitted content (capture must happen first — REC-02,
-  which is not yet implemented), and it never touches ``work/context-sync``,
-  which the Kernel owns and reclaims itself.
+* :func:`prune` is conservative and **dry-run by default**.  Without
+  ``archive=True`` it refuses to touch a tree with uncommitted content;
+  with it, a dirty tree is captured (REC-02) and the capture verified
+  before the tree becomes a removal candidate.  It never touches
+  ``work/context-sync``, which the Kernel owns and reclaims itself.
+* :func:`archive_tree` only **copies** stranded work into
+  ``<root>/stranded/``; it never modifies or deletes a worktree.
 
 Nothing here is on the coordination hot path: ``pmk status`` and
 ``pmk worktree`` use it, and the sentinel ``I17`` observation uses it.
@@ -199,21 +202,27 @@ def archive_tree(repo, state, path: Path, *, target_root: Path | None = None) ->
     root = Path(target_root) if target_root else archive_root(repo)
     dest = root / (f"{task_id}-{fence}" if fence is not None else path.name)
 
-    code, base, _ = repo.git("rev-parse", "HEAD", cwd=path)
-    base = base.strip() if code == 0 else ""
+    # Everything is read through git_bytes: repo.git() decodes stdout in
+    # text mode, which strips the CR from CRLF and would make a captured
+    # patch fail to apply to its CRLF base.
+    code, base_raw, _ = repo.git_bytes("rev-parse", "HEAD", cwd=path)
+    base = base_raw.decode("utf-8", "replace").strip() if code == 0 else ""
 
-    code, diff, err = repo.git("diff", "HEAD", "--binary", "--", ".",
-                               cwd=path)
+    code, diff, err = repo.git_bytes("diff", "HEAD", "--binary", "--", ".",
+                                     cwd=path)
     if code != 0:
-        return {"name": path.name, "archived": False,
-                "reason": (err.strip() or "git diff failed")}
+        reason = err.decode("utf-8", "replace").strip() or "git diff failed"
+        return {"name": path.name, "archived": False, "reason": reason}
 
-    code, others, _ = repo.git("ls-files", "--others", "--exclude-standard",
-                               "-z", "--", ".", cwd=path)
-    untracked = [p for p in others.split("\0") if p]
+    code, others, _ = repo.git_bytes("ls-files", "--others",
+                                     "--exclude-standard", "-z", "--", ".",
+                                     cwd=path)
+    untracked = [p.decode("utf-8", "replace")
+                 for p in others.split(b"\0") if p]
 
     dest.mkdir(parents=True, exist_ok=True)
-    (dest / "diff.patch").write_text(diff, encoding="utf-8")
+    # Byte-for-byte: never pass this through a text-mode write.
+    (dest / "diff.patch").write_bytes(diff)
     tar_path = dest / "untracked.tar"
     written = _tar_untracked(path, untracked, tar_path)
 
@@ -240,8 +249,9 @@ def archive_tree(repo, state, path: Path, *, target_root: Path | None = None) ->
         "untracked_tar_sha256": _sha256_file(tar_path),
         "archived_at": _now_iso(),
     }
-    (dest / "manifest.json").write_text(
-        json.dumps(manifest, indent=2), encoding="utf-8")
+    # Also byte-faithful: no platform newline translation for the manifest.
+    (dest / "manifest.json").write_bytes(
+        (json.dumps(manifest, indent=2) + "\n").encode("utf-8"))
     return {"name": path.name, "archived": True, "dest": str(dest),
             "diff_bytes": manifest["diff_bytes"], "untracked_count": len(untracked)}
 

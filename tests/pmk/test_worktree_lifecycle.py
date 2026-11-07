@@ -241,6 +241,63 @@ def test_archive_tree_captures_diff_untracked_and_manifest(kernel, repo):
     assert (tree / "new.py").is_file()
 
 
+def test_archived_patch_is_byte_identical_to_git_diff(kernel, repo):
+    """The capture must reproduce git's own diff byte for byte, and apply.
+
+    Regression: repo.git() decodes stdout in text mode, which strips the CR
+    from a CRLF; Path.write_text() then added the platform separator.  The
+    patch looked fine and verify_archive() passed (it only hashes what was
+    written), yet it no longer applied.
+    """
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "README.md").write_text("# changed\n", encoding="utf-8")
+    dest = repo.root / "stranded" / "T-0001-1"
+    worktrees.archive_tree(repo, kernel.state(), tree)
+
+    gold = subprocess.run(["git", "diff", "HEAD", "--binary", "--", "."],
+                          cwd=str(tree), capture_output=True).stdout
+    assert (dest / "diff.patch").read_bytes() == gold
+    assert b"\r\n" not in (dest / "manifest.json").read_bytes()
+
+    # Round-trip: revert the tracked change, then re-apply the capture.
+    subprocess.run(["git", "checkout", "--", "README.md"],
+                   cwd=tree, capture_output=True)
+    assert (tree / "README.md").read_text(encoding="utf-8") == "# Test Repo\n"
+    applied = subprocess.run(["git", "apply", str(dest / "diff.patch")],
+                             cwd=tree, capture_output=True, text=True)
+    assert applied.returncode == 0, applied.stderr
+    assert (tree / "README.md").read_text(encoding="utf-8") == "# changed\n"
+
+
+def test_capture_preserves_crlf_so_the_patch_still_applies(kernel, repo):
+    """CRs from a CRLF file must survive into the patch.
+
+    The live repository stores ``docs/rules/**`` with CRLF, so a capture
+    that drops CRs would produce a patch that cannot be applied.
+    """
+    subprocess.run(["git", "config", "core.autocrlf", "false"], cwd=repo.root,
+                   capture_output=True)
+    tree = _make_worktree(repo, "T-0001-1")
+    crlf = tree / "crlf.txt"
+    crlf.write_bytes(b"one\r\ntwo\r\n")
+    subprocess.run(["git", "add", "crlf.txt"], cwd=tree, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "crlf base"], cwd=tree,
+                   capture_output=True)
+    crlf.write_bytes(b"one\r\nTWO\r\n")            # modify; keep CRLF
+
+    dest = repo.root / "stranded" / "T-0001-1"
+    worktrees.archive_tree(repo, kernel.state(), tree)
+    assert b"\r\n" in (dest / "diff.patch").read_bytes(), \
+        "the CR from a CRLF file was stripped"
+
+    subprocess.run(["git", "checkout", "--", "crlf.txt"], cwd=tree,
+                   capture_output=True)
+    applied = subprocess.run(["git", "apply", str(dest / "diff.patch")],
+                             cwd=tree, capture_output=True, text=True)
+    assert applied.returncode == 0, applied.stderr
+    assert crlf.read_bytes() == b"one\r\nTWO\r\n"
+
+
 def test_verify_archive_detects_tampering(kernel, repo):
     tree = _make_worktree(repo, "T-0001-1")
     (tree / "README.md").write_text("# changed\n", encoding="utf-8")

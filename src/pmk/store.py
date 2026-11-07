@@ -219,6 +219,26 @@ class Repo:
             return -1, "", str(exc)
         return out.returncode, out.stdout, out.stderr
 
+    def git_bytes(self, *args: str, cwd: Path | None = None,
+                  timeout: int = 120) -> tuple[int, bytes, bytes]:
+        """Run git like :meth:`git` but return **raw** stdout/stderr bytes.
+
+        :meth:`git` decodes stdout in Python text mode, which applies
+        universal-newline translation and silently strips the CR from a
+        CRLF.  Some files are stored with CRLF -- ``.gitattributes`` marks
+        ``docs/rules/**`` as ``-text`` -- so anything that must reproduce
+        git's output byte for byte (a captured patch, a content hash) has
+        to read it here instead.
+        """
+        import subprocess
+        try:
+            out = subprocess.run(
+                ["git", "-C", str(cwd or self.root), *args],
+                capture_output=True, timeout=timeout)
+        except (OSError, subprocess.SubprocessError) as exc:
+            return -1, b"", str(exc).encode()
+        return out.returncode, out.stdout, out.stderr
+
     def head_commit(self) -> str:
         """The current HEAD commit, or ``""`` outside a git repository."""
         code, out, _ = self.git("rev-parse", "HEAD")
