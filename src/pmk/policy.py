@@ -36,7 +36,8 @@ DEFAULT_POLICY: dict = {
                      "hooks_in_worker_worktrees": False, "providers_allow": []},
     "gate": {"cmd": "pytest -q"},
     "lease": {"heartbeat_seconds": 60, "ttl_minutes": 20, "renew_every": 60},
-    "worktree": {"root": "work", "short_root": False},
+    "worktree": {"root": "work", "short_root": False,
+                 "reclaim_on_reap": False},
     "harness": {"poll_seconds": 2, "renew_digest": True},
     "recovery": {
         "network_retry_delays_s": [30, 120, 600],

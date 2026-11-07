@@ -288,6 +288,47 @@ def verify_archive(dest: Path) -> tuple[bool, list[str]]:
     return (not problems), problems
 
 
+def reclaim_after_capture(repo, state, path: Path, *,
+                          target_root: Path | None = None) -> dict:
+    """REC-01: capture a worktree, verify the capture, then remove it.
+
+    This is the **only** function that deletes a worktree.  It never
+    deletes anything whose capture did not verify, so a reclaim cannot
+    lose work that was not first stored under ``stranded/``.  A tree that
+    does not exist, or whose capture or removal fails, is left in place
+    and the result says why.
+
+    Returns a result dict; ``reclaimed`` is true only when the worktree
+    was actually removed.
+    """
+    path = Path(path)
+    result: dict = {"worktree": str(path), "reclaimed": False, "archived": False}
+    if not path.is_dir():
+        result["reason"] = "not on disk"
+        return result
+
+    capture = archive_tree(repo, state, path, target_root=target_root)
+    if not capture.get("archived"):
+        result["reason"] = (f"capture failed: "
+                            f"{capture.get('reason', 'unknown')}")
+        return result
+    dest = Path(capture["dest"])
+    ok, problems = verify_archive(dest)
+    if not ok:
+        result["reason"] = "capture not verified: " + "; ".join(problems)
+        return result
+    result["archived"] = True
+    result["archive"] = str(dest)
+
+    code, out, err = repo.git("worktree", "remove", "--force", str(path))
+    if code != 0:
+        result["reason"] = ("git worktree remove failed: "
+                            f"{(err.strip() or out.strip())}")
+        return result
+    result["reclaimed"] = True
+    return result
+
+
 def prune(repo, state, *, dry_run: bool = True,
           older_than_days: float | None = None,
           keep_unmerged: bool = True,

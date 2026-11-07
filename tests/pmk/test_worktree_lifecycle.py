@@ -1,8 +1,9 @@
-"""Tests for the worktree-lifecycle remediation (REC-04, REC-06, REC-11, REC-13).
+"""Tests for the worktree-lifecycle remediation.
 
-Covers the operator surface over ``work/``, the sentinel ``I17`` observation,
-the ``SUPERSEDED_BY`` traceability record, and the stale-``agent_hint``
-guard at claim time.
+Covers the operator surface over ``work/`` (REC-04), the sentinel ``I17``
+observation (REC-06), capture-before-reclaim (REC-02, REC-01), the
+``SUPERSEDED_BY`` traceability record (REC-11), and the stale-``agent_hint``
+guard at claim time (REC-13).
 """
 
 from __future__ import annotations
@@ -335,6 +336,54 @@ def test_prune_archive_captures_verifies_then_removes(kernel, repo):
     ok, problems = worktrees.verify_archive(dest)
     assert ok, problems
     assert not tree.exists()
+
+
+# ---------------------------------------------------------------------------
+# REC-01 -- reclaim a bumped lease's worktree, capture-first
+# ---------------------------------------------------------------------------
+
+def test_reclaim_captures_then_removes(kernel, repo):
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "README.md").write_text("# stranded\n", encoding="utf-8")
+    (tree / "new.py").write_text("print(1)\n", encoding="utf-8")
+
+    result = worktrees.reclaim_after_capture(repo, kernel.state(), tree)
+
+    assert result["reclaimed"] is True
+    assert result["archived"] is True
+    assert not tree.exists()
+    dest = repo.root / "stranded" / "T-0001-1"
+    ok, problems = worktrees.verify_archive(dest)
+    assert ok, problems
+
+
+def test_reclaim_of_a_clean_tree_still_archives_a_manifest(kernel, repo):
+    tree = _make_worktree(repo, "T-0001-1")          # nothing changed
+    result = worktrees.reclaim_after_capture(repo, kernel.state(), tree)
+    assert result["reclaimed"] is True
+    assert (repo.root / "stranded" / "T-0001-1" / "manifest.json").is_file()
+    assert not tree.exists()
+
+
+def test_reclaim_keeps_the_tree_when_the_capture_does_not_verify(
+        kernel, repo, monkeypatch):
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "README.md").write_text("# stranded\n", encoding="utf-8")
+    monkeypatch.setattr(worktrees, "verify_archive",
+                        lambda dest: (False, ["simulated corruption"]))
+
+    result = worktrees.reclaim_after_capture(repo, kernel.state(), tree)
+
+    assert result["reclaimed"] is False
+    assert "not verified" in result["reason"]
+    assert tree.is_dir()                              # kept, not deleted
+
+
+def test_reclaim_reports_a_missing_worktree(kernel, repo):
+    result = worktrees.reclaim_after_capture(
+        repo, kernel.state(), repo.work_dir / "T-0001-404")
+    assert result["reclaimed"] is False
+    assert result["reason"] == "not on disk"
 
 
 # ---------------------------------------------------------------------------

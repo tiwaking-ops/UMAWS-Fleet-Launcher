@@ -586,10 +586,41 @@ class Conductor:
         payload = dict(info, new_fence=new_fence)
         if stopped is not None:
             payload["process"] = stopped
+        # REC-01: the revoke bumped the fence, so this lease's worktree is
+        # now stranded.  Reclaim it -- but only when the operator has
+        # enabled `worktree.reclaim_on_reap`, and only after a capture that
+        # verifies (a tree whose capture fails is kept).
+        reclaim = self._reclaim_worktree(lease)
+        if reclaim is not None:
+            payload["worktree_reclaim"] = reclaim
         self.kernel.record_event("LEASE_REAPED", actor=Actor.kernel(),
                                  subject=task_id, fence=lease.fence,
                                  payload=payload)
+        if reclaim is not None:
+            self.kernel.record_event("WORKTREE_RECLAIMED", actor=Actor.kernel(),
+                                     subject=task_id, fence=lease.fence,
+                                     payload=reclaim)
         return dict(payload, reaped=True)
+
+    def _reclaim_worktree(self, lease) -> dict | None:
+        """Capture-then-remove a bumped lease's worktree (REC-01).
+
+        Returns ``None`` when the policy flag is off or the lease has no
+        recorded worktree, so the caller records nothing.  Never raises:
+        a reclaim failure must not undo a successful revoke.
+        """
+        if not lease.worktree:
+            return None
+        policy = self.kernel.policy().get("worktree", {}) or {}
+        if not policy.get("reclaim_on_reap", False):
+            return None
+        try:
+            from pmk import worktrees
+            return worktrees.reclaim_after_capture(
+                self.kernel.repo, self.kernel.state(), lease.worktree)
+        except Exception as exc:                    # noqa: BLE001
+            return {"worktree": str(lease.worktree), "reclaimed": False,
+                    "reason": f"{type(exc).__name__}: {exc}"}
 
     def _reap_failed(self, info: dict, key: tuple, stage: str,
                      message: str) -> dict:

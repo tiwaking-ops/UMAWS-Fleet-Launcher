@@ -294,3 +294,73 @@ def test_a_failed_revoke_is_recorded_and_the_next_lease_is_still_handled(
     assert b.id not in state.leases
     failed = _events(fake_kernel, "LEASE_REAP_FAILED")
     assert [e.subject for e in failed] == [a.id]
+
+
+# ---------------------------------------------------------------------------
+# REC-01: reclaiming the worktree a bumped fence leaves behind
+# ---------------------------------------------------------------------------
+
+def _orphan_with_worktree(kernel, name: str, *, dirty: bool = True):
+    import subprocess
+    task = make_task(kernel, scope={"write": [f"src/{name}.py"], "read": []})
+    tree = kernel.repo.work_dir / f"{task.id}-reclaim"
+    tree.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "worktree", "add", "--detach", str(tree), "HEAD"],
+                   cwd=kernel.repo.root, capture_output=True)
+    if dirty:
+        (tree / "README.md").write_text("# stranded\n", encoding="utf-8")
+    lease = kernel.claim(task.id, holder="fake-a", agent="fake",
+                         role="implement", worktree=str(tree))
+    return task, tree, lease
+
+
+def _enable_reclaim(kernel, monkeypatch) -> None:
+    policy = kernel.policy()
+    policy.setdefault("worktree", {})["reclaim_on_reap"] = True
+    monkeypatch.setattr(kernel, "policy", lambda: policy)
+
+
+def test_reap_reclaims_the_worktree_when_policy_enables_it(
+        fake_kernel, clock, monkeypatch):
+    task, tree, lease = _orphan_with_worktree(fake_kernel, "a")
+    _enable_reclaim(fake_kernel, monkeypatch)
+    conductor = _conductor(fake_kernel)
+    clock.advance(TTL_S + 1)
+
+    results = conductor.reap_expired_leases()
+
+    assert results[0]["reaped"] is True
+    assert not tree.exists()
+    reclaims = _events(fake_kernel, "WORKTREE_RECLAIMED")
+    assert len(reclaims) == 1
+    assert reclaims[0].subject == task.id
+    assert reclaims[0].payload["reclaimed"] is True
+    assert (fake_kernel.repo.root / "stranded" / tree.name).is_dir()
+
+
+def test_reap_leaves_the_worktree_alone_by_default(fake_kernel, clock):
+    task, tree, lease = _orphan_with_worktree(fake_kernel, "a")
+    conductor = _conductor(fake_kernel)
+    clock.advance(TTL_S + 1)
+
+    conductor.reap_expired_leases()
+
+    assert tree.exists()                          # reclaim is opt-in
+    assert not _events(fake_kernel, "WORKTREE_RECLAIMED")
+
+
+def test_reap_keeps_the_worktree_when_the_capture_does_not_verify(
+        fake_kernel, clock, monkeypatch):
+    from pmk import worktrees
+    task, tree, lease = _orphan_with_worktree(fake_kernel, "a")
+    _enable_reclaim(fake_kernel, monkeypatch)
+    monkeypatch.setattr(worktrees, "verify_archive",
+                        lambda dest: (False, ["boom"]))
+    conductor = _conductor(fake_kernel)
+    clock.advance(TTL_S + 1)
+
+    conductor.reap_expired_leases()
+
+    assert tree.exists()                          # kept: capture not verified
+    reclaim = _events(fake_kernel, "WORKTREE_RECLAIMED")[-1]
+    assert reclaim.payload["reclaimed"] is False
