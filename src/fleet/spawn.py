@@ -157,28 +157,37 @@ def main_tree_status(repo) -> str:
     return out if code == 0 else ""
 
 
+def parse_status_z(text: str) -> list[tuple[str, str]]:
+    """Parse ``git status --porcelain -z`` output into ``(XY, path)`` pairs.
+
+    With ``-z`` a rename or copy record is ``XY new\\0old``: the second field
+    is the original path and carries no status prefix, so it is consumed with
+    its record and is not reported as an entry of its own.
+    """
+    entries: list[tuple[str, str]] = []
+    parts = text.split("\0")
+    i = 0
+    while i < len(parts):
+        part = parts[i]
+        i += 1
+        if len(part) < 4 or part[2] != " ":
+            continue
+        status_xy, path = part[:2], part[3:]
+        if "R" in status_xy or "C" in status_xy:
+            i += 1                      # skip the original path
+        entries.append((status_xy, path))
+    return entries
+
+
 def main_tree_status_z(repo) -> list[tuple[str, str]]:
     """``git status --porcelain -z --untracked-files=all`` for the main working tree.
 
-    Returns a list of (status_xy, path) tuples. Each entry is NUL-separated.
-    Status XY: index=X, worktree=Y. Path may contain " -> " for renames.
+    Returns a list of ``(status_xy, path)`` tuples (see :func:`parse_status_z`).
     """
     code, out, err = repo.git("status", "--porcelain", "-z", "--untracked-files=all")
     if code != 0 or not out:
         return []
-    entries = []
-    parts = out.split('\0')
-    for part in parts:
-        if not part:
-            continue
-        if len(part) < 3:
-            continue
-        status_xy = part[:2]
-        path = part[3:] if len(part) > 3 else ""
-        if not path:
-            continue
-        entries.append((status_xy, path))
-    return entries
+    return parse_status_z(out)
 
 
 def worktree_status_detail(repo, worktree: str | Path) -> dict:

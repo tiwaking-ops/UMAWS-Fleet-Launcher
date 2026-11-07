@@ -103,6 +103,8 @@ class LeaseRun:
     network_retries: int = 0
     unknown_retries: int = 0
     main_tree_status_start: dict | None = None
+    #: Every main-tree path that was dirty at spawn (the summary keeps only 20).
+    main_tree_paths_start: frozenset = frozenset()
 
     def to_dict(self) -> dict:
         return {"task": self.task.id, "profile": self.profile.id,
@@ -116,60 +118,64 @@ def _hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
 
 
-def _validate_agent_claims(task, worktree: str | Path, log_tail: str) -> list[str]:
-    """R-02: structural checks on agent claims before oracles run."""
+def _worktree_changes(worktree: str | Path) -> tuple[list[str], str]:
+    """Paths changed in *worktree* outside ``.pmwork/``, and an error text.
+
+    Returns ``(paths, "")`` on success and ``([], reason)`` when git could not
+    report the status.  An error is not the same as "no changes".
+    """
+    try:
+        r = subprocess.run(
+            ["git", "status", "--porcelain", "-z", "--untracked-files=all"],
+            cwd=str(worktree), capture_output=True, timeout=30)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return [], f"{type(exc).__name__}: {exc}"
+    if r.returncode != 0:
+        detail = r.stderr.decode("utf-8", errors="replace").strip()[:300]
+        return [], f"git status exited {r.returncode}: {detail}"
+    entries = spawn_mod.parse_status_z(r.stdout.decode("utf-8", errors="replace"))
+    return [path for _, path in entries if not path.startswith(".pmwork/")], ""
+
+
+def _check_agent_claims(task, worktree: str | Path,
+                        log_tail: str) -> tuple[list[str], list[str]]:
+    """R-02: structural checks on agent claims before the oracles run.
+
+    Returns ``(problems, advisories)``.  A *problem* fails the attempt; an
+    *advisory* is recorded and does not.  The oracles, which the harness runs
+    itself, are the evidence; these checks only fail fast on what is
+    certain.
+    """
     problems: list[str] = []
+    advisories: list[str] = []
     wt = Path(worktree)
 
-    # 1. Task ID in RESULT.md must match the leased task ID (advisory only)
+    # 1. RESULT.md should mention the leased task id (advisory only).
     result_path = wt / ".pmwork" / "RESULT.md"
     if result_path.is_file():
         try:
             text = result_path.read_text(encoding="utf-8", errors="replace")
-            if f"T-{task.id}" not in text and task.id not in text:
-                problems.append(f"RESULT.md task id mismatch: expected {task.id} (advisory)")
-        except OSError:
-            pass
+        except OSError as exc:
+            advisories.append(f"RESULT.md unreadable: {exc}")
+        else:
+            if str(task.id) not in text:
+                advisories.append(f"RESULT.md does not mention the task id {task.id}")
 
-    # 2. NO_CHANGES fast-fail for implement cards with empty worktree diff
+    # 2. NO_CHANGES fast-fail for implement cards with an empty worktree diff.
+    #    If git cannot say, the check is skipped and recorded; the oracles decide.
     if task.type == "implement":
-        try:
-            r = subprocess.run(
-                ["git", "status", "--porcelain", "-z", "--untracked-files=all"],
-                cwd=str(wt), capture_output=True, text=True, timeout=30)
-            out = r.stdout
-        except Exception as exc:
-            # Record the error as an event but don't fail silently
-            out = ""
-            # In production this would record an event; here we just log
-            print(f"[harness] NO_CHANGES git status failed: {exc}", flush=True)
-
-        # Parse NUL-separated porcelain output (git -z)
-        # Each entry is: XY <path>\0 where XY is status, path may contain -> for renames
-        changed = []
-        if out:
-            parts = out.split('\0')
-            for part in parts:
-                if not part:
-                    continue
-                if len(part) < 3:
-                    continue
-                # part[0:2] = status, part[2] = space, part[3:] = path
-                path = part[3:] if len(part) > 3 else ""
-                if not path:
-                    continue
-                # Handle rename: "R  old -> new"
-                if " -> " in path:
-                    path = path.split(" -> ", 1)[1]
-                # Skip .pmwork/ noise
-                if path.startswith(".pmwork/"):
-                    continue
-                changed.append(path)
-
-        if not changed:
+        changed, error = _worktree_changes(wt)
+        if error:
+            advisories.append(f"NO_CHANGES check skipped: {error}")
+        elif not changed:
             problems.append("NO_CHANGES: implement card exited with no changes outside .pmwork/")
 
-    return problems
+    return problems, advisories
+
+
+def _validate_agent_claims(task, worktree: str | Path, log_tail: str) -> list[str]:
+    """The blocking problems of :func:`_check_agent_claims`."""
+    return _check_agent_claims(task, worktree, log_tail)[0]
 
 
 def run_command(command: str, cwd: str | Path, *,
@@ -284,15 +290,22 @@ class Harness:
             "paths": sample_paths
         }
 
-    def _diff_main_tree_status(self, before: dict, after: dict, write_scope: list[str]) -> list[str]:
-        """Return NEW main-tree changes inside the task's write scope."""
+    def _new_changes_in_scope(self, before_paths, after_paths,
+                              write_scope: list[str]) -> list[str]:
+        """NEW main-tree paths inside the task's write scope.
+
+        Takes the full path sets: the event summary keeps only 20 paths, which
+        misses a new in-scope change when main is dirty in many places.
+        """
         from pmk.models import scope_overlaps
-        before_paths = set(before.get("paths", []))
-        after_paths = set(after.get("paths", []))
-        new_paths = after_paths - before_paths
-        # Filter to write scope
-        in_scope = [p for p in new_paths if scope_overlaps([p], write_scope)]
-        return in_scope
+        new_paths = sorted(set(after_paths) - set(before_paths))
+        return [p for p in new_paths if scope_overlaps([p], write_scope)]
+
+    def _diff_main_tree_status(self, before: dict, after: dict, write_scope: list[str]) -> list[str]:
+        """The same from two event summaries (at most 20 paths each); the
+        harness itself uses :meth:`_new_changes_in_scope` with the full sets."""
+        return self._new_changes_in_scope(before.get("paths", []),
+                                          after.get("paths", []), write_scope)
 
     # ------------------------------------------------------------------
     # Phase 1: start
@@ -305,27 +318,30 @@ class Harness:
         # R-09: refuse to lease if main tree has uncommitted changes in write scope
         # Run BEFORE kernel.claim() so refusal has no side effects (no CLAIMED event, no attempt burned)
         main_tree_changes = spawn_mod.main_tree_status_z(self.repo)
+        seen = self.__dict__.setdefault("_scope_conflicts", {})
+        overlapping = []
         if main_tree_changes and task.write_scope:
             from pmk.models import scope_overlaps
-            overlapping = []
             for entry in main_tree_changes:
                 # entry is (status_xy, path)
-                path = entry[1]
-                if " -> " in path:
-                    path = path.split(" -> ", 1)[1]
-                if scope_overlaps([path], task.write_scope):
-                    overlapping.append(path)
-            if overlapping:
-                result.outcome = "blocked"
-                result.error = (f"main tree has uncommitted changes in write scope: "
-                                f"{', '.join(overlapping)}")
-                # Raise a queue item so operator knows (one per task, not per tick)
+                if scope_overlaps([entry[1]], task.write_scope):
+                    overlapping.append(entry[1])
+        if overlapping:
+            result.outcome = "blocked"
+            result.error = (f"main tree has uncommitted changes in write scope: "
+                            f"{', '.join(overlapping)}")
+            # One SCOPE_CONFLICT event per task and distinct set of paths: the
+            # Dispatcher retries with backoff, and a retry must not repeat the record.
+            cause = tuple(sorted(overlapping))
+            if seen.get(task.id) != cause:
+                seen[task.id] = cause
                 self.kernel.record_event(
                     "SCOPE_CONFLICT", subject=task.id, fence=0,
                     payload={"message": result.error,
                              "conflicting_paths": overlapping,
                              "write_scope": list(task.write_scope)})
-                return None, result
+            return None, result
+        seen.pop(task.id, None)
 
         try:
             lease = self.kernel.claim(task.id, holder=profile.id,
@@ -381,7 +397,9 @@ class Harness:
         run = LeaseRun(task=task, profile=profile, lease=lease, adapter=adapter,
                        slot=slot, worktree=worktree, started_at=now,
                        last_renew=now, last_change=now,
-                       main_tree_status_start=main_status_summary)
+                       main_tree_status_start=main_status_summary,
+                       main_tree_paths_start=frozenset(
+                           path for _, path in main_status_entries))
         return run, None
 
     # ------------------------------------------------------------------
@@ -444,9 +462,11 @@ class Harness:
         main_status_entries = spawn_mod.main_tree_status_z(self.repo)
         main_status_summary = self._summarize_main_tree_status(main_status_entries)
         new_changes_in_scope = []
-        if run.main_tree_status_start:
-            new_changes_in_scope = self._diff_main_tree_status(
-                run.main_tree_status_start, main_status_summary, list(run.task.write_scope))
+        if run.main_tree_status_start is not None:
+            new_changes_in_scope = self._new_changes_in_scope(
+                run.main_tree_paths_start,
+                frozenset(path for _, path in main_status_entries),
+                list(run.task.write_scope))
 
         self.kernel.record_event(
             "AGENT_EXITED", subject=run.task.id, fence=run.lease.fence,
@@ -454,7 +474,8 @@ class Harness:
                      "class": failure_class, "log": run.slot.log_path,
                      "session": run.session, "stalled": stalled,
                      "main_tree_status": main_status_summary,
-                     "main_tree_new_changes_in_scope": new_changes_in_scope})
+                     "main_tree_new_changes_in_scope": new_changes_in_scope[:20],
+                     "main_tree_new_changes_count": len(new_changes_in_scope)})
 
         if failure_class != classes.OK:
             return self._recover(run, result, failure_class, log_tail)
@@ -467,7 +488,12 @@ class Harness:
 
         # -- the oracles decide -------------------------------------------
         # R-02: validate agent claims before trusting oracles
-        claim_errors = _validate_agent_claims(run.task, run.worktree, log_tail)
+        claim_errors, claim_advisories = _check_agent_claims(
+            run.task, run.worktree, log_tail)
+        if claim_advisories:
+            self.kernel.record_event(
+                "AGENT_ADVISORY", subject=run.task.id, fence=run.lease.fence,
+                payload={"profile": run.profile.id, "advisories": claim_advisories})
         if claim_errors:
             # Route through the same path as a non-OK exit class
             # Check if NO_CHANGES is in the errors

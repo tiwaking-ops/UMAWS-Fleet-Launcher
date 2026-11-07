@@ -1457,6 +1457,7 @@ def test_validate_agent_claims_no_changes_fast_fail(tmp_path):
 
     worktree = tmp_path / "wt"
     worktree.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=worktree, check=True)
     (worktree / ".pmwork").mkdir()
     (worktree / ".pmwork" / "RESULT.md").write_text("done", encoding="utf-8")
 
@@ -1470,22 +1471,26 @@ def test_validate_agent_claims_no_changes_fast_fail(tmp_path):
 
 
 def test_validate_agent_claims_result_md_task_id_mismatch(tmp_path):
-    """R-02: RESULT.md task id mismatch is flagged."""
-    from fleet.harness import _validate_agent_claims
+    """R-02: a RESULT.md that does not mention the task id is an advisory,
+    not a failure of the attempt."""
+    from fleet.harness import _check_agent_claims
     from unittest.mock import MagicMock
 
     worktree = tmp_path / "wt"
     worktree.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=worktree, check=True)
     (worktree / ".pmwork").mkdir()
     (worktree / ".pmwork" / "RESULT.md").write_text("T-999 done", encoding="utf-8")
+    (worktree / "out.txt").write_text("work", encoding="utf-8")
 
     task = MagicMock()
     task.id = "001"
     task.type = "implement"
     task.write_scope = ["out.txt"]
     task.read_scope = []
-    problems = _validate_agent_claims(task, worktree, "")
-    assert any("task id mismatch" in p for p in problems)
+    problems, advisories = _check_agent_claims(task, worktree, "")
+    assert problems == []
+    assert any("does not mention the task id" in a for a in advisories)
 
 
 def test_main_tree_check_refuses_lease_with_scope_conflict(git_repo_master):
@@ -1536,3 +1541,36 @@ def test_agent_started_includes_main_tree_status(git_repo_master):
     assert len(started) == 1
     assert "main_tree_status" in started[0].payload
 
+
+def test_scope_conflict_is_recorded_once_per_cause(git_repo_master):
+    """R-09: a refused start is retried with backoff; the conflict is recorded
+    once per distinct set of paths, not once per attempt."""
+    from fleet.harness import Harness
+    from fleet.profiles import Profile
+    from fleet.state import FleetState
+
+    repo = git_repo_master
+    kernel = _make_kernel_from_repo(repo)
+    write_agents(repo, [fake_profile()])
+
+    task = make_task(kernel, scope={"write": ["src"], "read": []})
+    (repo.root / "src" / "thing.py").write_text("out-of-band\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo.root), "add", "src/thing.py"],
+                   check=True, capture_output=True)
+
+    harness = Harness(kernel, FleetState())
+    profile = Profile.from_dict(fake_profile())
+    for _ in range(3):
+        run, result = harness.start(task, profile)
+        assert run is None
+        assert result.outcome == "blocked"
+    conflicts = [e for e in kernel.events() if e.type == "SCOPE_CONFLICT"]
+    assert len(conflicts) == 1
+    assert not [e for e in kernel.events() if e.type == "CLAIMED"]
+
+    # A different set of conflicting paths is a new cause and is recorded again.
+    (repo.root / "src" / "other.py").write_text("another\n", encoding="utf-8")
+    run, result = harness.start(task, profile)
+    assert run is None
+    conflicts = [e for e in kernel.events() if e.type == "SCOPE_CONFLICT"]
+    assert len(conflicts) == 2
