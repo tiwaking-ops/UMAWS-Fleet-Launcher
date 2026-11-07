@@ -76,6 +76,8 @@ class RulesIndexError(RuntimeError):
 
 _FENCE_RE = re.compile(r"^(?P<indent> {0,3})(?P<fence>`{3,}|~{3,})(?P<info>.*)$")
 _ATX_RE = re.compile(r"^(?P<hashes>#{1,6})[ \t]+(?P<text>.+?)[ \t]*#*[ \t]*$")
+_ADOC_HEADING_RE = re.compile(r"^(?P<hashes>={1,6})[ \t]+(?P<text>.+?)\s*$")
+_ADOC_ANCHOR_ATTR_RE = re.compile(r"^\[#(?P<id>[^\]]+)\]\s*$")
 _OUTLINE_RE = re.compile(r"^(?P<num>\d+(?:\.\d+)*)[.)]?[ \t]+(?P<rest>.*)$")
 _SEP_RE = re.compile(r"^[ \t]*\|?[ \t]*:?-{1,}:?[ \t]*(?:\|[ \t]*:?-{1,}:?[ \t]*)*\|?[ \t]*$")
 _HTML_ANCHOR_RE = re.compile(r"""<a\s+(?:id|name)\s*=\s*(?P<q>["'])(?P<id>[^"']+)(?P=q)\s*>""", re.I)
@@ -212,6 +214,7 @@ def _index_document(path: Path, relative: str, raw: bytes) -> dict[str, Any]:
     stack: list[dict[str, Any]] = []  # open sections, outermost first
     current: dict[str, Any] | None = None
     warnings: list[str] = []
+    pending_adoc_anchor: str | None = None
 
     number = 0
     index = -1
@@ -226,14 +229,27 @@ def _index_document(path: Path, relative: str, raw: bytes) -> dict[str, Any]:
         if number in code:
             continue
 
+        adoc_anchor = _ADOC_ANCHOR_ATTR_RE.match(line)
+        if adoc_anchor:
+            pending_adoc_anchor = adoc_anchor.group("id")
+            continue
+
         heading = _ATX_RE.match(line)
-        if heading:
-            level = len(heading.group("hashes"))
-            title = heading.group("text").strip()
-            pandoc = _PANDOC_ANCHOR_RE.search(title)
-            explicit_slug = pandoc.group("id") if pandoc else None
-            if pandoc:
-                title = title[: pandoc.start()].strip()
+        adoc_heading = _ADOC_HEADING_RE.match(line)
+        if heading or adoc_heading:
+            if adoc_heading and not heading:
+                level = len(adoc_heading.group("hashes"))
+                title = adoc_heading.group("text").strip()
+                pandoc = None
+                explicit_slug = pending_adoc_anchor
+            else:
+                level = len(heading.group("hashes"))
+                title = heading.group("text").strip()
+                pandoc = _PANDOC_ANCHOR_RE.search(title)
+                explicit_slug = pandoc.group("id") if pandoc else None
+                if pandoc:
+                    title = title[: pandoc.start()].strip()
+            pending_adoc_anchor = None
             counters[level] = counters.get(level, 0) + 1
             for deeper in list(counters):
                 if deeper > level:
@@ -265,7 +281,7 @@ def _index_document(path: Path, relative: str, raw: bytes) -> dict[str, Any]:
             current = node
             if document["title"] is None:
                 document["title"] = display
-            if pandoc and explicit_slug:
+            if explicit_slug:
                 _add_anchor(
                     document, warnings, id=explicit_slug, kind="explicit",
                     line=number, section=node, text=display,
@@ -532,7 +548,7 @@ def _owning_section(sections: Sequence[dict[str, Any]], line: int) -> str | None
 
 def _walk_documents(rules_dir: Path) -> list[tuple[Path, str]]:
     found: list[tuple[Path, str]] = []
-    for path in sorted(rules_dir.rglob("*.md")):
+    for path in sorted(set(list(rules_dir.rglob("*.md")) + list(rules_dir.rglob("*.adoc")))):
         if path.name.startswith("."):
             continue
         relative = path.relative_to(rules_dir).as_posix()
