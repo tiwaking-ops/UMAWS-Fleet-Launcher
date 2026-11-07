@@ -257,13 +257,17 @@ class Kernel:
         """Lease-worktree count and bytes for ``pmk status`` (REC-06).
 
         Filesystem only: git is not consulted, so ``pmk status`` stays
-        usable on a large ``work/`` tree.
+        usable on a large ``work/`` tree.  The dirty count is therefore
+        reported as ``None`` (unknown) rather than guessed -- a false ``0``
+        would read as "nothing at risk" and hide exactly the uncommitted
+        work this incident was about.  Use ``pmk worktree list`` for real
+        per-tree dirty state.
         """
         try:
             from . import worktrees
             return worktrees.stats(self.repo)
         except OSError:
-            return {"count": 0, "bytes": 0, "dirty": 0}
+            return {"count": 0, "bytes": 0, "dirty": None}
 
     # ------------------------------------------------------------------
     # Tasks

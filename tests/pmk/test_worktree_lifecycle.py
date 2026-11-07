@@ -28,7 +28,22 @@ def test_parse_name_accepts_task_fence_and_rejects_others():
 
 
 def test_stats_is_zero_without_a_work_dir(kernel):
-    assert worktrees.stats(kernel.repo) == {"count": 0, "bytes": 0, "dirty": 0}
+    # dirty is None (not 0): the count is not computed unless git is asked.
+    assert worktrees.stats(kernel.repo) == {"count": 0, "bytes": 0,
+                                            "dirty": None}
+
+
+def test_stats_reports_dirty_only_when_git_is_consulted(kernel, repo,
+                                                        monkeypatch):
+    (repo.work_dir / "T-0001-7").mkdir()
+    monkeypatch.setattr(worktrees, "_dirty", lambda repo, path: (True, 2))
+    assert worktrees.stats(repo)["dirty"] is None            # git skipped
+    assert worktrees.stats(repo, with_git=True)["dirty"] == 1
+
+
+def test_status_does_not_claim_a_zero_dirty_count(kernel):
+    # REC-06: pmk status must not report a dirty count it did not compute.
+    assert kernel.status()["worktrees"]["dirty"] is None
 
 
 def test_records_counts_bytes_and_protects_context_sync(kernel, repo):

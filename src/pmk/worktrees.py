@@ -124,12 +124,18 @@ def records(repo, state, *, with_git: bool = True) -> list[dict]:
 
 
 def stats(repo, state=None, *, with_git: bool = False) -> dict:
-    """Cheap aggregate for ``pmk status``: count, bytes, dirty count."""
+    """Cheap aggregate for ``pmk status``: count, bytes, dirty count.
+
+    ``dirty`` is ``None`` (unknown) unless *with_git* is true.  Reporting a
+    ``0`` we did not compute would be the same misleading "nothing here"
+    signal the incident was about, so the count is left explicitly unknown
+    rather than guessed.
+    """
     recs = records(repo, state, with_git=with_git)
     return {
         "count": len(recs),
         "bytes": sum(r["bytes"] for r in recs),
-        "dirty": sum(1 for r in recs if r["dirty"]),
+        "dirty": sum(1 for r in recs if r["dirty"]) if with_git else None,
     }
 
 
