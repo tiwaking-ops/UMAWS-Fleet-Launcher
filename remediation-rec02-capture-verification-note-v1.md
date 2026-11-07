@@ -2,7 +2,7 @@
 document:
   title: "Remediation Note: REC-02 Worktree Capture — Implementation and Single-Tree Verification"
   status: "Advisory implementation and verification record. Records what was built and proved; makes no governance decision, promotes nothing, reclaims nothing."
-  version: "1.2.0"
+  version: "1.3.0"
 provenance:
   author_llm:
     name: "DeepSeek V4.1 Flash"
@@ -168,6 +168,45 @@ Operator approved action (a): a **capture sweep, no reclaim**.
 Every dirty tree's uncommitted work is now captured and independently
 verifiable. REC-01 may now be enabled by the operator without further
 capture work (the archives are retained indefinitely).
+
+---
+
+## Addendum 3 (2026-11-08): REC-01 enabled (Q-077); first reaps rehearsed
+
+Operator instruction: *"enable reclaim and watch the first few reaps."*
+
+**Enabled.** `worktree.reclaim_on_reap = true` was set in the pinned
+`.pm/policy.toml`. The change is recorded as class-K queue item **Q-077**
+(raised and ratified by the operator, `human:tiwa-pene`, per the Q-001
+precedent), the pins were re-recorded (I8' green), and the views were
+regenerated (I13 green). Commit `107a342`.
+
+**Observation on the live repository.** The reaper is a **no-op while the
+project is `PAUSED`**: `Conductor.expired_leases()` returns `[]` before it
+looks at any lease, and there are **0 active leases**. Checked read-only
+against the live repo — so no worktree can be reclaimed there yet.
+
+**Rehearsal of the first reaps** (isolated scratch repo, the real
+`Conductor` and reaper): three tasks on expired leases, each with a real
+dirty worktree. Result:
+
+| Reap | captured | archive | worktree after |
+|---|---|---|---|
+| T-0001 | yes | `stranded/T-0001-reap/` (diff.patch, untracked.tar, manifest.json) | removed |
+| T-0002 | yes | `stranded/T-0002-reap/` | removed |
+| T-0003 | yes | `stranded/T-0003-reap/` | removed |
+
+Three `WORKTREE_RECLAIMED` events, zero worktrees left on disk, one archive
+per tree. This is exactly what the first real reaps will do: **capture →
+verify → remove**.
+
+**Side fix.** `write_pins()` wrote `.pm/pins.sha256` with CRLF on Windows
+against a `.gitattributes` `text eol=lf` declaration; it now writes LF
+(`src/pmk/policy.py`).
+
+**To see real reaps**, the fleet must be `RUNNING` with leases that expire —
+a separate decision, not taken here. `work/` remains 98 trees / 56 dirty;
+nothing was removed on the live repository by enabling the flag.
 
 ---
 

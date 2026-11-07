@@ -120,7 +120,10 @@ def write_pins(repo) -> Path:
             lines.append(f"{digest}  {relative}")
     target = Path(repo.pins_path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+    # newline="\n": .gitattributes declares .pm/pins.sha256 as text eol=lf, so
+    # a platform-translated CRLF here would churn against git on every write.
+    target.write_text("\n".join(lines) + ("\n" if lines else ""),
+                      encoding="utf-8", newline="\n")
     return target
 
 
