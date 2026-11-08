@@ -19,3 +19,4 @@ secrets/
 !.opencode/skills/
 console.out.log
 console.err.log
+quarantine/

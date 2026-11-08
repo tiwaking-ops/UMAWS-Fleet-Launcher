@@ -1,0 +1,64 @@
+# Quarantine manifest — 2026-11-08
+
+Moved by P0.3 of proposal-umaws-problems-and-issues-repair-v1. **Nothing was deleted.**
+Every path below is restored by moving it back to the same relative path.
+
+- `0001-fleet-advisory-RESULT.md-check-honest-git-failures-f.patch`
+- `0001-fleet-define-the-NO_CHANGES-failure-class.patch`
+- `0001-fleet-reap-expired-orphaned-leases-in-the-Conductor.patch`
+- `0001-pmk-fleet-verify-integrate-commits-fix-NO_CHANGES-and-R-09-oracle-lint-at-admission.patch`
+- `0002-fleet-edge-triggered-PAUSED-aware-Overseer-wakes-v2.patch`
+- `0002-fleet-edge-triggered-PAUSED-aware-Overseer-wakes.patch`
+- `0002-fleet-merge-through-a-temporary-worktree-and-fast-fo.patch`
+- `0002-pmk-fleet-verify-integrate-commits-fix-NO_CHANGES-and-R-09-oracle-lint-at-admission.patch`
+- `0002-pmk-write_pins-writes-LF-line-endings.patch`
+- `0003-fleet-merge-through-a-temporary-worktree-and-fast-fo.patch`
+- `0003-fleet-refuse-to-start-on-agents_toml-errors-add-pmk-.patch`
+- `0004-fleet-refuse-to-start-on-agents_toml-errors-add-pmk-.patch`
+- `0004-tests-reach-the-NO_CHANGES-branch-through-a-real-fak.patch`
+- `check_1205.py`
+- `check_1205_orig.py`
+- `check_17_18.py`
+- `check_50.py`
+- `check_boundary.py`
+- `check_boundary2.py`
+- `check_bundle.py`
+- `check_first.py`
+- `check_genesis.py`
+- `check_missing.py`
+- `check_new.py`
+- `check_orig_range.py`
+- `check_rework.py`
+- `check_seq.py`
+- `check_seq_continuity.py`
+- `check_series.py`
+- `check_series_v1.py`
+- `check_tasks.py`
+- `check_toml.py`
+- `check_toml_v2.py`
+- `fix_agents.py`
+- `fix_all_files.py`
+- `fix_all_hashes.py`
+- `fix_chain.py`
+- `fix_chain_full.py`
+- `fix_chain_v2.py`
+- `fix_chain_v3.py`
+- `fix_two.py`
+- `renumber.py`
+- `renumber_01.py`
+- `collect.txt`
+- `collect2.txt`
+- `pytest_err.txt`
+- `pytest_failrun.txt`
+- `pytest_pid.txt`
+- `pytest_run.txt`
+- `cc_out.txt`
+- `cc_err.txt`
+- `agents-bak.toml`
+- `small.txt`
+- `fleetonly.txt`
+- `fleetq.txt`
+- `queue_raw.txt`
+- `cov_test.txt`
+- `eng_test.txt`
+- `.pm/events/2026-10-31.jsonl.bak`

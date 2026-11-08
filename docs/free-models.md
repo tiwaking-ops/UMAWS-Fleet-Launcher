@@ -1,16 +1,17 @@
 # Free LLM Models (UMAWS Fleet reference)
 
-Last updated: 2026-10-26 (operator Tiwa Pene).
+Last updated: 2026-10-30 (operator Tiwa Pene).
 
 ## Hermes CLI — Nous portal (access via `hermes -m <model_id>`)
 
 - upstage/solar-mini4:free
-- meituan/longcat-2.5-preview:free
 - poolside/laguna-xs-2.1:free
 - poolside/laguna-s-2.1:free
 - stepfun/step-3.7-flash:free
 - reflection/beam-1.0-501b-a23b:free
 - ornith/ornith-1.5-122b:free
+
+> **Note (2026-10-30)**: `meituan/longcat-2.5-preview:free` is no longer available on Hermes (Nous portal).
 
 ## Kenari provider — 50 requests/day, account-wide
 
@@ -327,6 +328,18 @@ opencode run -m opencode/big-pickle "Review this project for bugs"
 
 ## OpenRouter provider — OPENROUTER_API_KEY
 
+> **Note (2026-10-30)**: Paid USD$10 to OpenRouter, permanently increasing the request cap to 1,000 requests/day.
+> 
+> OpenRouter's strongest free models (in order of strength):
+> 1. thinkingmachines/inkling:free
+> 2. thinkingmachines/inkling-small:free
+> 3. nvidia/nemotron-3-ultra:free
+> 4. nvidia/nemotron-3.5-super-vl:free
+> 5. dots-studio/dots-3-note-preview:free
+> 6. recursive/flint:free
+> 7. xingchen-agi/xing4.0-29b-a4b:free
+> 8. cohere/north-mini-code:free
+
 ```json
 "openrouter": {
   "package": "@opencode/ai/providers/openrouter",
@@ -334,6 +347,16 @@ opencode run -m opencode/big-pickle "Review this project for bugs"
     "openrouter/free": {
       "name": "OpenRouter Free Router",
       "modelID": "openrouter/free"
+    },
+    "thinkingmachines/inkling:free": {
+      "name": "Thinking Machines Inkling (free)",
+      "modelID": "thinkingmachines/inkling:free",
+      "limit": { "context": 1050000 }
+    },
+    "thinkingmachines/inkling-small:free": {
+      "name": "Thinking Machines Inkling Small (free)",
+      "modelID": "thinkingmachines/inkling-small:free",
+      "limit": { "context": 1050000 }
     },
     "nvidia/nemotron-3-ultra:free": {
       "name": "NVIDIA Nemotron 3 Ultra (free)",
@@ -359,16 +382,6 @@ opencode run -m opencode/big-pickle "Review this project for bugs"
       "name": "Dots Studio Dots3-Note Preview (free)",
       "modelID": "dots-studio/dots-3-note-preview:free",
       "limit": { "context": 512000 }
-    },
-    "thinkingmachines/inkling:free": {
-      "name": "Thinking Machines Inkling (free)",
-      "modelID": "thinkingmachines/inkling:free",
-      "limit": { "context": 1050000 }
-    },
-    "thinkingmachines/inkling-small:free": {
-      "name": "Thinking Machines Inkling Small (free)",
-      "modelID": "thinkingmachines/inkling-small:free",
-      "limit": { "context": 1050000 }
     },
     "recursive/flint:free": {
       "name": "Recursive Flint (free)",

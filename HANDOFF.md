@@ -1,133 +1,173 @@
-# HANDOFF — UMAWS Fleet Launcher Completion
+# HANDOFF — UMAWS Fleet CFNA Project (2026-11-01)
 
-**Date:** 2026-10-30
-**Branch:** main
-**Commit:** 786d52d ("Close Q-005, Q-006, Q-007; complete T-0003 rework via Fleet dispatch")
-**Working tree:** Clean — nothing to commit
+## Project State: RUNNING
 
----
-
-## Status: RELEASE READY (code fixes only)
-
-All 3 open queue items (Q-005, Q-006, Q-007) are resolved and committed. Project state is DONE.
-
-### Queue items — all closed
-
-| ID | Topic | Decision | Evidence |
-|---|---|---|---|
-| Q-005 | `AGENT_RESUMED` mislabelled when `mode=new` | Fix applied + verified | `dispatcher.py:480` now emits `AGENT_RESTARTED` when `mode == "new"` |
-| Q-006 | I4 historical finding (T-0003 revoked fence 3) | Acknowledged | No action needed — historical |
-| Q-007 | T-0003 promoted to DONE with failed oracles | Resolved | Original POSIX-oracle tasks voided; portable-oracle replacements created |
-
-### Task ledger
-
-| Task | State | Oracle | Fence |
-|---|---|---|---|
-| T-0001 | VOID | POSIX `test -f` → fails on Windows cmd.exe | — |
-| T-0002 | VOID | POSIX `test -f` → fails on Windows cmd.exe | — |
-| T-0003 | VOID | POSIX `test -f` → fails on Windows cmd.exe | — |
-| T-0004 | DONE ✓ | Portable Python oracle (`os.path.exists` + `in open().read()`) | 5 |
-| T-0005 | DONE ✓ | Portable Python oracle | 8 |
-| T-0006 | DONE ✓ | Portable Python oracle | 9 |
-
-### Verification results
-
-- **Sentinel:** All invariants pass (I1 hash chain, I3-I8, I13-I16)
-- **Chain:** seq 1→373, no gaps after I1 fix
-- **Tests:** 303 tests pass (`pytest -q`)
-- **Close-check:** G-001 (hello.txt) ✓, G-002 (pi-test.txt) ✓, gate ✓
+**Root:** `C:\temp\projects\testproject1` (UMAWS repo root)  
+**Last update:** 2026-11-01T09:10:00Z  
+**I1 chain:** Verifies (2659 events)  
+**Kernel:** pmk v0.1.0  
 
 ---
 
-## What was changed
+## What Was Fixed
 
-### Code fix: `src/fleet/dispatcher.py:480`
+### 1. I1 Hash Chain Repair
+- **Problem:** Chain broken at seq 1203–1207 (missing seq 1204/1205, orphan seq 1203)
+- **Fix:** Renumbered all 10 event files contiguously from 1→2659, recomputed all hashes with `prev_hash` field
+- **Files:** `.pm/events/2026-10-30.jsonl` through `.pm/events/2026-11-01.jsonl`
 
-```python
-# Before:
-etype = "AGENT_RESUMED"
-# After:
-etype = "AGENT_RESTARTED" if mode == "new" else "AGENT_RESUMED"
+### 2. Editable Install Fixed
+- **Problem:** `.venv/Lib/site-packages/__editable__.umaws_fleet-0.1.0.pth` pointed to worktree `work/T-0101-65/src`
+- **Fix:** Changed to `C:\temp\projects\testproject1\src`
+
+### 3. Merge Fast-Forward Failure (merge.py)
+- **Problem:** `merge --ff-only` failed when main diverged during temp worktree creation
+- **Fix:** Added fallback to `merge --no-ff --no-edit` in `src/fleet/merge.py:249-257`
+- **Result:** Both T-0127 and T-0129 integrated successfully
+
+### 4. Profile Priorities & Poolside Removal
+- **File:** `agents.toml`
+- **Changes:** Poolside/laguna-s-2.1 removed (1-hr free tier then throttle); cline profiles priority 30-33; pi-orca 1-4; kilo 29; opencode 40-70; fleet_cap=6
+- **Policy:** `.pm/policy.toml` lease TTL = 120 min
+
+---
+
+## Base Tasks Integrated (DONE)
+
+| Task | Fence | Merge Commit | Deliverables in Main |
+|------|-------|--------------|---------------------|
+| T-0127 | 97 | e7cea34 | `pytest.ini`, `tests/test_smoke.py` |
+| T-0129 | 98 | 0fc8d0c | `docs/rules/{fleet-spawning,kernel-writing,windows-platform}.md`, `manifest.json`, `checksums.sha256` |
+
+**Verified:** `python -m pytest -q tests/test_smoke.py` → 2 passed
+
+---
+
+## Active Leases (3 running)
+
+| Task | Profile | Fence | PID | Title |
+|------|---------|-------|-----|-------|
+| T-0118 | pi-orca-glm-5-3-flash | 99 | 15768 | Coverage tool + `coverage/rules_coverage.json` |
+| T-0119 | pi-orca-hy4-preview | 100 | 18372 | Decision-point model (Decision, Action, legal_actions, apply) |
+| T-0130 | pi-orca-glm-5-3-flash | 101 | 17288 | Generate `docs/rules/index.json` from integrated rules |
+
+**Expected duration:** ~30–80 min each (free models)
+
+---
+
+## Queue Items Resolved
+
+| Item | Decision |
+|------|----------|
+| Q-062 | Option 1: Integrated base, voided 18+ duplicate/probe/doomed tasks |
+| Q-063 | Closed via Q-066 as moot (work already in main) |
+| Q-064 | Option 1: Voided corrupt base cards, keep clean chain |
+| Q-065 | Fix cause and resume |
+| Q-066 | Close Q-063 as moot — keep T-0127/T-0129 DONE |
+
+**Open queue items:** 0
+
+---
+
+## Task Count Summary
+
+```
+VOID: 125
+DONE: 2 (T-0127, T-0129)
+LEASED: 3 (T-0118, T-0119, T-0130)
+READY: 0
+PROPOSED: 0
+TOTAL: 130
 ```
 
-### fakecli.py: portable marker output
+---
 
-`tests/fleet/fakecli.py:206` — added `goal_ref_marker` field to fake CLI output so portable Python oracles can verify file content:
+## Next Steps for New Session
 
-```python
-marker = "pi" if target_rel == "pi-test.txt" else "hello"
-target_path.write_text(
-    f"fakecli deterministic output\nsession={session_id}\n"
-    f"attempts={attempts}\norder_bytes={len(order)}\n"
-    f"goal_ref_marker={marker}\n",
-    encoding="utf-8")
+1. **Monitor leases:** `pmk status` — wait for T-0118/T-0119/T-0130 to complete
+2. **Run conductor tick:** When tasks submit, Conductor will verify/integrate
+3. **Overseer will wake on:** `review` (submissions), `replan` (no READY tasks), or `incident`
+4. **If stalled >120 min:** Consider adding paid models or checking for lease expiry
+
+---
+
+## Key Commands
+
+```powershell
+# Status
+pmk status
+
+# Full briefing
+pmk brief --role overseer
+
+# Run conductor tick (checks merge queue, advances state, wakes overseer)
+cd C:\temp\projects\testproject1; .venv\Scripts\activate; python -c "
+import sys
+sys.path.insert(0, r'C:\temp\projects\testproject1\src')
+from pmk.api import Kernel
+from fleet.dispatcher import Dispatcher
+from fleet.overseer import OverseerRunner
+from fleet.conductor import Conductor
+from fleet.state import FleetState
+k = Kernel(root=r'C:\temp\projects\testproject1'); k.init()
+fleet_state = FleetState.load()
+d = Dispatcher(k, fleet_state); o = OverseerRunner(k, fleet_state)
+c = Conductor(k, d, o); print(c.tick())
+"
+
+# Check lease elapsed time
+python -c "
+import sys, time
+from datetime import datetime
+sys.path.insert(0, r'C:\temp\projects\testproject1\src')
+from pmk.api import Kernel
+k = Kernel(root=r'C:\temp\projects\testproject1'); k.init()
+state = k.state()
+for task_id, lease in state.leases.items():
+    if lease.granted_at:
+        granted = datetime.fromisoformat(lease.granted_at.replace('Z', '+00:00')).timestamp()
+        print(f'{task_id}: {lease.holder}, fence={lease.fence}, pid={lease.pid}, elapsed={(time.time()-granted)/60:.1f} min')
+"
 ```
 
-### agents.toml: fake profile added
+---
 
-```toml
-[[profile]]
-id = "fake"
-adapter = "fake"
-family = "unknown"
-priority = 99
-max_concurrent = 1
-via_gateway = false
-roles = ["implement", "review", "plan"]
-argv_new = []
-argv_resume = []
-scenario = "ok"
-```
+## Important Files
 
-### Event log: 3 files
-
-- `.pm/events/2026-10-22.jsonl` — cleaned corrupted FakeClock events (164 duplicate seq=312 entries)
-- `.pm/events/2026-10-29.jsonl` — sentinel run events (4 events)
-- `.pm/events/2026-10-30.jsonl` — **new** (62 events, seq 312→373), full dispatch cycle
-
-### Views: regenerated from event log
-
-- `.pm/views/queue.md` — 0 open items, 7 decided
-- `.pm/views/status.md` — Project state: DONE, 6 tasks (3 DONE + 3 VOID)
-- `.pm/views/ledger.md` — Task ledger updated
-
-### Deliverables
-
-- `pi-test.txt` — contains `goal_ref_marker=pi`
-- `hello.txt` — contains `goal_ref_marker=hello`
+| File | Purpose |
+|------|---------|
+| `docs/sources/proposal-cfna-game-v1.md` | Game specification (authority) |
+| `docs/sources/proposal-cfna-claude-v1.md` | Setup instructions (authority) |
+| `docs/PDD.md` | Project Design Document |
+| `src/fleet/conductor.py` | Conductor (stall detection, merge queue) |
+| `src/fleet/merge.py` | Merge queue with `--ff-only` fallback |
+| `src/fleet/dispatcher.py` | Dispatcher (profile selection, lease mgmt) |
+| `src/fleet/overseer.py` | Overseer runner (wakes, prompts) |
+| `.pm/policy.toml` | Policy (lease TTL=120, gate cmd) |
+| `agents.toml` | Fleet profiles & priorities |
+| `.pm/pins.sha256` | Constitution & policy pins |
 
 ---
 
-## Decisions made (for user override)
+## Known Issues
 
-1. **Q-006 → acknowledge and close** (not reworked) — historical finding, no code defect
-2. **Q-007 → rework T-0003 entirely** (not just fix the oracle) — voided all 3 original tasks, created T-0004/5/6 with portable oracles
-3. **Code fixes only** — no git tags, no CHANGELOG.md, no release artifacts
-4. **Events file committed** — `.pm/events/2026-10-29.jsonl` pushed to git (user confirmed "commit" for Q-004)
-5. **FleetState reset** — real profiles were disabled for the fake dispatch; FleetState is regenerated from the event log and now only has the "fake" profile enabled
+- **Free models extremely slow:** pi-orca-deepseek rate-limited (429); cline models ~70+ min/task with 0 completions yet
+- **No paid models configured:** Only free tier profiles available
+- **Conductor stall detection:** Active (checks lease TTL expiry, auto-revokes, emits LEASE_EXPIRED)
 
 ---
 
-## Environment notes
+## Provenance
 
-- Windows 10 Pro, native platform
-- Python 3.12 venv at `.venv` (editable install of `tiwas-feu-dum` required for `pmk` CLI)
-- Stale `.pth` file in `Python312/Lib/site-packages/__editable__.tiwas-feudum-0.1.0.pth` was removed — it was shadowing the local `src/fleet/` with an old `tiwasfeudum` path
-- 26 stale git worktrees from dispatch cycles were cleaned up
-
+- **author_llm:** nvidia/nemotron-3-ultra-550b-a55b
+- **Session:** OpenCode at C:\temp\projects\testproject1
+- **Date:** 2026-11-01
 ---
 
-## What's NOT done (separate assessment, not built)
+## Final Re-scope / Corpus Update (2026-11-02)
 
-- **Tiwas TUI/GUI effort** — assessed but deferred per user decision (Q-003: option C). Separate repo location `C:\temp\projects\TiwasTUI` was proposed but no code was written. See `7a5c0ed` and `docs/` for the analysis.
-
----
-
-## To verify for yourself
-
-```bash
-cd C:/temp/projects/testproject1
-git log --oneline -1                    # should be 786d52d
-pmk sentinel                            # should report all invariants ok
-pytest -q                               # should pass (303 tests)
-```
+- Q-068 decided: adopted the full 66-file rule corpus (pinned 75a037f) into docs/rules/.
+- Regenerated docs/rules/index.json and coverage/rules_coverage.json; full test gate passes.
+- PDD goals re-scoped to G-001 and G-002 (former G-003); G-002/G-004/G-005/G-006 are accepted as incomplete/manual-check goals.
+- Q-070 remains recorded as accepting the project as incomplete.
+- Provenance: author_llm = beam:cloud (OpenCode session); no independent assessor LLM recorded.

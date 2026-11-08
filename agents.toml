@@ -19,7 +19,7 @@
 # Nothing here is guessed.
 
 [fleet]
-max_total_agents   = 100      # [GUESS] set from spike S-W1; operator ceiling 100 Fri Oct 23 23:55:33 NZDT 2026 changed from 20 to 100 by Human Tiwa
+max_total_agents   = 10        # Reduced from 100: free models too slow at high concurrency. Sun Nov 01 20:49:25 NZDT 2026 Tiwa has increased this from 6 to 10
 dispatch_tick_s    = 5       # [GUESS]
 stall_minutes      = 15      # [GUESS]
 fix_rounds         = 2       # [GUESS]
@@ -30,7 +30,8 @@ net_probe_urls     = []      # operator or implementer supplies reachable URLs
 [overseer]
 # Ordered; names are placeholders (G-F13).  The strongest available model
 # goes first: plan quality is the largest unknown in the whole system.
-profiles = ["opencode-strongest", "opencode-fallback"]
+# Priority order: fast non-Poolside models first, then fallbacks
+profiles = ["pi-orca-deepseek", "kilo-auto", "opencode-fallback", "opencode-strongest", "overseer-inkling", "opencode-orca-auto"]
 
 # ---------------------------------------------------------------------------
 # Profiles
@@ -49,28 +50,83 @@ profiles = ["opencode-strongest", "opencode-fallback"]
 # than a measurement.
 
 [[profile]]
-id = "hermes-oneshot"
-adapter = "hermes"
-family = "anthropic"
-priority = 10
-max_concurrent = 4
+id = "pi-orca-glm-5-3-flash"
+adapter = "pi"
+family = "z-ai"          # deepseek, z-ai, tencent, upstage, etc. — NOT "pi"
+priority = 100     # 30 is current for pi profiles; adjust as needed
+max_concurrent = 1             # or lower if rate-limited
 via_gateway = false
-roles = ["implement", "review", "plan"]
-argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}"]
-# Measured: under -Q, hermes writes a `session_id: YYYYMMDD_HHMMSS_<hex6>`
-# line to STDERR (which plat.spawn merges into the stdout log via
-# subprocess.STDOUT).  There is NO "Resume this session with" trailer.
-# The working directory is already set by the harness (cwd=worktree), so no
-# --in flag is needed.
-argv_resume = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}", "--resume", "{session}"]
-model = "reflection/beam-1.0-501b-a23b:free"
-models = []
+roles = ["implement", "review"]
+argv_new = ["pi", "--provider", "orcarouter", "--model", "z-ai/glm-5.3-flash-free", "-p", "{prompt}"]
+argv_resume = ["pi", "--provider", "orcarouter", "--model", "{model}", "-p", "{prompt}", "--continue"]
+models = [
+"deepseek/deepseek-v4-flash-free", 
+"tencent/hy3-free", 
+"tencent/hy4-preview-free",
+]                    # empty (no L1 swap within profile; recovery ladder uses profile selection)
+
+[[profile]]
+id = "pi-orca-hy4-preview"
+adapter = "pi"
+family = "tencent"
+priority = 102
+max_concurrent = 1
+via_gateway = false
+roles = ["implement", "review"]
+argv_new = ["pi", "--provider", "orcarouter", "--model", "tencent/hy4-preview-free", "-p", "{prompt}"]
+# Measured: `--continue` resumes, and the model CAN be swapped on resume
+# (exit 0 with a different model).  This is the only profile where the
+# ladder's L1 step is available.
+argv_resume = ["pi", "--provider", "orcarouter", "--model", "{model}", "-p", "{prompt}", "--continue"]
+models = [
+"tencent/hy3-free", 
+"deepseek/deepseek-v4-flash-free", 
+"z-ai/glm-5.3-flash-free", 
+]
+
+[[profile]]
+id = "pi-orca-hy3"
+adapter = "pi"
+family = "tencent"
+priority = 103
+max_concurrent = 1
+via_gateway = false
+roles = ["implement", "review"]
+argv_new = ["pi", "--provider", "orcarouter", "--model", "tencent/hy3-free", "-p", "{prompt}"]
+# Measured: `--continue` resumes, and the model CAN be swapped on resume
+# (exit 0 with a different model).  This is the only profile where the
+# ladder's L1 step is available.
+argv_resume = ["pi", "--provider", "orcarouter", "--model", "{model}", "-p", "{prompt}", "--continue"]
+models = [
+"z-ai/glm-5.3-flash-free", 
+"deepseek/deepseek-v4-flash-free", 
+"tencent/hy4-preview-free",
+]
+
+[[profile]]
+id = "pi-orca-deepseek"
+adapter = "pi"
+family = "deepseek"
+priority = 104
+max_concurrent = 1
+via_gateway = false
+roles = ["implement", "review"]
+argv_new = ["pi", "--provider", "orcarouter", "--model", "deepseek/deepseek-v4-flash-free", "-p", "{prompt}"]
+# Measured: `--continue` resumes, and the model CAN be swapped on resume
+# (exit 0 with a different model).  This is the only profile where the
+# ladder's L1 step is available.
+argv_resume = ["pi", "--provider", "orcarouter", "--model", "{model}", "-p", "{prompt}", "--continue"]
+models = [
+"z-ai/glm-5.3-flash-free", 
+"tencent/hy3-free", 
+"tencent/hy4-preview-free",
+]
 
 [[profile]]
 id = "kilo-auto"
 adapter = "kilo"
 family = "google"
-priority = 20
+priority = 0
 max_concurrent = 3
 via_gateway = false
 roles = ["implement", "review"]
@@ -95,55 +151,90 @@ model = "kilo/kilo-auto/free"
 models = [
   "kilo/kilo-auto/free",
   "kilo/nvidia/nemotron-3.5-super-vl:free",
-  "kilo/poolside/laguna-s-2.1:free",
-  "kilo/poolside/laguna-xs-2.1:free",
   "kilo/nvidia/nemotron-3-super-120b-a12b:free",
   "kilo/nvidia/nemotron-3-ultra-550b-a55b:free",
   "kilo/cohere/north-mini-code:free",
   "kilo/dots-studio/dots-3-note-preview:free",
-  "kilo/reflection/beam-free",
   "kilo/nvidia/nemotron-3.5-lightning:free",
   "kilo/recursive/flint-v1.0:free",
   "kilo/xingchen-agi/xing4.0-29b-a4b:free",
+  # Poolside models removed - shut down October 31, 2026
   "kilo/liquid/lfm-2.5-2.6b:free",
   "kilo/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ]
 
 [[profile]]
-id = "pi-orca-deepseek"
-adapter = "pi"
-family = "deepseek"
-priority = 30
-max_concurrent = 2
-via_gateway = false
-roles = ["implement", "review"]
-argv_new = ["pi", "--provider", "orcarouter", "--model", "deepseek/deepseek-v4-flash-free", "-p", "{prompt}"]
-# Measured: `--continue` resumes, and the model CAN be swapped on resume
-# (exit 0 with a different model).  This is the only profile where the
-# ladder's L1 step is available.
-argv_resume = ["pi", "--provider", "orcarouter", "--model", "{model}", "-p", "{prompt}", "--continue"]
-models = ["deepseek/deepseek-v4-flash-free", "z-ai/glm-5.3-flash-free", "tencent/hy3-free", "tencent/hy4-preview-free"]
-
-[[profile]]
-id = "cline-mimo"
+id = "cline-solar-mini4"
 adapter = "cline"
-family = "minimax"
-priority = 40
+family = "upstage"
+priority = 30
 max_concurrent = 1
 via_gateway = false
 roles = ["implement"]
-argv_new = ["cline", "--provider", "cline", "--model", "cline-free/minimax-m3.1-flash", "{prompt}"]
+argv_new = ["cline", "--provider", "cline", "--model", "cline-free/solar-mini4", "{prompt}"]
 # Measured: `--id <session-id>` resumes an existing session.  Still untested
 # in practice -- see the note below.
 argv_resume = ["cline", "--provider", "cline", "--model", "{model}", "{prompt}", "--id", "{session}"]
-models = ["cline-free/solar-mini4", "cline-free/nemotron-3.5-super-vl", "nvidia/nemotron-3.5-lightning-free", "poolside/laguna-s-2.1:free"]
-# 2026-10-23: repointed on the operator's instruction after the previous
-# model's free promotion ended (measured 2026-10-22: "The free promotion for
-# this model has ended and it is no longer available.").  The five model
-# strings above are the operator's list of currently-free models; the first
-# is the primary.  NONE of the five has been exercised yet -- verifying them
-# costs live provider calls, which is an authorisation action, so they are
-# recorded as *offered*, not as *working*.
+models = [
+  "nvidia/nemotron-3.5-lightning-free",
+  "cline-free/nemotron-3.5-super-vl",
+  "reflection/beam-free",
+  # Poolside models removed - shut down October 31, 2026
+]
+# Cline models (each with correct family)
+[[profile]]
+id = "cline-beam"
+adapter = "cline"
+family = "reflection"
+priority = 31
+max_concurrent = 1
+via_gateway = false
+roles = ["implement"]
+argv_new = ["cline", "--provider", "cline", "--model", "cline-free/nemotron-3.5-super-vl", "{prompt}"]
+argv_resume = ["cline", "--provider", "cline", "--model", "{model}", "{prompt}", "--id", "{session}"]
+models = [
+  "nvidia/nemotron-3.5-lightning-free",
+  "cline-free/nemotron-3.5-super-vl",
+  "cline-free/solar-mini4",
+  # Poolside models removed - shut down October 31, 2026
+]
+
+[[profile]]
+id = "cline-nemo-lightning"
+adapter = "cline"
+family = "nvidia"
+priority = 32
+max_concurrent = 1
+via_gateway = false
+roles = ["implement"]
+argv_new = ["cline", "--provider", "cline", "--model", "nvidia/nemotron-3.5-lightning-free", "{prompt}"]
+argv_resume = ["cline", "--provider", "cline", "--model", "{model}", "{prompt}", "--id", "{session}"]
+models = [
+  "cline-free/solar-mini4",
+  "reflection/beam-free",
+  "cline-free/nemotron-3.5-super-vl",
+  # Poolside models removed - shut down October 31, 2026
+]
+[[profile]]
+id = "cline-nemo-super"
+adapter = "cline"
+family = "nvidia"
+priority = 33
+max_concurrent = 1
+via_gateway = false
+roles = ["implement"]
+argv_new = ["cline", "--provider", "cline", "--model", "nvidia/nemotron-3.5-lightning-free", "{prompt}"]
+argv_resume = ["cline", "--provider", "cline", "--model", "{model}", "{prompt}", "--id", "{session}"]
+models = [
+  "cline-free/solar-mini4",
+  "reflection/beam-free",
+  "nvidia/nemotron-3.5-lightning-free",
+  # Poolside models removed - shut down October 31, 2026
+]
+# 2026-10-31: repointed to operator's current free model list (cline-free/ prefix confirmed).
+# Primary: upstage/solar-mini4:free. All six are the operator's verified free models as of 2026-10-31.
+# NONE of the six has been exercised yet -- verifying them costs live provider calls,
+# which is an authorisation action, so they are recorded as *offered*, not as *working*.
 #
 # The id stays `cline-mimo` although the model is no longer mimo, so that
 # references in the decision log and the docs stay valid.
@@ -154,10 +245,28 @@ models = ["cline-free/solar-mini4", "cline-free/nemotron-3.5-super-vl", "nvidia/
 # was wrong and is corrected in D-28.
 
 [[profile]]
+id = "opencode-fallback"
+adapter = "opencode"
+family = "opencode2"
+priority = 40
+max_concurrent = 1
+via_gateway = false
+roles = ["plan", "review"]
+argv_new = ["opencode", "run", "-m", "{model}", "{prompt}"]
+argv_resume = ["opencode", "run", "-m", "{model}", "{prompt}", "--continue"]
+model = "kilo/kilo-auto/free"
+models = [
+  "kilo/nvidia/nemotron-3-ultra-550b-a55b:free",
+  "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
+  "ollama-cloud/beam",
+  # Poolside models removed - shut down October 31, 2026
+]
+
+[[profile]]
 id = "opencode-strongest"
 adapter = "opencode"
 family = "opencode"
-priority = 5
+priority = 50
 max_concurrent = 2
 via_gateway = false
 roles = ["plan", "review", "implement"]
@@ -165,29 +274,131 @@ argv_new = ["opencode", "run", "-m", "{model}", "{prompt}"]
 # Measured: `--continue` continues the last session.  opencode has -m flag
 # (Toy3 uses -m and it works).  Model swap available via L1 recovery.
 argv_resume = ["opencode", "run", "-m", "{model}", "{prompt}", "--continue"]
-model = "poolside/poolside/laguna-s-2.1"
-# Verified free models (from free-models.md): opencode lists beam as ollama-cloud/beam
+model = "openrouter/thinkingmachines/inkling:free"
+# Verified openrouter 1000 requests
 models = [
-  "poolside/poolside/laguna-s-2.1",
+  "kilo/nvidia/nemotron-3-ultra-550b-a55b:free",
   "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
   "ollama-cloud/beam",
+  # Poolside models removed - shut down October 31, 2026
 ]
 
 [[profile]]
-id = "opencode-fallback"
+id = "overseer-inkling"
 adapter = "opencode"
-family = "opencode2"
-priority = 90
-max_concurrent = 1
+family = "inkling"
+priority = 60
+max_concurrent = 2
 via_gateway = false
-roles = ["plan", "review"]
+roles = ["plan", "review", "implement"]
 argv_new = ["opencode", "run", "-m", "{model}", "{prompt}"]
 argv_resume = ["opencode", "run", "-m", "{model}", "{prompt}", "--continue"]
-model = "poolside/poolside/laguna-s-2.1"
+model = "openrouter/thinkingmachines/inkling:free"
 models = [
-  "poolside/poolside/laguna-s-2.1",
-  "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
   "ollama-cloud/beam",
+  "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
+  "openrouter/nvidia/nemotron-3-ultra-550b-a55b",
+  "kilo/kilo-auto/free",
+  # Poolside models removed - shut down October 31, 2026
+]
+
+[[profile]]
+id = "opencode-orca-auto"
+adapter = "opencode"
+family = "opencode"
+priority = 70
+max_concurrent = 2
+via_gateway = false
+roles = ["plan", "review", "implement"]
+argv_new = ["opencode", "run", "-m", "{model}", "{prompt}"]
+argv_resume = ["opencode", "run", "-m", "{model}", "{prompt}", "--continue"]
+model = "orcarouter/auto"
+models = [
+  "orcarouter/auto",
+  "ollama-cloud/beam",
+  # Poolside models removed - shut down October 31, 2026
+]
+
+[[profile]]
+id = "hermes-stepfun"
+adapter = "hermes"
+family = "stepfun"
+priority = 3
+max_concurrent = 1
+via_gateway = false
+roles = ["implement", "review", "plan"]
+argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}"]
+# Measured: under -Q, hermes writes a `session_id: YYYYMMDD_HHMMSS_<hex6>`
+# line to STDERR (which plat.spawn merges into the stdout log via
+# subprocess.STDOUT).  There is NO "Resume this session with" trailer.
+# The working directory is already set by the harness (cwd=worktree), so no
+# --in flag is needed.
+argv_resume = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}", "--resume", "{session}"]
+model = "stepfun/step-3.7-flash:free"
+models = [
+"ornith/ornith-1.5-122b:free",
+"upstage/solar-mini4:free",
+]
+
+[[profile]]
+id = "hermes-ornith"
+adapter = "hermes"
+family = "ornith"
+priority = 4
+max_concurrent = 2
+via_gateway = false
+roles = ["implement", "review", "plan"]
+argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}"]
+# Measured: under -Q, hermes writes a `session_id: YYYYMMDD_HHMMSS_<hex6>`
+# line to STDERR (which plat.spawn merges into the stdout log via
+# subprocess.STDOUT).  There is NO "Resume this session with" trailer.
+# The working directory is already set by the harness (cwd=worktree), so no
+# --in flag is needed.
+argv_resume = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}", "--resume", "{session}"]
+model = "ornith/ornith-1.5-122b:free"
+models = [
+"upstage/solar-mini4:free",
+]
+
+[[profile]]
+id = "hermes-solar-mini4"
+adapter = "hermes"
+family = "upstage"
+priority = 1
+max_concurrent = 1
+via_gateway = false
+roles = ["implement", "review", "plan"]
+argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}"]
+# Measured: under -Q, hermes writes a `session_id: YYYYMMDD_HHMMSS_<hex6>`
+# line to STDERR (which plat.spawn merges into the stdout log via
+# subprocess.STDOUT).  There is NO "Resume this session with" trailer.
+# The working directory is already set by the harness (cwd=worktree), so no
+# --in flag is needed.
+argv_resume = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}", "--resume", "{session}"]
+model = "upstage/solar-mini4:free"
+models = [
+"reflection/beam-1.0-501b-a23b:free",
+]
+
+[[profile]]
+id = "hermes-beam"
+adapter = "hermes"
+family = "reflection"
+priority = 2
+max_concurrent = 1
+via_gateway = false
+roles = ["implement", "review", "plan"]
+argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}"]
+# Measured: under -Q, hermes writes a `session_id: YYYYMMDD_HHMMSS_<hex6>`
+# line to STDERR (which plat.spawn merges into the stdout log via
+# subprocess.STDOUT).  There is NO "Resume this session with" trailer.
+# The working directory is already set by the harness (cwd=worktree), so no
+# --in flag is needed.
+argv_resume = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}", "--resume", "{session}"]
+model = "reflection/beam-1.0-501b-a23b:free"
+models = [
+"ornith/ornith-1.5-122b:free",
+"upstage/solar-mini4:free",
 ]
 
 [[profile]]
