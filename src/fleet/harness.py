@@ -285,6 +285,25 @@ class Harness:
             base = os.environ.copy()
         return runenv.worktree_env(worktree, base=base)
 
+    # ------------------------------------------------------------------
+    def _precheck_enabled(self) -> bool:
+        """S8 is opt-in fleet config, not pinned policy."""
+        from pmk.policy import load_agents
+        try:
+            config = load_agents(self.repo)
+        except Exception:
+            return False
+        fleet = config.get("fleet") if isinstance(config, dict) else None
+        return bool((fleet or {}).get("precheck_satisfied", False))
+
+    def _precheck(self, task) -> dict | None:
+        """Return the oracle evidence when the base already satisfies *task*."""
+        if not self._precheck_enabled():
+            return None
+        from . import precheck as precheck_mod
+        satisfied, results = precheck_mod.oracles_already_pass(self.kernel, task)
+        return {"satisfied": satisfied, "results": results} if satisfied else None
+
     def _summarize_main_tree_status(self, entries: list[tuple[str, str]]) -> dict:
         """Summarize main tree status for event payload: hash, count, <=20 paths."""
         import hashlib
@@ -352,6 +371,21 @@ class Harness:
                              "write_scope": list(task.write_scope)})
             return None, result
         seen.pop(task.id, None)
+
+        # S8: refuse a lease whose own oracles already pass on the base.  This
+        # is exactly what T-0145 attempt 2 spent: re-leased work that main
+        # already contained, then reported "already passing".
+        precheck_note = self._precheck(task)
+        if precheck_note is not None:
+            result.outcome = "blocked"
+            result.error = (
+                "already satisfied on " + self.repo.default_branch() + ": "
+                + "; ".join(o["cmd"] for o in precheck_note["results"]))
+            self.kernel.record_event(
+                "PRECHECK_SATISFIED", subject=task.id, fence=0,
+                payload={"message": result.error,
+                         "oracles": precheck_note["results"]})
+            return None, result
 
         try:
             lease = self.kernel.claim(task.id, holder=profile.id,

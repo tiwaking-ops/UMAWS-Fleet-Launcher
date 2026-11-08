@@ -89,6 +89,17 @@ def git_repo_master(tmp_path: Path) -> Repo:
     return repo
 
 
+def _toml_value(value) -> str:
+    """Render a scalar the way TOML expects: booleans are lower case."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, str):
+        return f'"{value}"'
+    if isinstance(value, list):
+        return "[" + ", ".join(_toml_value(item) for item in value) + "]"
+    return str(value)
+
+
 def write_agents(repo: Repo, profiles: list[dict], fleet: dict | None = None,
                  overseer: dict | None = None) -> None:
     """Write an ``agents.toml`` with the given profiles."""
@@ -97,7 +108,7 @@ def write_agents(repo: Repo, profiles: list[dict], fleet: dict | None = None,
                                  "dispatch_tick_s": 1,
                                  "stall_minutes": 15,
                                  "min_free_ram_mb": 0}).items():
-        lines.append(f"{key} = {value}")
+        lines.append(f"{key} = {_toml_value(value)}")
     lines.append("")
     lines.append("[overseer]")
     lines.append(f"profiles = {overseer or {'profiles': []}['profiles']}")

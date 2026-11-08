@@ -21,6 +21,7 @@
 [fleet]
 max_total_agents   = 10        # Reduced from 100: free models too slow at high concurrency. Sun Nov 01 20:49:25 NZDT 2026 Tiwa has increased this from 6 to 10
 dispatch_tick_s    = 5       # [GUESS]
+precheck_satisfied = true    # S8: refuse a lease whose oracles already pass on main (fleet config, not pinned policy)
 stall_minutes      = 15      # [GUESS]
 fix_rounds         = 2       # [GUESS]
 max_restarts_per_task = 5    # [GUESS]

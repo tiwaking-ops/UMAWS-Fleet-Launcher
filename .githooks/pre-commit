@@ -1,0 +1,22 @@
+#!/bin/sh
+# Log, never block, an agent-context commit that uses the human identity.
+#
+# The four commits e08fa8d/ebe46ce/82f6be1/9893d94 were authored as the human
+# while every neighbouring commit used the repo-local umaws-pilot identity.
+# The pipeline itself is now pinned (src/fleet/merge.py), so this hook is the
+# second layer for everything else: it only acts when UMAWS_PIPELINE=1, and it
+# always exits 0 so the operator's own commits are never interrupted.
+
+if [ "${UMAWS_PIPELINE:-}" = "1" ]; then
+    ident="$(git var GIT_AUTHOR_IDENT 2>/dev/null || true)"
+    case "$ident" in
+        *tiwaking@gmail.com*)
+            mkdir -p .pm/fleet 2>/dev/null || true
+            printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$ident" \
+                >> .pm/fleet/identity-warnings.log 2>/dev/null || true
+            echo "warning: agent-context commit under the human identity" >&2
+            ;;
+    esac
+fi
+
+exit 0

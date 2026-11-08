@@ -57,6 +57,28 @@ from pmk.api import Kernel, KernelError
 
 from .runenv import worktree_env
 
+#: The identity every pipeline-landed commit must carry.  Four commits in the
+#: incident window (e08fa8d, ebe46ce, 82f6be1, 9893d94) were authored as the
+#: human instead; the pipeline now pins this explicitly rather than trusting
+#: whatever configuration the shell happened to have (F9).
+PIPELINE_NAME = "umaws-pilot"
+PIPELINE_EMAIL = "umaws-pilot@localhost"
+PIPELINE_IDENTITY = ("-c", f"user.name={PIPELINE_NAME}",
+                     "-c", f"user.email={PIPELINE_EMAIL}")
+
+
+def identity_anomaly(repo, worktree) -> str:
+    """The effective identity when it is *not* the pipeline's, else ``""``.
+
+    Used to record an anomaly before the commit is pinned.  A repo whose git
+    config says the human identity is exactly how those four commits happened.
+    """
+    code, ident, _ = repo.git("var", "GIT_AUTHOR_IDENT", cwd=Path(worktree))
+    if code != 0:
+        return ""
+    ident = ident.strip()
+    return "" if PIPELINE_EMAIL in ident else ident
+
 
 @dataclass
 class MergeResult:
@@ -103,7 +125,8 @@ def commit_worktree(repo, worktree: str | Path, message: str,
         return False, err or status
     if not status.strip():
         return True, ""            # nothing to commit
-    code, out, err = repo.git("commit", "-m", message, cwd=Path(worktree))
+    code, out, err = repo.git(*PIPELINE_IDENTITY, "commit", "-m", message,
+                              cwd=Path(worktree))
     if code != 0:
         return False, err or out
     _, commit, _ = repo.git("rev-parse", "HEAD", cwd=Path(worktree))
@@ -170,6 +193,14 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
     branch = f"pmk/{task.id}-{lease.fence}"
     main_branch = repo.default_branch()
 
+    anomaly = identity_anomaly(repo, worktree)
+    if anomaly:
+        kernel.record_event(
+            "IDENTITY_ANOMALY", subject=task.id, fence=lease.fence,
+            payload={"stage": "commit", "effective": anomaly,
+                     "expected": f"{PIPELINE_NAME} <{PIPELINE_EMAIL}>",
+                     "action": "pinned the commit to the pipeline identity"})
+
     message = f"feat({task.id}): {task.title}\n\nFence {lease.fence}.\n"
     ok, detail = commit_worktree(repo, worktree, message, task.write_scope)
     if not ok:
@@ -215,7 +246,9 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
                 temp_base_head = temp_base_head.strip()
 
                 # Step 2: Merge lease branch in temp worktree with --no-ff
-                code, out, err = repo.git("merge", "--no-ff", "--no-edit", branch, cwd=temp_wt)
+                code, out, err = repo.git(*PIPELINE_IDENTITY, "merge",
+                                          "--no-ff", "--no-edit", branch,
+                                          cwd=temp_wt)
                 if code != 0:
                     # Merge conflict - deterministic, not transient
                     result.conflict = True
