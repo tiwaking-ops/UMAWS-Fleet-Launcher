@@ -186,6 +186,7 @@ def run_command(command: str, cwd: str | Path, *,
     The harness runs the command, not the worker.  A command that the
     worker claims to have run is not evidence (constitution point 3).
     """
+    cwd = Path(cwd).resolve()
     try:
         proc = subprocess.run(
             command, shell=True, cwd=str(cwd), capture_output=True,

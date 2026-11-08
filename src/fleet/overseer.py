@@ -228,13 +228,16 @@ class OverseerRunner:
         prompt = self.prompt(project)
 
         # The Overseer runs in the project root, not in a lease worktree:
-        # it plans, it does not build.
+        # it plans, it does not build.  Resolve it once so the adapter's
+        # {cwd} token and the process cwd cannot diverge from the briefing's
+        # repository root.
+        project_root = Path(self.kernel.repo.root).resolve()
         slot = spawn_mod.spawn_slot(
             self.kernel.repo, task_id="overseer", profile_id=profile.id,
             adapter=adapter, profile=profile.raw or profile.to_dict(),
-            prompt=prompt, worktree=self.kernel.repo.root,
+            prompt=prompt, worktree=project_root,
             fence=0, index=0,
-            env=harness._env(profile, self.kernel.repo.root),
+            env=harness._env(profile, project_root),
             actor=f"overseer:{profile.id}")
         return f"{slot.pid}" if slot.pid else "unknown"
 

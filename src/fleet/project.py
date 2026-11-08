@@ -160,8 +160,8 @@ def close_check(kernel: Kernel, *, pdd_path: str | Path | None = None,
     whether the project is done, and a manual check cannot decide it.
     """
     repo = kernel.repo
-    pdd = Path(pdd_path) if pdd_path else repo.root / PDD_PATH
-    cwd = Path(workdir) if workdir else repo.root
+    pdd = (Path(pdd_path) if pdd_path else Path(repo.root) / PDD_PATH).resolve()
+    cwd = (Path(workdir) if workdir else Path(repo.root)).resolve()
 
     result = CloseCheckResult()
     if not pdd.is_file():

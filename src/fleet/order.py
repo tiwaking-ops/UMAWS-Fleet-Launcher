@@ -50,15 +50,15 @@ def order_prompt(worktree: str | Path) -> str:
 
 
 def order_path(worktree: str | Path) -> Path:
-    return Path(worktree) / ORDER_DIR / ORDER_FILE
+    return Path(worktree).resolve() / ORDER_DIR / ORDER_FILE
 
 
 def handoff_path(worktree: str | Path) -> Path:
-    return Path(worktree) / ORDER_DIR / HANDOFF_FILE
+    return Path(worktree).resolve() / ORDER_DIR / HANDOFF_FILE
 
 
 def result_path(worktree: str | Path) -> Path:
-    return Path(worktree) / ORDER_DIR / RESULT_FILE
+    return Path(worktree).resolve() / ORDER_DIR / RESULT_FILE
 
 
 def _command_syntax(platform_name: str) -> list[str]:
@@ -100,7 +100,8 @@ def render_order(task, lease=None, *, constitution: str = "",
     lines.append("")
 
     # Worktree isolation warning with absolute paths for every write scope entry
-    wt = str(worktree) if worktree else (getattr(lease, "worktree", "") if lease else "")
+    wt_source = worktree or (getattr(lease, "worktree", "") if lease else "")
+    wt = str(Path(wt_source).resolve()) if wt_source else ""
     if wt:
         lines.append(f"## Your worktree (operate ONLY here)")
         lines.append(f"   Absolute worktree path: {wt}")

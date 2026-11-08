@@ -396,6 +396,12 @@ def spawn(argv: Sequence[str], *, cwd: os.PathLike[str] | str | None = None,
     if not argv:
         raise ValueError("argv must not be empty")
 
+    # Final process boundary: a relative cwd resolves inside whatever
+    # directory the parent happens to have, which for a fleet spawn is the
+    # main tree.  Make it absolute here so no adapter can start somewhere
+    # the order did not name.
+    cwd = os.path.abspath(os.fspath(cwd)) if cwd else None
+
     stdout = subprocess.DEVNULL
     stderr = subprocess.STDOUT
     handle = None

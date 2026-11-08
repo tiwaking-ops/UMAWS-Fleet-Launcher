@@ -81,9 +81,9 @@ class Slot:
 # ---------------------------------------------------------------------------
 
 def worktree_path(repo, task_id: str, fence: int) -> Path:
-    """Where a lease's worktree lives."""
+    """Where a lease's worktree lives, always absolute."""
     root = Path(repo.worktree_root())
-    return root / f"{task_id}-{fence}"
+    return (root / f"{task_id}-{fence}").resolve()
 
 
 def create_worktree(repo, task_id: str, fence: int, *,
@@ -128,7 +128,7 @@ def disable_hooks(repo, worktree: str | Path) -> None:
 
 def remove_worktree(repo, path: str | Path) -> bool:
     """Remove a worktree.  Never destructive to the main tree."""
-    target = Path(path)
+    target = Path(path).resolve()
     code, out, err = repo.git("worktree", "remove", "--force", str(target))
     if code != 0:
         return False
@@ -238,7 +238,11 @@ def spawn_slot(repo, *, task_id: str, profile_id: str, adapter,
     """
     import time
 
-    target = Path(worktree)
+    # Every hand-off below -- the adapter's {cwd} token, the process cwd and
+    # Slot.worktree -- gets this one absolute path.  A relative worktree used
+    # to travel intact into both the argv and CreateProcess, so the CLI could
+    # start somewhere other than the tree the order named.
+    target = Path(worktree).resolve()
     log_file = log_path(repo, task_id, fence, index)
     log_file.parent.mkdir(parents=True, exist_ok=True)
 

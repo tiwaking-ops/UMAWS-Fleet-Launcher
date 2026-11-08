@@ -469,7 +469,8 @@ def run_lint_and_score(root: str | Path, managed_paths: Sequence[str], *,
     if score_command:
         import subprocess
         try:
-            proc = subprocess.run(list(score_command), cwd=str(cwd or root),
+            proc = subprocess.run(list(score_command),
+                                  cwd=str(Path(cwd or root).resolve()),
                                   capture_output=True, timeout=300, text=True,
                                   encoding="utf-8", errors="replace")
             payload = json.loads(proc.stdout or "{}")

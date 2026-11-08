@@ -221,8 +221,13 @@ def launch_legacy(entry: LauncherEntry, *, keep_open: bool = True,
     if shell is None:
         raise RuntimeError("PowerShell (pwsh / powershell) was not found on PATH.")
     cwd = entry.cwd.strip()
-    if cwd and not os.path.isdir(cwd):
-        raise FileNotFoundError(f"Working directory not found: {cwd}")
+    if cwd:
+        # Set-Location and Popen must agree on one absolute directory; a
+        # stored relative cwd used to resolve against whichever directory the
+        # Console process happened to have.
+        cwd = str(Path(cwd).expanduser().resolve())
+        if not os.path.isdir(cwd):
+            raise FileNotFoundError(f"Working directory not found: {cwd}")
 
     script_dir = script_dir or tempfile.mkdtemp(prefix="llm_launcher_")
     os.makedirs(script_dir, exist_ok=True)

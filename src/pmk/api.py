@@ -1072,7 +1072,7 @@ class Kernel:
             self.repo.root, managed, exclude=self.context_excluded_paths())
         result.before_hash = before
 
-        worktree = self.repo.root / "work" / "context-sync"
+        worktree = (self.repo.root / "work" / "context-sync").resolve()
         if worktree.exists():
             shutil.rmtree(worktree, ignore_errors=True)
         worktree.parent.mkdir(parents=True, exist_ok=True)

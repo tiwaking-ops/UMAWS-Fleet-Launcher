@@ -97,6 +97,9 @@ class BaseAdapter:
     # -- argv --------------------------------------------------------------
     def build_argv(self, profile: dict, mode: Literal["new", "resume"],
                    prompt: str, cwd: str, session: str | None) -> list[str]:
+        # Last boundary before the profile template: every adapter gets an
+        # absolute cwd even if a caller bypassed spawn_slot.
+        cwd = str(Path(cwd).resolve()) if cwd else ""
         template = profile.get("argv_new") if mode == "new" else \
             profile.get("argv_resume")
         if mode == "resume":
