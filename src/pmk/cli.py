@@ -145,6 +145,27 @@ def cmd_task_show(args) -> int:
     return 0
 
 
+def cmd_task_precheck(args) -> int:
+    """Dry-run a card's oracles at the base and on a scratch implementation.
+
+    Read-only: no claim, no lease, no task transition.  Exit 0 only when the
+    card is a valid canary (fails at the base, passes on scratch).
+    """
+    from fleet.precheck import dry_run
+
+    kernel = _kernel(args)
+    task = kernel.state().tasks.get(args.task_id)
+    if task is None:
+        raise KernelError("no_task", task=args.task_id)
+    report = dry_run(kernel, task, base_ref=args.base,
+                     patch=args.patch or None,
+                     scratch_ref=args.scratch_ref, timeout=args.timeout)
+    _out(report)
+    if report.get("error"):
+        return 2
+    return 0 if report["canary_valid"] else 1
+
+
 def cmd_claim(args) -> int:
     kernel = _kernel(args)
     lease = kernel.claim(args.task_id, holder=args.profile, agent=args.agent or "",
@@ -912,6 +933,20 @@ def build_parser() -> argparse.ArgumentParser:
     show = task.add_parser("show", help="show one task")
     show.add_argument("task_id")
     show.set_defaults(func=cmd_task_show)
+
+    precheck = task.add_parser(
+        "precheck",
+        help="dry-run a card's oracles at the base and on a scratch tree")
+    precheck.add_argument("task_id")
+    precheck.add_argument("--base", default="",
+                          help="base ref (default: the default branch)")
+    precheck.add_argument("--patch", default="",
+                          help="patch file applied to the scratch worktree")
+    precheck.add_argument("--scratch-ref", dest="scratch_ref", default="",
+                          help="scratch worktree ref (default: the base ref)")
+    precheck.add_argument("--timeout", type=int, default=600,
+                          help="seconds per oracle")
+    precheck.set_defaults(func=cmd_task_precheck)
 
     void = task.add_parser("void", help="permanently retire a task (operator-only)")
     void.add_argument("task_id")

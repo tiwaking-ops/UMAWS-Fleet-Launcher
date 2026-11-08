@@ -13,10 +13,11 @@ config enables it.
 
 from __future__ import annotations
 
+import shutil
 import tempfile
 from pathlib import Path
 
-__all__ = ["oracles_already_pass"]
+__all__ = ["dry_run", "oracles_already_pass"]
 
 
 def oracles_already_pass(kernel, task, *, timeout: int = 600) -> tuple[bool, list[dict]]:
@@ -50,3 +51,120 @@ def oracles_already_pass(kernel, task, *, timeout: int = 600) -> tuple[bool, lis
         repo.git("worktree", "remove", "--force", str(worktree))
 
     return all(result.get("ok") for result in results), results
+
+
+def _add_worktree(repo, path: Path, ref: str) -> tuple[bool, str]:
+    code, out, err = repo.git("worktree", "add", "--detach", str(path), ref)
+    return code == 0, (err or out).strip()
+
+
+def _run_oracles(oracles, worktree: str | Path, timeout: int) -> list[dict]:
+    from .harness import run_command
+
+    rows: list[dict] = []
+    for oracle in oracles:
+        exit_code, stdout, stderr = run_command(oracle, worktree, timeout=timeout)
+        rows.append({
+            "cmd": oracle,
+            "exit": exit_code,
+            "ok": exit_code == 0,
+            # Tails, not full output: enough to see why a canary oracle failed
+            # without turning the report into a log dump.
+            "stdout_tail": (stdout or "")[-800:],
+            "stderr_tail": (stderr or "")[-800:],
+        })
+    return rows
+
+
+def dry_run(kernel, task, *, base_ref: str = "", patch=None,
+            scratch_ref: str = "", timeout: int = 600) -> dict:
+    """Run *task*'s oracles at the base and on a scratch implementation.
+
+    A canary card is valid only when its oracle **fails at the current base**
+    and **passes on a tree that contains the intended work**.  This runs both
+    sides in throwaway detached worktrees and writes nothing: no claim, no
+    lease, no task transition.  *patch* is a ``git apply``-able file for the
+    scratch tree; *scratch_ref* instead selects a ref that already contains
+    the implementation.
+
+    Returns a report dict.  ``canary_valid`` is true only when at least one
+    oracle fails at the base and every oracle passes on scratch.
+    """
+    repo = kernel.repo
+    oracles = [str(oracle) for oracle in (getattr(task, "oracles", []) or [])]
+    report: dict = {
+        "task": getattr(task, "id", ""),
+        "state": getattr(task, "state", ""),
+        "base_ref": "",
+        "scratch_ref": "",
+        "patch": "",
+        "oracles": oracles,
+        "base": {"all_pass": False, "oracles": []},
+        "scratch": {"all_pass": False, "oracles": []},
+        "canary_valid": False,
+        "reason": "",
+    }
+    if not oracles:
+        report["reason"] = "the card declares no oracles"
+        return report
+
+    base_ref = str(base_ref or repo.default_branch())
+    scratch_ref = str(scratch_ref or base_ref)
+    patch_path = Path(patch).expanduser().resolve() if patch else None
+    report["base_ref"] = base_ref
+    report["scratch_ref"] = scratch_ref
+    report["patch"] = str(patch_path) if patch_path else ""
+
+    temp_root = Path(tempfile.mkdtemp(prefix="pmk-precheck-dry-"))
+    base_wt = temp_root / "base"
+    scratch_wt = temp_root / "scratch"
+    try:
+        ok, detail = _add_worktree(repo, base_wt, base_ref)
+        if not ok:
+            report["error"] = f"could not create the base worktree: {detail}"
+            return report
+        ok, detail = _add_worktree(repo, scratch_wt, scratch_ref)
+        if not ok:
+            report["error"] = (
+                f"could not create the scratch worktree: {detail}")
+            return report
+
+        if patch_path is not None:
+            if not patch_path.is_file():
+                report["error"] = f"patch not found: {patch_path}"
+                return report
+            code, out, err = repo.git("apply", "--whitespace=nowarn",
+                                      str(patch_path), cwd=scratch_wt)
+            if code != 0:
+                report["error"] = "the patch did not apply: " + (
+                    err or out).strip()
+                return report
+
+        report["base"]["oracles"] = _run_oracles(oracles, base_wt, timeout)
+        report["scratch"]["oracles"] = _run_oracles(
+            oracles, scratch_wt, timeout)
+    finally:
+        for worktree in (scratch_wt, base_wt):
+            repo.git("worktree", "remove", "--force", str(worktree))
+        repo.git("worktree", "prune")
+        shutil.rmtree(temp_root, ignore_errors=True)
+
+    base_all = all(row["ok"] for row in report["base"]["oracles"])
+    scratch_all = all(row["ok"] for row in report["scratch"]["oracles"])
+    report["base"]["all_pass"] = base_all
+    report["scratch"]["all_pass"] = scratch_all
+    report["canary_valid"] = (not base_all) and scratch_all
+
+    if report["canary_valid"]:
+        report["reason"] = ("the oracle fails at the base and passes on the "
+                            "scratch implementation")
+    elif base_all:
+        report["reason"] = ("the base already satisfies every oracle; S8 "
+                            "would refuse the lease")
+    elif patch_path is None and scratch_ref == base_ref:
+        report["reason"] = ("no scratch implementation was supplied, so the "
+                            "oracle cannot pass on the scratch tree")
+    else:
+        report["reason"] = ("the scratch implementation does not satisfy "
+                            "every oracle")
+    return report
