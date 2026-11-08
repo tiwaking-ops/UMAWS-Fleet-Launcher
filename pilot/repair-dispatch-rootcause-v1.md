@@ -12,8 +12,7 @@ can honestly be said about "is it the overseer model or the worker model?".
 There is no evidence that either model is defective. The recorded failures resolve into one
 dominant cause with three manifestations — **the fleet never pinned the import environment to the
 tree under test**, so gates, workers and the overseer all imported packages from the *main working
-copy*, which was mutating while they ran. That made identical canary inputs fail at 08:39 and pass
-at 09:32, made workers edit the wrong `coverage.py`, and made the overseer describe the main tree
+copy*, which was mutating while they ran. That made identical canary inputs fail at 08:43 and pass at 09:41 (local, +1300), made workers edit the wrong `coverage.py`, and made the overseer describe the main tree
 while believing it described a worktree (hence the false T-0146 hint). Two secondary causes
 compound it: **bash idioms issued to PowerShell 5.1** (904 parser failures in the overseer log,
 13–16 per worker attempt) and **a hint with no recorded base commit** (`hint_base_commit=""`), which
@@ -52,46 +51,91 @@ This is the core observation, and it is fully recorded.
 | output `docs/canary.md` sha256 | `dc943d75…c93e` | `dc943d75…c93e` |
 | `diff_scope_check` | ok, no violations | ok, no violations |
 | own oracle | exit 0 | exit 0 |
-| gate `pytest -q` | **exit 1** (seq 3141) | **exit 0** (seq 3157) |
+| gate `pytest -q` | **exit 1** (seq 3141, 19:43:35Z) | **exit 0** (seq 3157, 20:41:36Z) |
 | terminal event | `VERIFIED` class `ORACLE_FAILED` (seq 3142) → `REWORK` | `INTEGRATED` (seq 3159) → `DONE`, commit `e31d70a` |
 | agent log size | 799 bytes | 530 bytes |
 | model identity in ledger | `kilo-auto`, `served_models: []` | `kilo-auto`, `served_models: []` |
 
-The two branches differ only in their commit message. Both merged onto the same main HEAD.
+The two branches differ only in their commit message. Both merged onto the same main HEAD
+(`82f6be1`). The recorded timeline rules out an intervening fix:
+
+| UTC | Event |
+|---|---|
+| 19:39:36 | T-0148 submitted, own oracle green |
+| 19:43:35 | T-0148 gate exits 1 → REWORK |
+| 19:54:23 | project **paused by the operator** |
+| 20:15:28–20:16:48 | T-0150 created, admitted, project resumed |
+| 20:17:01 | T-0150 claimed (same base `82f6be1`) |
+| 20:18:44 | T-0150 exits, advisory only (“RESULT.md does not mention the task id”) |
+| 20:41:36 | T-0150 gate exits 0 → INTEGRATED (`e31d70a`) |
+
+Nothing was committed to main between the two gates, so the flip is a property of the run, not of
+the code.
 
 **Reproduction (2026-11-08, agent-run, throwaway worktree):** create a detached worktree at
 `82f6be1`, merge `pmk/T-0148-120` with `--no-ff`, run `pytest -q` with the worktree's `src`/`tests`
 on `PYTHONPATH` → **507 passed, exit 0**. The card's code was green all along.
 
-So the 08:39 failure was not the diff. It was the environment the gate ran in.
+So the 08:43 failure was not the diff. It was the environment the gate ran in.
 
 ### 3.1 Why the environment was unpinned, and until when
 
 `src/fleet/merge.py` runs the gate in a temporary worktree (`integrate`, step 3). The gate's own
 `subprocess.run(..., cwd=temp_wt, env=gate_env)` only started passing `worktree_env(temp_wt)` in
-**`ebe46ce` — 2026-11-08 12:34**, i.e. *after* both canary runs (08:39 and 09:32). Before that the
-gate inherited the dispatcher's environment, in which the editable install / `PYTHONPATH` resolves
-`cna` and `pmk` to `C:\temp\projects\testproject1\src` — the **main working copy**, not the temp
-worktree being judged. Main's tree carried 129 dirty paths at spawn (`AGENT_STARTED` payload,
-`main_tree_status.count = 129`) and was being edited out of band between the two runs.
+**`ebe46ce` — 2026-11-08 12:34**, i.e. *after* both canary runs (19:43Z and 20:41Z). The code that
+ran the two canary gates is in `13b8959` and has **no `env=` argument at all**:
 
-The gate therefore graded a moving target. That is sufficient to explain one fail and one pass 53
-minutes apart with byte-identical inputs; it is also consistent with the missing `no_ff_fallback`
-key being a success-path-only field rather than a code difference (the key entered `merge.py` in
-`8a71d36`, before both runs).
+```python
+# git show 13b8959:src/fleet/merge.py  (lines 248-251)
+proc = subprocess.run(gate_cmd, shell=True, cwd=str(temp_wt),
+                      capture_output=True, timeout=900,
+                      text=True, encoding="utf-8", errors="replace")
+```
+
+With no `env=`, the gate inherits the dispatcher's environment — and that environment hard-codes the
+**main working copy** on `sys.path` via the venv's editable-install hook:
+
+```
+.venv/Lib/site-packages/__editable__.umaws_fleet-0.1.0.pth
+  -> C:\temp\projects\testproject1\src
+```
+
+Demonstrated inside a throwaway worktree at `82f6be1` with the T-0148 branch merged:
+
+```
+$ python -c "import cna.tools.coverage as c, pmk; print(c.__file__, pmk.__file__)"
+cna  -> C:\temp\projects\testproject1\src\cna\tools\coverage.py
+pmk  -> C:\temp\projects\testproject1\src\pmk\__init__.py
+```
+
+The `cwd=temp_wt` is therefore cosmetic: the tree being judged is not the tree whose code is
+executed. Main's tree carried 129 dirty paths at spawn (`AGENT_STARTED`, `main_tree_status.count =
+129`).
+
+**Honest limit of this finding.** Re-running that same old configuration today exits **0** (507
+passed), because current main's `src` is consistent with the old tests. So the coupling is proven,
+but the *specific* 08:43 divergence is not reconstructable: it required main's working `src` to
+differ from the merged tree at that moment, and neither the failing test nor the gate output
+survives (§3.2). The gate took **3 min 59 s** for T-0148 (19:39:36Z → 19:43:35Z) and **22 min 51 s** for T-0150
+(19:39… 20:18:45Z → 20:41:36Z), of which 10 min 15 s were spent with the project paused. Both ran
+the whole suite and neither was cut short by the 900 s timeout. Whether the failures came from
+main-tree `src` or from suite state under the concurrent overseer cannot now be separated; both are
+"the gate's inputs were not pinned to the tree under test", and both are closed by `ebe46ce` plus
+the recorded diagnostics below.
 
 ### 3.2 The failure is now unrecoverable, by design
 
 `integrate()` captures the gate's stdout/stderr and then records only `exit`. No log of the failing
 assertion survives: `.pm/evidence/EB-T-0148-120/` contains `bundle.json` alone, the task worktree has
 `ORDER.md`, `RESULT.md`, `provenance.json` and nothing else, and `pytest_junit.xml` in main is
-rewritten by other runs. **Which test failed at 08:39 cannot be established from the record.** Any
+rewritten by other runs. **Which test failed at 08:43 cannot be established from the record.** Any
 claim that names a specific failing test would be invention.
 
 **Fix applied in this pass:** gate failure events now carry `failed_tests`, `stdout_tail` and
 `stderr_tail` (`src/fleet/merge.py::_gate_diagnostics`, pinned by
 `tests/fleet/test_merge_gate_diagnostics.py`). The next REWORK from a gate will be diagnosable
-without archaeology.
+without archaeology. Note what this would have bought here: the single string
+`FAILED tests/…::…` was the difference between a 20-minute investigation and an afternoon.
 
 ---
 
@@ -163,6 +207,35 @@ P3 (`6f92d31`) added hint pinning + `IDENTITY_ANOMALY`, and S8 refuses leases wh
 pass. The empty-base hole for **existing** cards is not retro-fixable: `pmk task` exposes only
 `create/admit/list/show/void`, so T-0146's hint cannot be amended. It needs a fresh card or an
 operator judgement, not a silent edit.
+
+### 5.1 The overseer could not wake at all, so no hint could be corrected
+
+Nine `OVERSEER_WOKEN` events exist for the window and **all nine** carry the same error
+(seq 3137, 3143, 3160, 3165, 3169, 3192, 3199 …):
+
+```
+the Overseer profile pi-orca-deepseek is disabled
+```
+
+`agents.toml` puts exactly that disabled profile first:
+
+```toml
+[overseer]
+profiles = ["pi-orca-deepseek", "kilo-auto", "opencode-fallback", ...]
+```
+
+`OverseerRunner.wake()` took `profiles[0]` and, when its fleet-state entry was disabled, recorded
+the refusal and returned — it never tried `kilo-auto`. So for the whole failure window the fleet had
+**no functioning overseer at all**: a stale hint could not be refreshed, no independent check
+remained that might have caught §3, and the only overseer text in circulation was the older session's
+9 MB log from §5.
+
+This is a plain defect, not a model judgement: the ordered list exists precisely so that a
+strongest-first choice degrades gracefully.
+
+Fixed in this pass: selection walks the ordered list and takes the first profile that is enabled and
+not cooling, naming every skipped profile in the payload when none is usable. Pinned by
+`tests/fleet/test_overseer_wake.py`.
 
 ---
 
@@ -249,6 +322,7 @@ constitution's rule that authority comes from recorded status, not narrative.
 | Gate verdict undiagnosable | fixed here (`_gate_diagnostics` + 3 tests) |
 | Bash idioms in PowerShell | mitigated here (`## Environment` in ORDER + 3 tests) |
 | Stale hint, empty `hint_base_commit` (T-0146) | guard exists (REC-13, P3); card cannot be amended — needs a new card |
+| Overseer never woke (disabled profile first, no fallback) | fixed here: selection skips disabled/cooling profiles; 2 tests |
 | T-0148 REWORK card | the card is already satisfied on main; S8 precheck will refuse the lease, which is correct |
 | Rate-limit 429s | external; not a fleet defect |
 | Model attribution | **open**; instrumentation proposed, not built |

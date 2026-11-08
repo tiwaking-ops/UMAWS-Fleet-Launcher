@@ -177,13 +177,25 @@ class OverseerRunner:
             self.kernel.record_event("OVERSEER_WOKEN", payload=wake.to_dict())
             return wake
 
-        profile = profiles[0]
-        state = self.fleet_state.profile(profile.id)
-        if not state.enabled or state.cooling():
+        # Take the first *usable* profile, not merely the first configured one.
+        # pi-orca-deepseek heads the list and is disabled, and taking
+        # profiles[0] made every wake return "disabled" without trying
+        # kilo-auto (9 of 9 OVERSEER_WOKEN events on 2026-11-07), leaving no
+        # session that could refresh or retract a stale hint.
+        skipped: list[str] = []
+        profile = None
+        for candidate in profiles:
+            candidate_state = self.fleet_state.profile(candidate.id)
+            if candidate_state.enabled and not candidate_state.cooling():
+                profile = candidate
+                break
+            skipped.append(
+                f"{candidate.id} "
+                f"({'disabled' if not candidate_state.enabled else 'cooling'})")
+        if profile is None:
             wake = self.note_wake(
-                reason, started=False, profile=profile.id,
-                error=f"the Overseer profile {profile.id} is "
-                      f"{'disabled' if not state.enabled else 'cooling'}")
+                reason, started=False,
+                error="no usable Overseer profile: " + ", ".join(skipped))
             self.kernel.record_event("OVERSEER_WOKEN", payload=wake.to_dict())
             return wake
 
