@@ -96,3 +96,31 @@ def test_adoc_files_in_subdirectories_count_as_rule_files(tmp_path):
     assert report["counts"]["rule_files_declaring_paths"] == 3
     assert report["counts"]["rule_files_matching"] == 3
     assert "sections/s0.adoc" in {r["file"] for r in report["rules"]}
+
+
+def test_coverage_reports_case_statuses_and_evidence():
+    report = _load(COVERAGE)
+    cases = report["cases"]
+    by_id = {case["case"]: case for case in cases}
+
+    assert len(cases) > 1000
+    assert report["counts"]["cases"] == len(cases)
+    assert {"5.2", "7.14", "29.1", "32.0"} <= set(by_id)
+    assert set(cov.CASE_STATUS) <= set(by_id)
+
+    for case in cases:
+        assert case["status"] in cov.CASE_STATUSES, case
+        if case["status"] in ("implemented", "partial"):
+            assert case["source"], case
+            assert case["tests"], case
+            source = ROOT / case["source"]
+            assert source.is_file(), case
+            text = source.read_text(encoding="utf-8-sig")
+            marker = case["case"]
+            if marker not in text:
+                marker = marker.split(".")[0]
+            assert marker in text, case
+            for test in case["tests"]:
+                assert (ROOT / test).is_file(), case
+        if case["status"] == "deferred":
+            assert case["reason"], case

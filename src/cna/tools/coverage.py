@@ -62,6 +62,9 @@ __all__ = [
     "dumps_coverage",
     "write_coverage",
     "load_coverage",
+    "case_inventory",
+    "CASE_STATUS",
+    "CASE_STATUSES",
     "main",
 ]
 
@@ -75,6 +78,103 @@ SKIP_DIRS = {"__pycache__", ".git", ".venv", "node_modules"}
 
 #: Suffixes that are never source files worth reporting on.
 SKIP_SUFFIXES = {".pyc", ".pyo", ".lock"}
+
+#: The reviewed status vocabulary for a single CNA case.  A case is not
+#: implemented merely because a path glob mentions the file that contains
+#: it; the status and its evidence are explicit here.
+CASE_STATUSES = ("implemented", "partial", "unimplemented",
+                 "not_applicable", "deferred")
+
+#: Cases that have deliberately reviewed implementation evidence.  Every
+#: other parsed case is ``unimplemented``.  Sources are relative to the
+#: repository root; tests are the files that exercise the implementation.
+CASE_STATUS: dict[str, dict[str, Any]] = {
+    "2.0": {
+        "status": "partial", "source": "src/cna/engine/rulesets.py",
+        "tests": ["tests/test_rulesets.py"],
+        "reason": "LAND_ABSTRACT is available; Air and Logistics combinations are deferred",
+    },
+    "3.0": {
+        "status": "implemented", "source": "src/cna/core/dice.py",
+        "tests": ["tests/test_dice.py"], "reason": "",
+    },
+    "5.2": {
+        "status": "partial", "source": "src/cna/rules/sec05_sequence.py",
+        "tests": ["tests/test_sequence.py"],
+        "reason": "sequence outline only; individual phase mechanics are not implemented",
+    },
+    "7.11": {
+        "status": "implemented", "source": "src/cna/rules/sec07_initiative.py",
+        "tests": ["tests/test_initiative_weather.py"], "reason": "",
+    },
+    "7.12": {
+        "status": "implemented", "source": "src/cna/rules/sec07_initiative.py",
+        "tests": ["tests/test_initiative_weather.py"], "reason": "",
+    },
+    "7.13": {
+        "status": "partial", "source": "src/cna/rules/sec07_initiative.py",
+        "tests": ["tests/test_initiative_weather.py"],
+        "reason": "ratings are accepted as inputs; the historical ratings chart (R-05) is absent",
+    },
+    "7.14": {
+        "status": "implemented", "source": "src/cna/rules/sec07_initiative.py",
+        "tests": ["tests/test_initiative_weather.py"], "reason": "",
+    },
+    "7.16": {
+        "status": "implemented", "source": "src/cna/rules/sec07_initiative.py",
+        "tests": ["tests/test_initiative_weather.py"], "reason": "",
+    },
+    "29.1": {
+        "status": "partial", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_initiative_weather.py"],
+        "reason": "synthetic-test table only; the historical R-04 table and map areas are absent",
+    },
+    "29.31": {
+        "status": "partial", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_initiative_weather.py"],
+        "reason": "hot weather is classified; its map-wide effects are not implemented",
+    },
+    "29.35": {
+        "status": "partial", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_initiative_weather.py"],
+        "reason": "water requirements are not tracked",
+    },
+    "29.41": {
+        "status": "partial", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_initiative_weather.py"],
+        "reason": "storm location is rolled; map-section effects are not implemented",
+    },
+    "29.51": {
+        "status": "partial", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_initiative_weather.py"],
+        "reason": "rainstorms are classified; map-section effects are not implemented",
+    },
+    "32.0": {
+        "status": "deferred", "source": "src/cna/engine/rulesets.py",
+        "tests": ["tests/test_rulesets.py"],
+        "reason": "abstract supply and air rules are not implemented in P1",
+    },
+    "33.0": {
+        "status": "deferred", "source": "src/cna/engine/rulesets.py",
+        "tests": ["tests/test_rulesets.py"],
+        "reason": "Air Game sequence and charts are not implemented",
+    },
+    "47.0": {
+        "status": "deferred", "source": "src/cna/engine/rulesets.py",
+        "tests": ["tests/test_rulesets.py"],
+        "reason": "Air Game abstract logistics rules are not implemented",
+    },
+    "48.0": {
+        "status": "deferred", "source": "src/cna/engine/rulesets.py",
+        "tests": ["tests/test_rulesets.py"],
+        "reason": "Logistics Game sequence is not implemented",
+    },
+    "58.0": {
+        "status": "deferred", "source": "src/cna/engine/rulesets.py",
+        "tests": ["tests/test_rulesets.py"],
+        "reason": "Air Game abstract rules are not implemented",
+    },
+}
 
 
 class RulesCoverageError(RuntimeError):
@@ -189,6 +289,89 @@ def _frontmatter_paths(text: str) -> tuple[list[str], bool]:
     return globs, True
 
 
+_CASE_ANCHOR = re.compile(r"^\s*\[#(\d+(?:_\d+)+)\]\s*$")
+_CASE_INLINE = re.compile(r"^\s*\*\[(\d+(?:\.\d+)+)\]\*\s*(.*)$")
+_CASE_HEADING = re.compile(r"^\s*={2,6}\s+(.*)$")
+_SECTION_FILE = re.compile(r"section-(\d+)\.adoc$", re.IGNORECASE)
+
+
+def _case_sort_key(case_id: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in case_id.split(".") if part.isdigit())
+
+
+def _case_title(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _title_after(lines: list[str], start: int) -> str:
+    for raw in lines[start + 1:start + 6]:
+        line = raw.strip()
+        if not line:
+            continue
+        heading = _CASE_HEADING.match(line)
+        if heading:
+            return _case_title(heading.group(1))
+        inline = _CASE_INLINE.match(line)
+        if inline:
+            return _case_title(inline.group(2))
+        return _case_title(line)
+    return ""
+
+
+def _record_case(cases: dict[str, dict[str, Any]], case_id: str,
+                 title: str, rules_file: str, line: int) -> None:
+    record = cases.setdefault(case_id, {
+        "case": case_id, "title": "", "rules_file": rules_file, "line": line,
+    })
+    if title and not record["title"]:
+        record["title"] = title
+
+
+def case_inventory(directory: Path) -> list[dict[str, Any]]:
+    """Parse the rule corpus into a deterministic case inventory.
+
+    Explicit section anchors and inline ``*[case]*`` markers are both
+    recognised.  A major section with no parsed child case gets a ``N.0``
+    entry, which lets a deferred whole module remain visible rather than
+    disappearing from the report.
+    """
+    cases: dict[str, dict[str, Any]] = {}
+    for path in sorted(directory.rglob("*.adoc")):
+        rel = path.relative_to(directory).as_posix()
+        lines = read_text(path).splitlines()
+        for index, line in enumerate(lines):
+            anchor = _CASE_ANCHOR.match(line)
+            if anchor:
+                case_id = anchor.group(1).replace("_", ".")
+                _record_case(cases, case_id, _title_after(lines, index), rel,
+                             index + 1)
+            inline = _CASE_INLINE.match(line)
+            if inline:
+                _record_case(cases, inline.group(1), _case_title(inline.group(2)),
+                             rel, index + 1)
+
+    for path in sorted(directory.glob("sections/section-*.adoc")):
+        match = _SECTION_FILE.match(path.name)
+        if not match:
+            continue
+        case_id = f"{int(match.group(1))}.0"
+        if case_id in cases:
+            continue
+        lines = read_text(path).splitlines()
+        title = ""
+        line_number = 1
+        for index, line in enumerate(lines):
+            heading = _CASE_HEADING.match(line.strip())
+            if heading:
+                title = _case_title(heading.group(1))
+                line_number = index + 1
+                break
+        _record_case(cases, case_id, title,
+                     path.relative_to(directory).as_posix(), line_number)
+
+    return [cases[key] for key in sorted(cases, key=_case_sort_key)]
+
+
 def iter_source_paths(
     roots: Iterable[str | os.PathLike[str] | Path],
     *,
@@ -273,6 +456,23 @@ def build_coverage(
         )
 
     uncovered = [p for p in scanned if p not in covered]
+    cases: list[dict[str, Any]] = []
+    case_counts = {status: 0 for status in CASE_STATUSES}
+    for entry in case_inventory(directory):
+        spec = CASE_STATUS.get(entry["case"], {})
+        status = spec.get("status", "unimplemented")
+        if status not in CASE_STATUSES:
+            raise RulesCoverageError(
+                f"unknown case status {status!r} for {entry['case']}")
+        cases.append({
+            **entry,
+            "status": status,
+            "source": spec.get("source", ""),
+            "tests": list(spec.get("tests") or []),
+            "reason": spec.get("reason", ""),
+        })
+        case_counts[status] += 1
+
     return {
         "schema_version": SCHEMA_VERSION,
         "rules_dir": (rules_dir_label or str(directory)).replace("\\", "/"),
@@ -283,8 +483,12 @@ def build_coverage(
             "rule_files": len(rules),
             "rule_files_declaring_paths": sum(1 for r in rules if r["globs"]),
             "rule_files_matching": sum(1 for r in rules if r["matching"]),
+            "cases": len(cases),
+            **{f"cases_{status}": count
+               for status, count in case_counts.items()},
         },
         "rules": rules,
+        "cases": cases,
         "uncovered_paths": uncovered,
     }
 

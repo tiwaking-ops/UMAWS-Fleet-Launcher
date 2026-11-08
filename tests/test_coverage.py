@@ -105,3 +105,27 @@ def test_main_missing_rules_returns_error(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     rc = cov.main(["--rules", "does/not/exist", "--out", "out.json"])
     assert rc == 2
+
+
+def test_case_inventory_reports_reviewed_statuses(tmp_path):
+    rules = tmp_path / "rules"
+    sections = rules / "sections"
+    sections.mkdir(parents=True)
+    (sections / "section-05.adoc").write_text(
+        "[#5_2]\n=== Sequence\n", encoding="utf-8")
+    (sections / "section-07.adoc").write_text(
+        "[#7_14]\n*[7.14]* Initiative\n", encoding="utf-8")
+    (sections / "section-32.adoc").write_text(
+        "== Abstract Logistics\n", encoding="utf-8")
+
+    report = cov.build_coverage(rules, ["src/example.py"])
+    cases = {case["case"]: case for case in report["cases"]}
+
+    assert cases["5.2"]["status"] == "partial"
+    assert cases["7.14"]["status"] == "implemented"
+    assert cases["32.0"]["status"] == "deferred"
+    assert report["counts"]["cases"] == len(report["cases"])
+    assert report["counts"]["cases"] >= 3
+    assert report["counts"]["cases_implemented"] == 1
+    assert report["counts"]["cases_partial"] == 1
+    assert report["counts"]["cases_deferred"] == 1

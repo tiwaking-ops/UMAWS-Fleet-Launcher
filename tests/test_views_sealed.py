@@ -14,6 +14,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from cna.engine.sealed import SealedBox, SealedError  # noqa: E402
+from cna.state.model import new_state  # noqa: E402
 from cna.state.views import ViewError, view  # noqa: E402
 
 
@@ -36,6 +37,17 @@ def test_a_player_sees_own_hand_but_only_the_size_of_the_other() -> None:
     assert seen["hands"]["commonwealth"] == {"hidden": 3}
     assert "C1" not in repr(seen)
     assert original == witness
+
+
+def test_a_view_redacts_the_real_state_schema_hand() -> None:
+    state = new_state(1)
+    state["sides"]["axis"]["hand"] = ["A1", "A2"]
+    state["sides"]["commonwealth"]["hand"] = ["C1", "C2", "C3"]
+    seen = view(state, "axis")
+    assert seen["sides"]["axis"]["hand"] == ["A1", "A2"]
+    assert seen["sides"]["commonwealth"]["hand"] == {"hidden": 3}
+    assert "C1" not in repr(seen)
+    assert state["sides"]["commonwealth"]["hand"] == ["C1", "C2", "C3"]
 
 
 def test_sealed_commitments_are_hidden_until_revealed() -> None:

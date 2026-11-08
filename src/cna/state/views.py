@@ -32,6 +32,10 @@ def _count(value: Any) -> int:
         return 0
 
 
+def _hidden(value: Any) -> dict[str, Any]:
+    return {"hidden": _count(value)}
+
+
 def view(state: Mapping[str, Any], side: str, *,
          reveal: bool = False) -> dict[str, Any]:
     """Return a deep copy of *state* as *side* may see it.
@@ -49,11 +53,21 @@ def view(state: Mapping[str, Any], side: str, *,
     if isinstance(hands, Mapping):
         redacted: dict[str, Any] = {}
         for owner, cards in hands.items():
-            if owner == side:
-                redacted[owner] = cards
-            else:
-                redacted[owner] = {"hidden": _count(cards)}
+            redacted[owner] = cards if owner == side else _hidden(cards)
         result["hands"] = redacted
+
+    sides = result.get("sides")
+    if isinstance(sides, Mapping):
+        redacted_sides: dict[str, Any] = {}
+        for owner, side_state in sides.items():
+            if owner == side or not isinstance(side_state, Mapping):
+                redacted_sides[owner] = side_state
+                continue
+            redacted_state = copy.deepcopy(dict(side_state))
+            if "hand" in redacted_state:
+                redacted_state["hand"] = _hidden(redacted_state["hand"])
+            redacted_sides[owner] = redacted_state
+        result["sides"] = redacted_sides
 
     sealed = result.get("sealed")
     if sealed is not None and not reveal:

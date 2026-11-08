@@ -94,6 +94,22 @@ def test_sentinel_uses_earlier_bundle_after_a_legacy_repair_event(kernel):
                    for f in report["findings"])
 
 
+def test_sentinel_flags_a_later_bundleless_non_repair_integration(kernel):
+    card = make_card(kernel)
+    lease = kernel.claim(card.id, holder="p")
+    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence))
+    kernel.verify(card.id, lease.fence, ok=True)
+    kernel.integrate(card.id, lease.fence, commit=_head_commit(kernel))
+    # A genuine later integration without a bundle is not repair noise.
+    kernel.record_event("INTEGRATED", subject=card.id, fence=lease.fence,
+                        payload={"commit": _head_commit(kernel)})
+    kernel.render_views(force=True)
+    report = check(kernel)
+    assert not report["ok"]
+    assert any(f["invariant"] == "I6" and f["subject"] == card.id
+               for f in report["findings"])
+
+
 # ---------------------------------------------------------------------------
 # Views
 # ---------------------------------------------------------------------------
