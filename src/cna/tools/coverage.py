@@ -212,7 +212,12 @@ def iter_source_paths(
         if not start.is_dir():
             continue
         for dirpath, dirnames, filenames in os.walk(start):
-            dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
+            # Build metadata (src/*.egg-info) is not source and is not present
+            # in a fresh worktree, so counting it made --check pass on main and
+            # fail in every lease worktree.
+            dirnames[:] = sorted(
+                d for d in dirnames
+                if d not in SKIP_DIRS and not d.endswith(".egg-info"))
             for filename in sorted(filenames):
                 full = Path(dirpath) / filename
                 if full.suffix.lower() in SKIP_SUFFIXES:

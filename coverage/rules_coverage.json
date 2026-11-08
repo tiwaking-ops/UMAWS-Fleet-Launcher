@@ -2,8 +2,8 @@
   "schema_version": 1,
   "rules_dir": "docs/rules",
   "counts": {
-    "paths": 66,
-    "covered": 66,
+    "paths": 61,
+    "covered": 61,
     "uncovered": 0,
     "rule_files": 69,
     "rule_files_declaring_paths": 3,
@@ -22,7 +22,7 @@
       "globs": [
         "src/fleet/**"
       ],
-      "match_count": 22,
+      "match_count": 23,
       "matching": true,
       "matched_paths": [
         "src/fleet/__init__.py",
@@ -39,6 +39,7 @@
         "src/fleet/oracle_lint.py",
         "src/fleet/order.py",
         "src/fleet/overseer.py",
+        "src/fleet/precheck.py",
         "src/fleet/profiles.py",
         "src/fleet/project.py",
         "src/fleet/provenance.py",
@@ -538,7 +539,7 @@
       "globs": [
         "**/*"
       ],
-      "match_count": 66,
+      "match_count": 61,
       "matching": true,
       "matched_paths": [
         "src/cna/engine/__init__.py",
@@ -564,6 +565,7 @@
         "src/fleet/oracle_lint.py",
         "src/fleet/order.py",
         "src/fleet/overseer.py",
+        "src/fleet/precheck.py",
         "src/fleet/profiles.py",
         "src/fleet/project.py",
         "src/fleet/provenance.py",
@@ -600,13 +602,7 @@
         "src/quotagate/latency.py",
         "src/quotagate/main.py",
         "src/quotagate/provenance.py",
-        "src/quotagate/routing.py",
-        "src/umaws_fleet.egg-info/PKG-INFO",
-        "src/umaws_fleet.egg-info/SOURCES.txt",
-        "src/umaws_fleet.egg-info/dependency_links.txt",
-        "src/umaws_fleet.egg-info/entry_points.txt",
-        "src/umaws_fleet.egg-info/requires.txt",
-        "src/umaws_fleet.egg-info/top_level.txt"
+        "src/quotagate/routing.py"
       ]
     }
   ],
