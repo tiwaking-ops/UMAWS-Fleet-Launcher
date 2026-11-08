@@ -35,8 +35,17 @@ RESULT_FILE = "RESULT.md"
 
 
 def order_prompt(worktree: str | Path) -> str:
-    return (f"Read {order_path(worktree)} and carry out the task exactly as "
-            f"written. If {handoff_path(worktree)} exists, read it first: it "
+    """The one-line prompt handed to the CLI, with an absolute order path.
+
+    An earlier design sent ``Read .pmwork/ORDER.md``.  The CLI started in the
+    main tree, the relative read failed, and agents globbed for the file —
+    finding a *sibling* attempt's ``work/T-000x-NN/.pmwork/ORDER.md`` and
+    redoing that task (17 such failures in T-0001's logs).  Resolving here
+    means no caller can reintroduce the loop by passing a relative path.
+    """
+    wt = Path(worktree).resolve()
+    return (f"Read {order_path(wt)} and carry out the task exactly as "
+            f"written. If {handoff_path(wt)} exists, read it first: it "
             f"records what a previous attempt in this worktree did.")
 
 

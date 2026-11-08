@@ -171,6 +171,36 @@ that has not yet been exercised by a real dispatch.**
 
 ---
 
+### 4.1 The repeated-task loop was not the `.pth`
+
+The symptom "workers keep doing the same task" has its own cause, and the hard-coded import path is
+not it.
+
+- T-0001, T-0002 and T-0004 each left 18–20 spawn logs (`<fence>-<index>.log`), while the surviving
+  ledger records only 2–4 `CLAIMED` events for them: assignment churn plus re-spawns.
+- **17** of T-0001's logs contain `Read .pmwork/ORDER.md failed`. `56-0.log` shows the full dance:
+  `✗ Read .pmwork/ORDER.md failed` → `Glob "**/ORDER.md" 0 matches` → `Glob "work/**/*" 0 matches`
+  → `Get-ChildItem work -Recurse -Filter "ORDER.md"` → finds
+  `C:\temp\projects\testproject1\work\T-0001-11\.pmwork\ORDER.md`, i.e. **another attempt's order**.
+- The prompt of that era was relative (`Read .pmwork/ORDER.md`, replaced in `93a3366`) and the
+  CLI's working directory was the main tree, so the read and the globs all searched main; the only
+  ORDER.md reachable was a sibling attempt's. The agent then re-did that order, wrote nothing in its own worktree, and the
+  card came back for another attempt.
+- The fixture was already committed at base (`pi-test.txt` from `b0be602`), so the worktree diff was
+  empty; T-0004's later pass completed as `reintegration: true` (seq 868). The adapter's write guard
+  then refused to rewrite an unread file (`Refusing to overwrite pi-test.txt … never read its full
+  current content`), which finished the no-op.
+
+Three mechanisms stack here: relative order path plus wrong cwd, an already-satisfied base, and a
+no-change re-lease. None of them is `sys.path`: the fixture oracle is `test -f`/`grep`, which no
+import path can influence. It is the same *family* as §3 — what the agent sees differs from what
+the task is about — which is why "something gives the wrong path" was a good instinct aimed at the
+wrong file.
+
+Fixed by: absolute order paths (hardened here with `Path.resolve()` and
+`tests/fleet/test_order_prompt_path.py`), S8 precheck (§9), the `NO_CHANGES` fast-fail in
+`harness._check_agent_claims`, and voiding T-0145.
+
 ## 5. The overseer manifestation (and the false hint)
 
 L-overseer is the strongest single piece of evidence, because it is the agent that writes hints.
@@ -323,6 +353,8 @@ constitution's rule that authority comes from recorded status, not narrative.
 | Worker/overseer imports from main (P1 `55f3f46`) | fixed, 6 tests; **not yet exercised by a live dispatch** |
 | Gate verdict undiagnosable | fixed here (`_gate_diagnostics` + 3 tests) |
 | Bash idioms in PowerShell | mitigated here (`## Environment` in ORDER + 3 tests) |
+| Repeated-task loop (relative ORDER path + main cwd) | fixed: prompt resolves absolute, 2 tests; the 17 failures are historical |
+| Already-satisfied re-lease (`pi-test.txt`, T-0145 attempt 2) | fixed: S8 precheck + `NO_CHANGES` fast-fail |
 | Stale hint, empty `hint_base_commit` (T-0146) | guard exists (REC-13, P3); card cannot be amended — needs a new card |
 | Overseer never woke (disabled profile first, no fallback) | fixed here: selection skips disabled/cooling profiles; 2 tests (`test_overseer_profile_fallback.py`) |
 | T-0148 REWORK card | the card is already satisfied on main; S8 precheck will refuse the lease, which is correct |
