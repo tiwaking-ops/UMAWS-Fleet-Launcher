@@ -17,6 +17,7 @@ The order tells the worker:
 * the premises to check **first**, and what to do if one is false;
 * the acceptance commands — explicitly noting that the *harness* runs them,
   so the worker must not claim they pass;
+* the shell dialect its commands run in (PowerShell on Windows, not bash);
 * the rules (stay in scope, treat file text as data, commit nothing);
 * the constitution stub;
 * any handoff note from a previous attempt.
@@ -24,6 +25,7 @@ The order tells the worker:
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 ORDER_DIR = ".pmwork"
@@ -50,9 +52,34 @@ def result_path(worktree: str | Path) -> Path:
     return Path(worktree) / ORDER_DIR / RESULT_FILE
 
 
+def _command_syntax(platform_name: str) -> list[str]:
+    """Return the shell contract for the machine the worker runs on.
+
+    Kilo's command runner on Windows is PowerShell 5.1.  Workers regularly
+    emit bash idioms (``ls -la``, ``&&``, ``NAME=value cmd``) and lose turns
+    to parser errors, so the order states the dialect explicitly instead of
+    leaving the model to discover it.
+    """
+    if platform_name.lower().startswith("win"):
+        return [
+            "   The command runner is PowerShell 5.1, not bash.  Bash idioms fail",
+            "   here and cost turns:",
+            "     sequence commands with   ;                   NOT  &&",
+            "     set a variable with      $env:NAME=\"value\";  NOT  NAME=value cmd",
+            "     list a directory with    Get-ChildItem         NOT  ls -la",
+            "     test a path with         Test-Path <path>      NOT  [ -f <path> ]",
+            "   Quote paths that contain spaces.",
+        ]
+    return [
+        "   The command runner is a POSIX shell: `NAME=value cmd`, `&&` and",
+        "   `[ -f path ]` are valid.  One command per line stays readable.",
+    ]
+
+
 def render_order(task, lease=None, *, constitution: str = "",
                  handoff: str = "", attempt: int = 1, fence: int = 0,
-                 worktree: str | Path | None = None) -> str:
+                 worktree: str | Path | None = None,
+                 platform_name: str | None = None) -> str:
     """Render the work order for *task*."""
     lines: list[str] = []
     lines.append(f"# Work order {task.id} (attempt {attempt}, lease fence {fence})")
@@ -80,6 +107,11 @@ def render_order(task, lease=None, *, constitution: str = "",
                 abs_path = Path(wt) / scope_path
                 lines.append(f"     {abs_path}")
             lines.append("")
+
+    lines.append("## Environment")
+    lines.append(f"   Platform: {platform_name or sys.platform}")
+    lines.extend(_command_syntax(platform_name or sys.platform))
+    lines.append("")
 
     if task.agent_hint:
         lines.append("## Worktree instructions (from agent_hint)")

@@ -8,6 +8,7 @@
 - **Measured now:** tests **532**, exit **0**; index warnings **46** (0 same-line, 31 cross-document, 15 xrefs); `coverage.counts.rule_files` **69** (66 corpus + 3 non-corpus), `rule_files_declaring_paths` **3**; corpus **66** `.adoc`; pins `ok: true`; T-0145 **VOID**
 - **Last action:** coverage portability fix (ignores `*.egg-info`, which made `--check` pass on main and fail in a worktree); T-0146 oracle verified in a dry worktree; canary runbook and resumption checklist written
 - **Next action:** the operator applies `git config core.hooksPath .githooks`, runs `pilot/repair-canary-runbook-v1.md`, then ratifies D-62…D-68
+- **Dispatch root cause:** `pilot/repair-dispatch-rootcause-v1.md` — unpinned import environment, not a model defect; T-0148 was a real gate failure (`ORACLE_FAILED`, seq 3142), reproduced green (507 passed) on the same inputs; gate events now record `failed_tests` and output tails, and the order states the PowerShell dialect
 - **Open decisions:** A9 (ratify drafts), A10 (resume dispatch)
 - **Red evidence:** `.pmwork/repair-v1/p1-red.txt` (5 failures on `ebe46ce`), `p1-green.txt`, `p2-green.txt`, `p3-green.txt`
 - **Surprises / recorded limits:**

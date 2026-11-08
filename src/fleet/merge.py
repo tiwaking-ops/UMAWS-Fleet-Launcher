@@ -133,6 +133,24 @@ def commit_worktree(repo, worktree: str | Path, message: str,
     return True, commit.strip()
 
 
+def _gate_diagnostics(stdout: str, stderr: str, *, lines: int = 40) -> dict:
+    """Summarise a failed gate run so its verdict can be diagnosed later.
+
+    The gate's output used to be captured and thrown away, so a REWORK card
+    carried only "exited 1" (T-0148).  Recording the failing test ids and the
+    tails lets a later reader tell a real defect from an environment flake.
+    """
+    out = (stdout or "").replace("\r\n", "\n").splitlines()
+    err = (stderr or "").replace("\r\n", "\n").splitlines()
+    failed = [row.strip() for row in out
+              if row.lstrip().startswith(("FAILED ", "ERROR "))]
+    return {
+        "failed_tests": failed[:50],
+        "stdout_tail": [row for row in out if row.strip()][-lines:],
+        "stderr_tail": [row for row in err if row.strip()][-lines:],
+    }
+
+
 def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
               gate_cmd: str = "", keep_worktree: bool = True) -> MergeResult:
     """Run one lease through the merge queue.
@@ -303,7 +321,8 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
                                             payload={"stage": "gate", "ok": False,
                                                      "cmd": gate_cmd,
                                                      "exit": result.gate_exit,
-                                                     "reintegration": changed_nothing})
+                                                     "reintegration": changed_nothing,
+                                                     **_gate_diagnostics(proc.stdout, proc.stderr)})
                         # Abort the merge in temp worktree
                         repo.git("merge", "--abort", cwd=temp_wt)
                         return result
