@@ -59,8 +59,13 @@ conflicts with the constitution in your briefing, the constitution wins and you 
 
 Wake reasons you may be given: needs-pdd, needs-decomposition, review, incident, replan, human-message, periodic.
 - needs-pdd: claim the plan task and write docs/PDD.md using the template in docs/sources; make every goal checkable.
-- needs-decomposition: create task cards with `pmk task create` (goal_ref, scope, oracle, premises, budget,
-  depends_on). Keep write scopes disjoint where tasks can run in parallel. Prefer many small tasks.
+- needs-decomposition: the briefing's "Decomposition" section gives the fleet cap, the current leaseable
+  width and every scope collision; close that gap first. Create cards with `pmk task create` (goal_ref,
+  scope, oracle, premises, budget, depends_on). One deliverable per card, one file or at most three write
+  paths, and never a tree root (`src/`, `docs/`, `tests/`) as a scope. Cards that should run at the same
+  time must have disjoint write scopes. Use depends_on only for a real interface or data prerequisite;
+  otherwise fan out one card per module or file. Aim for 12-20 cards and at least max_total_agents
+  leaseable, non-conflicting cards before you stop.
 - review / incident: use `pmk agent show|tail` before deciding. Use `pmk fleet` to enable, disable or cool profiles.
 - replan: create only the gap tasks the failed goal oracles require. Do not rewrite finished work.
 Ask the human only through `pmk queue`, with a recommended option and a safe default. Stop when the briefing

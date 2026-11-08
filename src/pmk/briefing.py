@@ -40,6 +40,19 @@ def _task_lines(state: State) -> list[str]:
     return lines or ["- (none)"]
 
 
+def _decomposition_section(kernel, state) -> str:
+    """The Overseer's throughput lever, stated with numbers."""
+    from .decompose import render_section
+    from .policy import load_agents
+
+    try:
+        fleet = (load_agents(kernel.repo).get("fleet") or {})
+        target = int(fleet.get("max_total_agents", 10) or 10)
+    except (OSError, ValueError, TypeError, KeyError):
+        target = 10
+    return render_section(list(state.tasks.values()), target=target)
+
+
 def render(kernel, role: str = "overseer") -> str:
     """Produce the briefing for *role* from the log alone."""
     state = kernel.state()
@@ -96,6 +109,8 @@ def render(kernel, role: str = "overseer") -> str:
     out.append(f"- Active leases: {len(leases)}")
     out.append(f"- Open queue items: {len([q for q in state.queue if q['state'] == 'open'])}")
     out.append(f"- Incidents recorded: {len(state.incidents)}")
+    out.append("")
+    out.append(_decomposition_section(kernel, state))
     out.append("")
 
     out.append("## Ready tasks (in priority order)")
