@@ -2,8 +2,8 @@
   "schema_version": 1,
   "rules_dir": "docs/rules",
   "counts": {
-    "paths": 78,
-    "covered": 78,
+    "paths": 82,
+    "covered": 82,
     "uncovered": 0,
     "rule_files": 69,
     "rule_files_declaring_paths": 3,
@@ -546,7 +546,7 @@
       "globs": [
         "**/*"
       ],
-      "match_count": 78,
+      "match_count": 82,
       "matching": true,
       "matched_paths": [
         "src/cna/ai/__init__.py",
@@ -554,6 +554,8 @@
         "src/cna/core/__init__.py",
         "src/cna/core/dice.py",
         "src/cna/core/events.py",
+        "src/cna/data/__init__.py",
+        "src/cna/data/schema.py",
         "src/cna/engine/__init__.py",
         "src/cna/engine/actions.py",
         "src/cna/engine/decision.py",
@@ -568,8 +570,10 @@
         "src/cna/state/model.py",
         "src/cna/state/views.py",
         "src/cna/tools/coverage.py",
+        "src/cna/tools/data_gaps.py",
         "src/cna/tools/replay.py",
         "src/cna/tools/rules_index.py",
+        "src/cna/tools/show_rule.py",
         "src/cna/tools/soak.py",
         "src/console/__init__.py",
         "src/console/app.py",
