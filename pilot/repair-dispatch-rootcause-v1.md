@@ -235,7 +235,9 @@ strongest-first choice degrades gracefully.
 
 Fixed in this pass: selection walks the ordered list and takes the first profile that is enabled and
 not cooling, naming every skipped profile in the payload when none is usable. Pinned by
-`tests/fleet/test_overseer_wake.py`.
+`tests/fleet/test_overseer_profile_fallback.py`, beside the existing wake-suite
+`tests/fleet/test_overseer_wake.py` (which was accidentally overwritten once during this repair and
+restored byte-for-byte from `9eb39ad`; the two files together are the coverage).
 
 ---
 
@@ -322,7 +324,7 @@ constitution's rule that authority comes from recorded status, not narrative.
 | Gate verdict undiagnosable | fixed here (`_gate_diagnostics` + 3 tests) |
 | Bash idioms in PowerShell | mitigated here (`## Environment` in ORDER + 3 tests) |
 | Stale hint, empty `hint_base_commit` (T-0146) | guard exists (REC-13, P3); card cannot be amended — needs a new card |
-| Overseer never woke (disabled profile first, no fallback) | fixed here: selection skips disabled/cooling profiles; 2 tests |
+| Overseer never woke (disabled profile first, no fallback) | fixed here: selection skips disabled/cooling profiles; 2 tests (`test_overseer_profile_fallback.py`) |
 | T-0148 REWORK card | the card is already satisfied on main; S8 precheck will refuse the lease, which is correct |
 | Rate-limit 429s | external; not a fleet defect |
 | Model attribution | **open**; instrumentation proposed, not built |
