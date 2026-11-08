@@ -35,9 +35,14 @@ def worktree_env(worktree: str | Path, *,
     ``PYTHONPATH`` entirely; the default keeps it, after the worktree, because
     dropping it would break packages that genuinely live outside the tree.
     """
+    # The entries are handed to the child process, so they must be absolute
+    # for the same reason the cwd must be: a relative entry would resolve
+    # against the child's directory (or the parent's) and name neither the
+    # worktree nor a path that exists.
+    worktree = Path(worktree).resolve()
     env = dict(os.environ if base is None else base)
     prior = "" if drop_pythonpath else env.get("PYTHONPATH", "")
-    entries = [str(Path(worktree) / name) for name in WORKTREE_PATH_ENTRIES]
+    entries = [str(worktree / name) for name in WORKTREE_PATH_ENTRIES]
     if prior:
         entries.append(prior)
     env["PYTHONPATH"] = os.pathsep.join(entries)

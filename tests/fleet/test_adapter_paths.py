@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 
-from fleet import harness, legacy, order, spawn
+from fleet import harness, legacy, order, runenv, spawn
 from fleet.adapters.generic import TemplateAdapter
 from pmk import plat
 
@@ -117,6 +117,13 @@ def test_run_command_resolves_the_oracle_cwd(tmp_path, monkeypatch):
     assert Path(seen["cwd"]) == sub.resolve()
     assert seen["env"]["PYTHONPATH"].split(os.pathsep)[0] == \
         str(sub.resolve() / "src")
+
+
+def test_runenv_resolves_a_relative_worktree(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    env = runenv.worktree_env("sub")
+    assert env["PYTHONPATH"].split(os.pathsep)[0] == \
+        str((tmp_path / "sub" / "src").resolve())
 
 
 def test_plat_spawn_makes_the_cwd_absolute(tmp_path, monkeypatch):
