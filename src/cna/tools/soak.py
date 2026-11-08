@@ -63,6 +63,7 @@ class SoakResult:
     illegal_actions: int
     error: str
     state_hash: str
+    actors: tuple[str, ...] = ()
 
     @property
     def ok(self) -> bool:
@@ -77,6 +78,7 @@ class SoakResult:
             "illegal_actions": self.illegal_actions,
             "error": self.error,
             "state_hash": self.state_hash,
+            "actors": list(self.actors),
         }
 
 
@@ -123,6 +125,10 @@ def run_game(seed: int, *, game_turns: int = 6, max_steps: int = 5000,
     while state["turn"] <= game_turns:
         actor = "axis" if (state["turn"] + state["stage"]) % 2 == 0 \
             else "commonwealth"
+        # The engine treats the state's actor as authoritative when it
+        # records history.  Keep it in sync with the decision actor, or both
+        # sides' actions are labelled Axis.
+        state["actor"] = actor
         state["actions_in_segment"] = 0
         actions_here = 0
         while True:
@@ -157,9 +163,13 @@ def run_game(seed: int, *, game_turns: int = 6, max_steps: int = 5000,
             state["stage"] = 1
             state["turn"] += 1
 
+    actors = tuple(sorted({
+        str(entry.get("actor")) for entry in state.get("history", [])
+        if entry.get("actor")
+    }))
     return SoakResult(seed=seed, turns=state["turn"] - 1, stages=segments,
                       steps=steps, illegal_actions=0, error="",
-                      state_hash=state_hash(state))
+                      state_hash=state_hash(state), actors=actors)
 
 
 def run_soak(seeds: int | Iterable[int] = 20, *, game_turns: int = 6,

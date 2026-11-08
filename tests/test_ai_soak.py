@@ -51,6 +51,12 @@ def test_same_seed_produces_the_same_game_hash() -> None:
     assert first.ok and second.ok
 
 
+def test_soak_records_both_sides_as_actors() -> None:
+    result = run_game(3, game_turns=1)
+    assert result.actors == ("axis", "commonwealth")
+    assert result.to_obj()["actors"] == ["axis", "commonwealth"]
+
+
 def test_twenty_seeded_games_complete_six_turns_without_illegals() -> None:
     report = run_soak(20, game_turns=6)
     assert report.ok is True

@@ -25,13 +25,25 @@ STATE_MARK = {
 }
 
 
+def _cell(value: object) -> str:
+    """Flatten a value to one Markdown table cell.
+
+    Card titles and agent hints are operator-supplied and may contain
+    newlines.  A raw ``\r`` or ``\n`` breaks the table and, on Windows,
+    makes the generated view differ from the projection when the file is
+    read back with universal-newline translation.
+    """
+    return (str(value).replace("\r\n", " ")
+            .replace("\r", " ").replace("\n", " "))
+
+
 def _table(headers: list[str], rows: list[list[str]]) -> list[str]:
     if not rows:
         return ["_none_", ""]
     out = ["| " + " | ".join(headers) + " |",
            "|" + "|".join("---" for _ in headers) + "|"]
     for row in rows:
-        out.append("| " + " | ".join(str(c) for c in row) + " |")
+        out.append("| " + " | ".join(_cell(c) for c in row) + " |")
     out.append("")
     return out
 

@@ -8,6 +8,7 @@ import pytest
 
 from pmk.pdd import lint_text
 from pmk.sentinel import check
+from pmk.views import render_status
 from conftest import make_bundle, make_card
 
 
@@ -76,6 +77,23 @@ def test_sentinel_detects_promotion_without_a_bundle(kernel):
     assert any(f["invariant"] == "I6" for f in report["findings"])
 
 
+def test_sentinel_uses_earlier_bundle_after_a_legacy_repair_event(kernel):
+    card = make_card(kernel)
+    lease = kernel.claim(card.id, holder="p")
+    kernel.submit(card.id, lease.fence, make_bundle(card.id, lease.fence))
+    kernel.verify(card.id, lease.fence, ok=True)
+    kernel.integrate(card.id, lease.fence, commit=_head_commit(kernel))
+    # Historical repairs appended an INTEGRATED event with no bundle.  It
+    # must not hide the earlier, valid promotion evidence.
+    kernel.record_event("INTEGRATED", subject=card.id, fence=lease.fence,
+                        payload={"commit": "", "repair": "legacy repair"})
+    kernel.render_views(force=True)
+    report = check(kernel)
+    assert report["ok"], report["findings"]
+    assert not any(f["invariant"] == "I6" and f["subject"] == card.id
+                   for f in report["findings"])
+
+
 # ---------------------------------------------------------------------------
 # Views
 # ---------------------------------------------------------------------------
@@ -103,6 +121,15 @@ def test_status_view_shows_the_project_state(kernel):
     kernel.render_views(force=True)
     text = kernel.repo.status_view.read_text(encoding="utf-8")
     assert "RUNNING" in text
+
+
+def test_status_view_flattens_multiline_agent_hints(kernel):
+    make_card(kernel, agent_hint="first line\rsecond line")
+    kernel.render_views(force=True)
+    expected = render_status(kernel.state(), kernel.policy())
+    assert "first line second line" in expected
+    assert "first line\rsecond line" not in expected
+    assert kernel.repo.status_view.read_text(encoding="utf-8") == expected
 
 
 # ---------------------------------------------------------------------------

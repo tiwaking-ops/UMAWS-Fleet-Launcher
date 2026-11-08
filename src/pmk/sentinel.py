@@ -138,11 +138,22 @@ def check(kernel) -> dict:
         # task.fence (which may have advanced past the integration fence if
         # the task was re-leased after promotion).  The INTEGRATED event's
         # payload carries the exact bundle path used at promotion time.
+        # Legacy repair events can append a second INTEGRATED with an empty
+        # commit and no bundle to restore DONE after an expired lease.  The
+        # promotion evidence is the latest INTEGRATED that actually names a
+        # bundle; fall back to the latest record only when none does, so a
+        # genuinely bundle-less promotion is still an I6 breach.
         integrated = None
+        fallback = None
         for ev in reversed(events):
-            if ev.type == "INTEGRATED" and ev.subject == task_id:
+            if ev.type != "INTEGRATED" or ev.subject != task_id:
+                continue
+            if fallback is None:
+                fallback = ev
+            if (ev.payload or {}).get("bundle"):
                 integrated = ev
                 break
+        integrated = integrated or fallback
         if integrated is None:
             # DONE without an INTEGRATED event — a structural breach of I6.
             report.findings.append(Finding(
