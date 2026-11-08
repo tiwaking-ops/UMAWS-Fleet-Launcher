@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "generated_from": "docs/rules/index.json",
+  "note": "Pinned sets, not counts: any added or removed warning must be reviewed and this file updated in the same commit. The 31 cross-document anchors are legitimate repeating headings (e.g. 'initiative' in sections 07 and 61), accepted first-wins. The 15 unresolved xrefs are all case-N.M targets to cases not defined in the 66 indexed files; they are pinned, not 'fixed'. stats.tables is 0 because the corpus is AsciiDoc (|=== tables) and this indexer only scans Markdown pipe tables: a documented scope limit, not corpus damage. documents=69 is 66 corpus files plus 3 non-corpus .md files under docs/rules.",
+  "expect": {
+    "documents": 69,
+    "within_document_duplicate_warnings": 0,
+    "cross_document_duplicate_anchors": [
+      "air-facilities",
+      "air-logistics-games-abstractions",
+      "axis-forces",
+      "bombardment-of-the-commonwealth-fleet",
+      "commonwealth-forces",
+      "construction",
+      "general-description",
+      "initiative",
+      "introduction",
+      "motorization-points",
+      "movement-of-supply-units",
+      "scenario-length",
+      "scenario-length-and-duration",
+      "simplified-axis-naval-convoys",
+      "supply-expenditures",
+      "supply-units-and-supply",
+      "victory-conditions"
+    ],
+    "unresolved_xrefs": [
+      {
+        "target": "case-15.8",
+        "document": "sections/section-15.adoc",
+        "line": 436
+      },
+      {
+        "target": "case-8.6",
+        "document": "sections/section-15.adoc",
+        "line": 500
+      },
+      {
+        "target": "case-20.43",
+        "document": "sections/section-17.adoc",
+        "line": 156
+      },
+      {
+        "target": "case-19.62",
+        "document": "sections/section-19.adoc",
+        "line": 363
+      },
+      {
+        "target": "case-51.5",
+        "document": "sections/section-20.adoc",
+        "line": 247
+      },
+      {
+        "target": "case-22.35",
+        "document": "sections/section-25.adoc",
+        "line": 39
+      },
+      {
+        "target": "case-00.00",
+        "document": "sections/section-27.adoc",
+        "line": 377
+      },
+      {
+        "target": "case-38.5",
+        "document": "sections/section-29.adoc",
+        "line": 109
+      },
+      {
+        "target": "case-30.21",
+        "document": "sections/section-30.adoc",
+        "line": 89
+      },
+      {
+        "target": "case-00.00",
+        "document": "sections/section-30.adoc",
+        "line": 218
+      },
+      {
+        "target": "case-40.61",
+        "document": "sections/section-40.adoc",
+        "line": 272
+      },
+      {
+        "target": "case-59.63",
+        "document": "sections/section-59.adoc",
+        "line": 288
+      },
+      {
+        "target": "case-59.63",
+        "document": "sections/section-59.adoc",
+        "line": 297
+      },
+      {
+        "target": "case-61.35",
+        "document": "sections/section-61.adoc",
+        "line": 403
+      },
+      {
+        "target": "case-63.35",
+        "document": "sections/section-63.adoc",
+        "line": 797
+      }
+    ],
+    "tables": 0
+  }
+}

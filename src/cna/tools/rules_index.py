@@ -286,10 +286,11 @@ def _index_document(path: Path, relative: str, raw: bytes) -> dict[str, Any]:
                     document, warnings, id=explicit_slug, kind="explicit",
                     line=number, section=node, text=display,
                 )
-            _add_anchor(
-                document, warnings, id=primary, kind="section",
-                line=number, section=node, text=display,
-            )
+            if not explicit_slug or explicit_slug.lower() != primary.lower():
+                _add_anchor(
+                    document, warnings, id=primary, kind="section",
+                    line=number, section=node, text=display,
+                )
             if node["slug"].lower() not in (primary.lower(), ""):
                 _add_anchor(
                     document, warnings, id=node["slug"], kind="section-slug",
@@ -451,6 +452,12 @@ def _add_anchor(
     }
     for existing in document["anchors"]:
         if existing["id"].lower() == id.lower():
+            if existing["line"] == line:
+                # The same anchor seen twice on one line: an explicit id and
+                # the heading that carries it.  Registering it again is a
+                # no-op, not a duplicate.  Warning here produced 382 of the
+                # 413 duplicate-anchor warnings in the 66-file corpus.
+                return
             warnings.append(
                 f"duplicate anchor '{id}' in {document['path']} "
                 f"(line {existing['line']} kept, line {line} ignored)"

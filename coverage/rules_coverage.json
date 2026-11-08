@@ -2,13 +2,21 @@
   "schema_version": 1,
   "rules_dir": "docs/rules",
   "counts": {
-    "paths": 64,
-    "covered": 64,
+    "paths": 66,
+    "covered": 66,
     "uncovered": 0,
-    "rule_files": 3,
+    "rule_files": 69,
+    "rule_files_declaring_paths": 3,
     "rule_files_matching": 3
   },
   "rules": [
+    {
+      "file": "CNA-Rules.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
     {
       "file": "fleet-spawning.md",
       "globs": [
@@ -35,8 +43,8 @@
         "src/fleet/project.py",
         "src/fleet/provenance.py",
         "src/fleet/recover.py",
+        "src/fleet/runenv.py",
         "src/fleet/select.py",
-        "src/fleet/selftest.py",
         "src/fleet/spawn.py",
         "src/fleet/state.py"
       ]
@@ -47,7 +55,7 @@
         "src/pmk/**",
         ".pm/**"
       ],
-      "match_count": 16,
+      "match_count": 18,
       "matching": true,
       "matched_paths": [
         "src/pmk/__init__.py",
@@ -59,21 +67,478 @@
         "src/pmk/context.py",
         "src/pmk/events.py",
         "src/pmk/models.py",
+        "src/pmk/oracle_lint.py",
         "src/pmk/pdd.py",
         "src/pmk/plat.py",
         "src/pmk/policy.py",
         "src/pmk/sentinel.py",
         "src/pmk/state.py",
         "src/pmk/store.py",
-        "src/pmk/views.py"
+        "src/pmk/views.py",
+        "src/pmk/worktrees.py"
       ]
+    },
+    {
+      "file": "sections/section-01.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-02.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-03.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-04.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-05.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-06.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-07.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-08.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-09.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-10.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-11.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-12.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-13.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-14.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-15.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-16.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-17.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-18.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-19.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-20.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-21.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-22.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-23.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-24.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-25.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-26.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-27.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-28.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-29.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-30.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-31.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-32.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-33.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-34.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-35.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-36.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-37.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-38.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-39.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-40.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-41.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-42.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-43.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-44.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-45.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-46.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-47.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-48.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-49.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-50.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-51.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-52.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-53.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-54.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-55.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-56.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-57.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-58.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-59.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-60.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-61.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-62.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-63.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-64.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
+    },
+    {
+      "file": "sections/section-65.adoc",
+      "globs": [],
+      "match_count": 0,
+      "matching": false,
+      "matched_paths": []
     },
     {
       "file": "windows-platform.md",
       "globs": [
         "**/*"
       ],
-      "match_count": 64,
+      "match_count": 66,
       "matching": true,
       "matched_paths": [
         "src/cna/engine/__init__.py",
@@ -103,8 +568,8 @@
         "src/fleet/project.py",
         "src/fleet/provenance.py",
         "src/fleet/recover.py",
+        "src/fleet/runenv.py",
         "src/fleet/select.py",
-        "src/fleet/selftest.py",
         "src/fleet/spawn.py",
         "src/fleet/state.py",
         "src/pmk/__init__.py",
@@ -116,6 +581,7 @@
         "src/pmk/context.py",
         "src/pmk/events.py",
         "src/pmk/models.py",
+        "src/pmk/oracle_lint.py",
         "src/pmk/pdd.py",
         "src/pmk/plat.py",
         "src/pmk/policy.py",
@@ -123,6 +589,7 @@
         "src/pmk/state.py",
         "src/pmk/store.py",
         "src/pmk/views.py",
+        "src/pmk/worktrees.py",
         "src/quotagate/RESPONSE_TIME.md",
         "src/quotagate/__init__.py",
         "src/quotagate/__main__.py",

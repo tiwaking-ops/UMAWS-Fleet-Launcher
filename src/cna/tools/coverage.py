@@ -246,8 +246,12 @@ def build_coverage(
     covered: set[str] = set()
     rules: list[dict[str, Any]] = []
 
-    for path in sorted(directory.iterdir()):
-        if not path.is_file() or path.suffix.lower() != ".md":
+    # The vendored CNA corpus is AsciiDoc *and* it lives in subdirectories;
+    # the earlier top-level ``.md``-only scan reported 3 rule files for 66,
+    # which made T-0146's oracle (rule_files >= 66) unsatisfiable no matter
+    # what an agent wrote.
+    for path in sorted(directory.rglob("*")):
+        if not path.is_file() or path.suffix.lower() not in (".md", ".adoc"):
             continue
         text = read_text(path)
         globs, _has = _frontmatter_paths(text)
@@ -255,7 +259,7 @@ def build_coverage(
         covered.update(matched)
         rules.append(
             {
-                "file": path.name,
+                "file": path.relative_to(directory).as_posix(),
                 "globs": globs,
                 "match_count": len(matched),
                 "matching": bool(matched),
@@ -272,6 +276,7 @@ def build_coverage(
             "covered": len(scanned) - len(uncovered),
             "uncovered": len(uncovered),
             "rule_files": len(rules),
+            "rule_files_declaring_paths": sum(1 for r in rules if r["globs"]),
             "rule_files_matching": sum(1 for r in rules if r["matching"]),
         },
         "rules": rules,
