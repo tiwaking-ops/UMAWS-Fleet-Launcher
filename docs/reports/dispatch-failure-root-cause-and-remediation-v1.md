@@ -2,11 +2,11 @@
 document:
   title: "Project Report: Dispatch Failure of the UMAWS Fleet — Root Cause, Remediation, and Safeguards (T-0145/T-0146/T-0148/T-0150)"
   status: "Open — engineering remediation landed on local main; supervised canary and decision ratification outstanding; dispatch paused"
-  version: "1.1.0"
+  version: "1.2.0"
 provenance:
   author_llm:
     name: "Buffy"
-    version: "Codebuff agent (freebuff-buffy-01); report version 1.1"
+    version: "Codebuff agent (freebuff-buffy-01); report version 1.2"
   created_date: "2026-11-08"
   last_modified_date: "2026-11-08"
   scope: "C:\\temp\\projects\\testproject1 (branch main, live repo), local commits c3aaca0..9606757 (never pushed), the Kernel ledger .pm/events/2026-11-07.jsonl and 2026-11-08.jsonl, evidence bundles .pm/evidence/EB-T-0148-120 and EB-T-0150-121, fleet agent logs .pm/fleet/logs/**, task cards T-0145/T-0146/T-0148/T-0150, and one throwaway-worktree reproduction run"
@@ -15,7 +15,7 @@ provenance:
 
 # Dispatch Failure of the UMAWS Fleet — Root Cause, Remediation, and Safeguards
 
-**Author:** Buffy (Codebuff agent), `freebuff-buffy-01` — **v1.1**
+**Author:** Buffy (Codebuff agent), `freebuff-buffy-01` — **v1.2**
 **Report ID:** `dispatch-failure-root-cause-and-remediation-v1`
 **Date:** 2026-11-08
 **Status:** **Open.** Remediation is implemented and unit-verified on local `main`; the supervised live canary, decision ratification (D-62…D-68) and dispatch resumption are outstanding. Dispatch remains `PAUSED` with zero active leases.
@@ -152,7 +152,7 @@ Three properties are load-bearing and were all violated or unenforced:
 
 **Fix.** `src/fleet/runenv.py::worktree_env()` is now the single environment contract, applied to oracles, gate, workers, retry/restart and the Overseer (`55f3f46`, with the gate half in `ebe46ce`). Six tests in `tests/fleet/test_worktree_env.py`; five failed before the change.
 
-### F-02 — The canary flip is a run property, not a code property (**Confirmed mechanism; Unknown failing test**)
+### F-02 — The canary flip is a run property, not a code property (**Derived — mechanism Confirmed, failing test Unknown**)
 
 **Evidence.**
 
@@ -167,7 +167,7 @@ Three properties are load-bearing and were all violated or unenforced:
 
 Nothing was committed to main between the two gates. A reproduction of T-0148's exact inputs (base `82f6be1`, `--no-ff` merge of `pmk/T-0148-120`, `pytest -q` with the worktree on `PYTHONPATH`) yields **507 passed, exit 0**.
 
-**Honest limit.** Re-running the old unpinned configuration today also exits 0, because current main is consistent with the old tests. The specific 08:43 divergence required main's `src` to differ from the merged tree at that moment, and that state cannot be reconstructed. Which test failed is **Unknown** — the gate discarded its output (F-08). The mechanism is not in doubt; only the identity of the failure is.
+**Honest limit.** Re-running the old unpinned configuration today also exits 0, because current main is consistent with the old tests. The specific 08:43 divergence required main's `src` to differ from the merged tree at that moment, and that state cannot be reconstructed. Which test failed is **Unknown** — the gate discarded its output (F-08). **Confidence.** The mechanism is **Confirmed** by code inspection: the gate had no `env=`. That this mechanism produced the 08:43 flip is **Derived**: the failing output is gone, an unpinned rerun today passes, and a load-dependent flake cannot be excluded (OQ-03). C-08 settles the next occurrence by recording the output.
 
 ### F-03 — The Overseer could not wake, so stale hints could not be corrected (**Confirmed**)
 
@@ -285,7 +285,7 @@ editable .pth → main/src on sys.path
 
 **Model hypothesis.** No recorded artefact supports it.
 
-1. The failures reproduce from the environment alone: identical inputs, opposite verdicts; the same inputs pass once the environment is pinned.
+1. The recorded failure is consistent with the environment alone: T-0148 and T-0150 carried identical inputs and opposite gate verdicts, and a pinned rerun of T-0148's inputs passes. The reconstruction is **Derived**, not a reproduction — the failing run's output is gone and its precise trigger cannot be recreated (OQ-03).
 2. Both correct worker outputs were produced and then misjudged (T-0148's own oracle and scope check passed; T-0145 attempt 2's content was already merged).
 3. The observable defect in Overseer output is **wrong state attribution** — describing main while claiming a worktree — with a mechanical explanation (F-01, F-05). That is a grounding failure, not a reasoning failure that would distinguish one model from another.
 
@@ -386,6 +386,8 @@ Constitution obligations engaged: §1 Kernel-only writes (respected; only `pmk` 
 | OQ-09 | Decision register duplicates D-35…D-40, missing D-51 | recorded | separate reconciliation |
 | OQ-10 | 15 Kernel worktrees vs 26 git worktrees | recorded | separate census decision; nothing deleted |
 | OQ-11 | Who authored the four human-identity commits | **Unknown** | D-67 records; hook covers the future only |
+
+**Coverage gaps (review round 11; recorded, not assessed here).** Three subjects sit outside this report's evidence. (a) The REC deletion-safety holes H1–H4 are not analysed; they belong to a REC review. (b) The ledger actor is not analysed: the new hook covers git authorship and only logs, while the `human:tiwa-pene` label on ledger events is untouched. (c) The Overseer resume path is a behaviour change, not a verified repair: its first live session will run on the `kilo-auto` fallback, and its hourly cap still resets on restart. (a) and (b) need their own reviews; (c) needs an operator-supervised run.
 
 ---
 
@@ -522,8 +524,11 @@ git -C .pmwork/gate-repro merge --no-ff --no-edit pmk/T-0148-120
   /c/temp/projects/testproject1/.venv/Scripts/python.exe -m pytest -q )
 git worktree remove --force .pmwork/gate-repro
 
-# 4. Show that imports resolve to main without the pin
-( cd .pmwork/gate-repro 2>/dev/null || true )
+# 4. Show that imports resolve to main, not the tree under test
+#    (works from any cwd; the .pth points at the main src; `cna` is a
+#     namespace package, so import a module that has a file)
+( cd "$(mktemp -d)" && /c/temp/projects/testproject1/.venv/Scripts/python.exe -c "import cna.tools.coverage as m; print(m.__file__)" )
+# expect C:/temp/projects/testproject1/src/cna/tools/coverage.py, not the cwd
 
 # 5. Ledger facts
 ./.venv/Scripts/pmk.exe task show T-0148
@@ -2090,6 +2095,7 @@ State verified. This wake's finding: nothing actionable has changed since the 04
 |---|---|---|---|
 | 1.0 | 2026-11-08 | Buffy (Codebuff) | First issue, covering findings F-01…F-09, corrective actions C-01…C-11, verification, OQ-01…OQ-11 and R-01…R-20. |
 | 1.1 | 2026-11-08 | Buffy (Codebuff) | Operator review pass: redacted the human email, added the verbatim transcript appendix, gave every recommendation equal priority, removed the T-0146 disposition recommendation, named the observed models as observations only, and recorded the duplicate pilot copy and verbatim-appendix intent. |
+| 1.2 | 2026-11-08 | Buffy (Codebuff) | Review round 11 corrections: F-02 relabelled **Derived** with the mechanism separately **Confirmed** and §7 reworded; §16.4 replaced with a working import check that needs no worktree; §11 records the coverage gaps (REC H1–H4, ledger actor, Overseer resume). |
 
 **For Claude (Web) and other reviewers.** Every factual claim above is traceable through §15. The two claims most worth challenging are (a) F-02's mechanism, because the failing test is unrecoverable, and (b) F-01's completeness, because it is supported by one `.pth` file, one code reading and one import demonstration — not by a captured gate trace. Reproduce §16.3 before accepting §6. Do not treat the model question as settled in either direction; §7 argues only that the record cannot support attribution, which is why R-04 exists.
 
