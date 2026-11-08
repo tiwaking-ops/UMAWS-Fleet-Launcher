@@ -209,10 +209,14 @@ def close_check(kernel: Kernel, *, pdd_path: str | Path | None = None,
 
 
 def _run(command: str, cwd: Path, timeout: int) -> tuple[int, str, str]:
+    # The PDD gate runs at the project root, but the same rule applies: the
+    # tree being checked resolves before the installed copy (runenv).
+    from .runenv import worktree_env
     try:
         proc = subprocess.run(command, shell=True, cwd=str(cwd),
                               capture_output=True, timeout=timeout,
-                              text=True, encoding="utf-8", errors="replace")
+                              text=True, encoding="utf-8", errors="replace",
+                              env=worktree_env(cwd))
         return proc.returncode, proc.stdout or "", proc.stderr or ""
     except subprocess.TimeoutExpired:
         return 124, "", f"timeout after {timeout}s"

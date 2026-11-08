@@ -55,6 +55,8 @@ from pathlib import Path
 
 from pmk.api import Kernel, KernelError
 
+from .runenv import worktree_env
+
 
 @dataclass
 class MergeResult:
@@ -246,12 +248,7 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
                 if gate_cmd:
                     import subprocess
                     try:
-                        gate_env = os.environ.copy()
-                        src_path = str(Path(temp_wt) / "src")
-                        tests_path = str(Path(temp_wt) / "tests")
-                        pythonpath = os.path.pathsep.join(
-                            [src_path, tests_path, gate_env.get("PYTHONPATH", "")])
-                        gate_env["PYTHONPATH"] = pythonpath.strip(os.path.pathsep)
+                        gate_env = worktree_env(temp_wt)
                         proc = subprocess.run(gate_cmd, shell=True, cwd=str(temp_wt),
                                               capture_output=True, timeout=900,
                                               text=True, encoding="utf-8",

@@ -437,7 +437,7 @@ class Dispatcher:
                     profile=run.profile.raw or run.profile.to_dict(),
                     prompt=order_mod.order_prompt(run.worktree), worktree=run.worktree,
                     fence=run.lease.fence, index=9,
-                    env=self.harness._env(run.profile))
+                    env=self.harness._env(run.profile, run.worktree))
             except (OSError, ValueError):
                 return
             run.slot = new_slot
@@ -472,7 +472,7 @@ class Dispatcher:
                 adapter=adapter, profile=raw,
                 prompt=order_mod.order_prompt(run.worktree), worktree=run.worktree,
                 fence=run.lease.fence, index=8,
-                env=self.harness._env(profile),
+                env=self.harness._env(profile, run.worktree),
                 mode=mode, session=run.session or None)
         except (OSError, ValueError) as exc:
             report.notes.append(f"{run.task.id}: restart failed: {exc}")

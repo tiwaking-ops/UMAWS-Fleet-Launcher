@@ -1,0 +1,13 @@
+# Reviewed exceptions to tools/check_subprocess_env.py.
+#
+# Format: src/path.py::function  # why inheritance is correct here
+# The key is the enclosing function, not a line number, so unrelated edits do
+# not churn this file.  A stale entry is reported as a warning.
+
+src/fleet/harness.py::_worktree_changes   # git status in the worktree; no Python resolution involved
+src/fleet/legacy.py::launch_legacy        # deprecated launcher, not on any Fleet path
+src/pmk/api.py::context_sync              # runs the external Caliber generator (Node); no Python imports
+src/pmk/context.py::run_lint_and_score    # runs Caliber at the repo root; it must NOT see a worktree's src
+src/pmk/plat.py::kill_tree                # OS process-tree kill (taskkill); no Python imports
+src/pmk/store.py::git                     # git plumbing for the Kernel
+src/pmk/store.py::git_bytes               # git plumbing for the Kernel

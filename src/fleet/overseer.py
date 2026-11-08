@@ -217,7 +217,7 @@ class OverseerRunner:
             adapter=adapter, profile=profile.raw or profile.to_dict(),
             prompt=prompt, worktree=self.kernel.repo.root,
             fence=0, index=0,
-            env=harness._env(profile),
+            env=harness._env(profile, self.kernel.repo.root),
             actor=f"overseer:{profile.id}")
         return f"{slot.pid}" if slot.pid else "unknown"
 

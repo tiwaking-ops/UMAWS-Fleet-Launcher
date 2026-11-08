@@ -43,6 +43,7 @@ from pmk.models import Lease
 
 from . import classify as classes
 from . import order as order_mod
+from . import runenv
 from . import recover
 from . import spawn as spawn_mod
 from . import provenance as provenance_mod
@@ -188,7 +189,8 @@ def run_command(command: str, cwd: str | Path, *,
     try:
         proc = subprocess.run(
             command, shell=True, cwd=str(cwd), capture_output=True,
-            timeout=timeout, text=True, encoding="utf-8", errors="replace")
+            timeout=timeout, text=True, encoding="utf-8", errors="replace",
+            env=runenv.worktree_env(cwd))
         return proc.returncode, proc.stdout or "", proc.stderr or ""
     except subprocess.TimeoutExpired:
         return 124, "", f"timeout after {timeout}s"
@@ -258,7 +260,7 @@ class Harness:
         from .adapters import get_adapter
         return get_adapter(profile.adapter, self.fixture_root)
 
-    def _env(self, profile: Profile) -> dict | None:
+    def _env(self, profile: Profile, worktree: str | Path) -> dict:
         """The environment for the worker.
 
         Fleet amendment D-L3: scrubbing applies **only** to profiles with
@@ -266,14 +268,22 @@ class Harness:
         credentials in their own configuration — the Kernel cannot scrub
         what it does not own, and pretending otherwise would be a lie
         (known limitation L-F4).
+
+        Both cases then pin the worktree first on ``PYTHONPATH`` (runenv).
+        Without it a worker imports the installed copy of ``cna``/``pmk``
+        instead of the code it is editing — the trap both T-0145 and T-0146
+        agents hit in their own transcripts.
         """
-        if not profile.via_gateway:
-            return None
-        from pmk.plat import scrub_environment
-        keep = ["PATH", "SystemRoot", "TEMP", "TMP", "HOMEDRIVE", "HOMEPATH",
-                "USERPROFILE", "APPDATA", "LOCALAPPDATA", "COMSPEC",
-                "PATHEXT", "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE"]
-        return scrub_environment(keep=keep)
+        if profile.via_gateway:
+            from pmk.plat import scrub_environment
+            keep = ["PATH", "SystemRoot", "TEMP", "TMP", "HOMEDRIVE", "HOMEPATH",
+                    "USERPROFILE", "APPDATA", "LOCALAPPDATA", "COMSPEC",
+                    "PATHEXT", "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE"]
+            base = scrub_environment(keep=keep)
+        else:
+            import os
+            base = os.environ.copy()
+        return runenv.worktree_env(worktree, base=base)
 
     def _summarize_main_tree_status(self, entries: list[tuple[str, str]]) -> dict:
         """Summarize main tree status for event payload: hash, count, <=20 paths."""
@@ -370,7 +380,7 @@ class Harness:
                 self.repo, task_id=task.id, profile_id=profile.id,
                 adapter=adapter, profile=profile.raw or profile.to_dict(),
                 prompt=order_mod.order_prompt(worktree), worktree=worktree,
-                fence=lease.fence, index=0, env=self._env(profile))
+                fence=lease.fence, index=0, env=self._env(profile, worktree))
         except (OSError, ValueError) as exc:
             result.outcome = "failed"
             result.error = f"spawn: {exc}"
@@ -621,7 +631,7 @@ class Harness:
                 profile=run.profile.raw or run.profile.to_dict(),
                 prompt=order_mod.order_prompt(run.worktree), worktree=run.worktree,
                 fence=run.lease.fence, index=run.fix_rounds,
-                env=self._env(run.profile))
+                env=self._env(run.profile, run.worktree))
         except (OSError, ValueError):
             return None
 

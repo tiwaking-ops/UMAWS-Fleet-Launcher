@@ -676,8 +676,9 @@ def python_executable() -> str:
 def scrub_environment(base: Mapping[str, str] | None = None,
                       *, keep: Sequence[str] = (),
                       drop_prefixes: Sequence[str] = ("OPENAI_", "ANTHROPIC_",
-                                                       "OPENROUTER_", "ORCA_",
-                                                       "GEMINI_", "GROQ_")) -> dict:
+                                                       "OPENROUTER_", "ANYROUTER_",
+                                                       "ORCA_", "GEMINI_",
+                                                       "GROQ_")) -> dict:
     """Return a reduced environment.
 
     Only for gateway-routed profiles (fleet amendment D-L3).  Direct-CLI
