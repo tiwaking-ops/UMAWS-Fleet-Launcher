@@ -2,6 +2,12 @@
 
 **Purpose:** prove the repaired path with one real agent: claim → worktree → oracles → evidence bundle → merge → gate → DONE, and confirm the merge commit is authored by `umaws-pilot`.
 **Why T-0146:** its oracle is deterministic and now satisfiable on main. T-0145 is void (`e08fa8d` already contains its change).
+
+> **Blocker, measured 2026-11-08:** T-0146's oracle now *passes* on main
+> (`python -m cna.tools.coverage --check` → exit 0; `rule_files` = 69) and `agents.toml` sets
+> `precheck_satisfied = true`, so S8 refuses a T-0146 lease as already satisfied — correctly.
+> **T-0146 needs no further work.** The canary must use a fresh card whose oracle fails on main;
+> once that card reaches DONE the repaired path is proven just as well.
 **Cost:** one task on a free-tier profile. No paid calls.
 
 ## Preconditions (all measured before this document was written)
