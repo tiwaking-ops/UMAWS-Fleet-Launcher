@@ -22,6 +22,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from pmk import worktrees as wts_mod
 from pmk.api import Kernel, KernelError
 from pmk.clock import parse_iso
 from pmk.events import Actor
@@ -521,13 +522,12 @@ class Conductor:
     def reap_expired_leases(self) -> list:
         """Stop and revoke leases whose supervisor is gone.
 
-        For each orphan past its TTL: stop the agent process if it is still
-        the recorded process (pid and creation time must both match), then
-        revoke the lease so the task returns to READY.  A failure at any
-        step is recorded as ``LEASE_REAP_FAILED`` and that lease is not
-        retried for ``REAP_RETRY_S``; the other leases are still handled.
-        If the process is alive and cannot be stopped, the lease is not
-        revoked.
+        For each orphan past its TTL: stop every process the log recorded
+        for the lease (pid and creation time must both match), then revoke
+        the lease so the task returns to READY.  A failure at any step is
+        recorded as ``LEASE_REAP_FAILED`` and that lease is not retried for
+        ``REAP_RETRY_S``; the other leases are still handled.  If a process
+        is alive and cannot be stopped, the lease is not revoked.
         """
         results: list[dict] = []
         state = self.kernel.state()
@@ -548,31 +548,30 @@ class Conductor:
     def _reap_one(self, state, task_id: str, lease, age: float,
                   info: dict) -> dict:
         key = (task_id, lease.fence)
-        stopped = None
-        started = None
-        for event in reversed(state.events):
-            if (event.type == "AGENT_STARTED" and event.subject == task_id
-                    and event.fence == lease.fence):
-                started = event
-                break
-        if started is not None:
-            payload = started.payload or {}
-            pid = payload.get("pid")
-            creation_time = payload.get("creation_time")
-            if pid is not None and creation_time is not None:
-                slot = spawn_mod.Slot(
-                    task_id=task_id, profile_id=str(payload.get("profile", "")),
-                    adapter=str(payload.get("adapter", "")), argv=[],
-                    pid=int(pid), creation_time=int(creation_time))
-                if spawn_mod.slot_alive(slot):
-                    ok, message = spawn_mod.kill_slot(slot)
-                    stopped = {"pid": int(pid), "ok": bool(ok),
-                               "message": str(message)}
-                    if not ok:
-                        return self._reap_failed(info, key, "kill", str(message))
-            elif pid is not None:
-                stopped = {"pid": int(pid), "ok": False,
-                           "message": "creation time not recorded; not stopped"}
+        stopped: list[dict] = []
+        # H4: every process the log says was started for this fence, not
+        # just the newest AGENT_STARTED.  A fix round starts a second
+        # process; stopping only the last one would leave a live writer
+        # in a tree the reaper is about to delete.
+        for proc in wts_mod.recorded_processes(state, task_id, lease.fence):
+            pid = proc.get("pid")
+            creation_time = proc.get("creation_time")
+            if pid is None or creation_time is None:
+                # The pid may be alive but its identity cannot be proven.
+                # Do not kill it, and do not reclaim underneath it: the
+                # worktree barrier sees the same record and keeps the tree.
+                continue
+            slot = spawn_mod.Slot(
+                task_id=task_id, profile_id=str(proc.get("profile", "")),
+                adapter=str(proc.get("adapter", "")), argv=[],
+                pid=int(pid), creation_time=int(creation_time))
+            if not spawn_mod.slot_alive(slot):
+                continue
+            ok, message = spawn_mod.kill_slot(slot)
+            stopped.append({"pid": int(pid), "ok": bool(ok),
+                            "message": str(message)})
+            if not ok:
+                return self._reap_failed(info, key, "kill", str(message))
         minutes = int(age // 60)
         ttl_minutes = self.lease_ttl_seconds() / 60.0
         try:
@@ -584,13 +583,14 @@ class Conductor:
             return self._reap_failed(info, key, "revoke", str(exc))
         self._reap_retry_at.pop(key, None)
         payload = dict(info, new_fence=new_fence)
-        if stopped is not None:
-            payload["process"] = stopped
+        if stopped:
+            payload["process"] = stopped[-1]
+            payload["processes"] = stopped
         # REC-01: the revoke bumped the fence, so this lease's worktree is
         # now stranded.  Reclaim it -- but only when the operator has
         # enabled `worktree.reclaim_on_reap`, and only after a capture that
         # verifies (a tree whose capture fails is kept).
-        reclaim = self._reclaim_worktree(lease)
+        reclaim = self._reclaim_worktree(lease, task_id)
         if reclaim is not None:
             payload["worktree_reclaim"] = reclaim
         self.kernel.record_event("LEASE_REAPED", actor=Actor.kernel(),
@@ -602,12 +602,15 @@ class Conductor:
                                      payload=reclaim)
         return dict(payload, reaped=True)
 
-    def _reclaim_worktree(self, lease) -> dict | None:
+    def _reclaim_worktree(self, lease, task_id: str) -> dict | None:
         """Capture-then-remove a bumped lease's worktree (REC-01).
 
         Returns ``None`` when the policy flag is off or the lease has no
-        recorded worktree, so the caller records nothing.  Never raises:
-        a reclaim failure must not undo a successful revoke.
+        recorded worktree, so the caller records nothing.  The intent is
+        written to the log **before** anything is removed, so a crash in
+        the middle of a reclaim leaves an audit trail rather than a
+        silently missing tree.  Never raises: a reclaim failure must not
+        undo a successful revoke.
         """
         if not lease.worktree:
             return None
@@ -615,8 +618,15 @@ class Conductor:
         if not policy.get("reclaim_on_reap", False):
             return None
         try:
-            from pmk import worktrees
-            return worktrees.reclaim_after_capture(
+            self.kernel.record_event(
+                "WORKTREE_RECLAIM", actor=Actor.kernel(), subject=task_id,
+                fence=lease.fence, payload={"worktree": str(lease.worktree)})
+        except Exception as exc:                    # noqa: BLE001
+            return {"worktree": str(lease.worktree), "reclaimed": False,
+                    "reason": ("could not record the reclaim intent: "
+                               f"{type(exc).__name__}: {exc}")}
+        try:
+            return wts_mod.reclaim_after_capture(
                 self.kernel.repo, self.kernel.state(), lease.worktree)
         except Exception as exc:                    # noqa: BLE001
             return {"worktree": str(lease.worktree), "reclaimed": False,

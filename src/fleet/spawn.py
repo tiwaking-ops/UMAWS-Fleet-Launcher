@@ -303,6 +303,7 @@ def _spawn_with_console(repo, slot: Slot, argv: list[str],
     """
     import time
 
+    cwd = Path(slot.worktree).resolve()
     exit_file = Path(str(log_file) + ".exit")
     if exit_file.exists():
         exit_file.unlink()
@@ -311,7 +312,7 @@ def _spawn_with_console(repo, slot: Slot, argv: list[str],
     quoted = " ".join(_ps_quote(a) for a in argv)
     script.write_text(
         "$ErrorActionPreference = 'Continue'\n"
-        f"Set-Location -LiteralPath '{_ps_quote(str(slot.worktree))}'\n"
+        f"Set-Location -LiteralPath '{_ps_quote(str(cwd))}'\n"
         f"& {quoted} *> '{_ps_quote(str(log_file))}'\n"
         f"$LASTEXITCODE | Out-File -FilePath '{_ps_quote(str(exit_file))}' "
         "-Encoding ascii\n",
@@ -324,14 +325,14 @@ def _spawn_with_console(repo, slot: Slot, argv: list[str],
         proc = subprocess.Popen(
             [shell_path, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass",
              "-File", str(script)],
-            cwd=slot.worktree, creationflags=creationflags,
+            cwd=str(cwd), creationflags=creationflags,
             env=env if env is not None else None,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except OSError:
         # No console available (a service session, or Windows blocked it).
         # Fall back to a headless launch so the task still runs.
-        result = plat.spawn(argv, cwd=slot.worktree, log_path=log_file,
+        result = plat.spawn(argv, cwd=cwd, log_path=log_file,
                             env=env)
         slot.pid = result.pid
         slot.creation_time = result.creation_time

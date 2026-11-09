@@ -102,6 +102,40 @@ def test_legacy_launch_resolves_a_stored_relative_cwd(tmp_path, monkeypatch):
     assert str(wt.resolve()) in script
 
 
+def test_legacy_launch_falls_back_to_an_explicit_resolved_cwd(
+        tmp_path, monkeypatch):
+    """An entry with no cwd still hands Popen one absolute, resolved dir.
+
+    The launcher used to let the child inherit whatever directory the
+    Console happened to have.  The fallback must be the Console's own
+    directory, resolved, and it must still be passed explicitly - the
+    no-cwd case is exactly where an omitted ``cwd=`` would slip back in.
+    """
+    console_dir = tmp_path / "console"
+    console_dir.mkdir()
+    monkeypatch.chdir(console_dir)
+    seen = {}
+
+    monkeypatch.setattr(legacy, "find_shell", lambda: "pwsh")
+    monkeypatch.setattr(
+        legacy.subprocess, "Popen",
+        lambda args, **kw: seen.update(kw) or SimpleNamespace(pid=1))
+    entry = legacy.LauncherEntry(prefix="cli", prompt="hi")
+    assert entry.cwd == ""
+
+    legacy.launch_legacy(entry, keep_open=False,
+                         script_dir=str(tmp_path / "scripts"))
+
+    assert "cwd" in seen
+    assert Path(seen["cwd"]) == console_dir.resolve()
+    assert Path(seen["cwd"]).is_absolute()
+    script = next((tmp_path / "scripts").glob("*.ps1")).read_text(
+        encoding="utf-8-sig")
+    # No stored cwd, so no Set-Location: the explicit Popen cwd is the
+    # only thing that fixes the child's directory.
+    assert "Set-Location" not in script
+
+
 def test_run_command_resolves_the_oracle_cwd(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     sub = tmp_path / "sub"

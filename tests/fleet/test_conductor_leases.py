@@ -12,18 +12,21 @@ from __future__ import annotations
 import os
 import sys
 import time
+from types import SimpleNamespace
 
 import pytest
 
 from fleet import spawn as spawn_mod
 from fleet.conductor import REAP_RETRY_S, Conductor
 from fleet.dispatcher import Dispatcher
+from fleet.harness import LeaseRun
 from fleet.overseer import OverseerRunner
+from fleet.profiles import Profile
 from fleet.state import FleetState
-from pmk import plat
+from pmk import plat, worktrees
 from pmk.api import KernelError
 
-from conftest import FIXTURE_ROOT, make_task
+from conftest import FIXTURE_ROOT, fake_profile, make_task
 
 TTL_S = 600.0
 
@@ -303,7 +306,7 @@ def test_a_failed_revoke_is_recorded_and_the_next_lease_is_still_handled(
 def _orphan_with_worktree(kernel, name: str, *, dirty: bool = True):
     import subprocess
     task = make_task(kernel, scope={"write": [f"src/{name}.py"], "read": []})
-    tree = kernel.repo.work_dir / f"{task.id}-reclaim"
+    tree = kernel.repo.work_dir / f"{task.id}-1"
     tree.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "worktree", "add", "--detach", str(tree), "HEAD"],
                    cwd=kernel.repo.root, capture_output=True)
@@ -364,3 +367,150 @@ def test_reap_keeps_the_worktree_when_the_capture_does_not_verify(
     assert tree.exists()                          # kept: capture not verified
     reclaim = _events(fake_kernel, "WORKTREE_RECLAIMED")[-1]
     assert reclaim.payload["reclaimed"] is False
+
+
+# ---------------------------------------------------------------------------
+# H4: every writer is stopped, and nothing is deleted under a live process
+# ---------------------------------------------------------------------------
+
+def _orphan_at_lease_path(kernel, name: str):
+    """Claim a task, then create the worktree at its real path."""
+    return _orphan_with_worktree(kernel, name)
+
+
+def test_every_recorded_process_is_stopped_before_the_revoke(
+        fake_kernel, clock, tmp_path):
+    task, lease = _claim(fake_kernel, "a")
+    first = _sleeper(tmp_path)
+    second = _sleeper(tmp_path)
+    try:
+        _record_started(fake_kernel, task, lease, first)
+        fake_kernel.record_event(
+            "AGENT_STARTED", subject=task.id, fence=lease.fence,
+            payload={"pid": second.pid,
+                     "creation_time": second.creation_time,
+                     "adapter": "fake", "profile": "fake-a", "round": 1})
+        conductor = _conductor(fake_kernel)
+        clock.advance(TTL_S + 1)
+
+        results = conductor.reap_expired_leases()
+
+        assert results[0]["reaped"] is True
+        assert {p["pid"] for p in results[0]["processes"]} == {first.pid,
+                                                               second.pid}
+        assert _wait_for_exit(first) is not None
+        assert _wait_for_exit(second) is not None
+    finally:
+        for proc in (first, second):
+            if proc.proc.poll() is None:
+                proc.proc.kill()
+
+
+def test_reap_keeps_the_worktree_when_a_process_identity_is_unknown(
+        fake_kernel, clock, tmp_path, monkeypatch):
+    task, tree, lease = _orphan_at_lease_path(fake_kernel, "a")
+    _enable_reclaim(fake_kernel, monkeypatch)
+    sleeper = _sleeper(tmp_path)
+    try:
+        fake_kernel.record_event(
+            "AGENT_STARTED", subject=task.id, fence=lease.fence,
+            payload={"pid": sleeper.pid, "creation_time": None,
+                     "adapter": "fake", "profile": "fake-a"})
+        conductor = _conductor(fake_kernel)
+        clock.advance(TTL_S + 1)
+
+        results = conductor.reap_expired_leases()
+
+        assert results[0]["reaped"] is True       # the lease is still revoked
+        assert sleeper.proc.poll() is None, "an unverifiable pid was killed"
+        assert tree.exists(), "the tree was deleted under a live process"
+        reclaim = _events(fake_kernel, "WORKTREE_RECLAIMED")[-1]
+        assert reclaim.payload["reclaimed"] is False
+        assert "writing" in reclaim.payload["reason"]
+    finally:
+        if sleeper.proc.poll() is None:
+            sleeper.proc.kill()
+
+
+def test_reclaim_is_announced_before_it_happens(
+        fake_kernel, clock, monkeypatch):
+    task, tree, lease = _orphan_at_lease_path(fake_kernel, "a")
+    _enable_reclaim(fake_kernel, monkeypatch)
+    conductor = _conductor(fake_kernel)
+    clock.advance(TTL_S + 1)
+
+    conductor.reap_expired_leases()
+
+    kinds = [e.type for e in fake_kernel.events()
+             if e.type in ("WORKTREE_RECLAIM", "WORKTREE_RECLAIMED")]
+    assert kinds == ["WORKTREE_RECLAIM", "WORKTREE_RECLAIMED"]
+    assert _events(fake_kernel, "WORKTREE_RECLAIMED")[-1].payload["reclaimed"]
+
+
+# ---------------------------------------------------------------------------
+# Restart spawns must be visible to the reaper
+# ---------------------------------------------------------------------------
+
+def _restart_run(dispatcher, task, tree, lease):
+    profile = Profile.from_dict(fake_profile("fake-a"))
+    return LeaseRun(
+        task=task, profile=profile, lease=lease,
+        adapter=dispatcher.harness._adapter(profile),
+        slot=SimpleNamespace(pid=1, creation_time=1,
+                             log_path=str(tree / "old.log")),
+        worktree=tree)
+
+
+def test_restart_on_records_the_new_process_for_the_reaper(
+        fake_kernel, tmp_path, monkeypatch):
+    task, tree, lease = _orphan_with_worktree(fake_kernel, "a")
+    dispatcher = _conductor(fake_kernel).dispatcher
+    run = _restart_run(dispatcher, task, tree, lease)
+    sleeper = _sleeper(tmp_path)
+    fake_slot = SimpleNamespace(pid=sleeper.pid,
+                                creation_time=sleeper.creation_time,
+                                log_path=str(tree / "restart.log"))
+    monkeypatch.setattr(spawn_mod, "spawn_slot",
+                        lambda *args, **kwargs: fake_slot)
+    try:
+        dispatcher._restart_on(run, run.profile, SimpleNamespace(notes=[]))
+
+        started = [e for e in _events(fake_kernel, "AGENT_STARTED")
+                   if e.subject == task.id]
+        assert started
+        assert started[-1].payload["pid"] == sleeper.pid
+        assert started[-1].payload["creation_time"] == sleeper.creation_time
+
+        fake_kernel.revoke(task.id, lease.fence, reason="test restart writer")
+        result = worktrees.reclaim_after_capture(
+            fake_kernel.repo, fake_kernel.state(), tree)
+        assert result["reclaimed"] is False
+        assert "writing" in result["reason"]
+        assert tree.is_dir()
+    finally:
+        if sleeper.proc.poll() is None:
+            sleeper.proc.kill()
+
+
+def test_delayed_restart_records_the_new_process(
+        fake_kernel, tmp_path, monkeypatch):
+    task, tree, lease = _orphan_with_worktree(fake_kernel, "a")
+    dispatcher = _conductor(fake_kernel).dispatcher
+    run = _restart_run(dispatcher, task, tree, lease)
+    fake_slot = SimpleNamespace(pid=4242, creation_time=99,
+                                log_path=str(tree / "retry.log"))
+    monkeypatch.setattr(spawn_mod, "spawn_slot",
+                        lambda *args, **kwargs: fake_slot)
+
+    dispatcher._restart_later(run, 0.0, SimpleNamespace(notes=[]))
+
+    deadline = time.time() + 5
+    started = []
+    while time.time() < deadline and not started:
+        started = [e for e in _events(fake_kernel, "AGENT_STARTED")
+                   if e.subject == task.id]
+        if not started:
+            time.sleep(0.02)
+    assert started
+    assert started[-1].payload["pid"] == fake_slot.pid
+    assert started[-1].payload["creation_time"] == fake_slot.creation_time

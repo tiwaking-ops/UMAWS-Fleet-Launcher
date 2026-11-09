@@ -300,8 +300,10 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
                     import subprocess
                     try:
                         gate_env = worktree_env(temp_wt)
-                        proc = subprocess.run(gate_cmd, shell=True, cwd=str(temp_wt),
-                                              capture_output=True, timeout=900,
+                        proc = subprocess.run(
+                            gate_cmd, shell=True,
+                            cwd=str(Path(temp_wt).resolve()),
+                            capture_output=True, timeout=900,
                                               text=True, encoding="utf-8",
                                               errors="replace",
                                               env=gate_env)

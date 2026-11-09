@@ -440,6 +440,13 @@ class Dispatcher:
                     env=self.harness._env(run.profile, run.worktree))
             except (OSError, ValueError):
                 return
+            # A delayed retry is a new writer in the worktree.  Record it
+            # before the run adopts it, or the reaper would reclaim the
+            # tree out from under a live process.
+            if self.harness._record_started(
+                    run.task.id, run.lease, run.profile, run.adapter,
+                    new_slot, run.worktree, extra={"mode": "retry"}):
+                return
             run.slot = new_slot
             run.last_change = time.time()
             self.runs[run.task.id] = run
@@ -458,8 +465,6 @@ class Dispatcher:
         one today.
         """
         adapter = self.harness._adapter(profile)
-        run.profile = profile
-        run.adapter = adapter
 
         raw = dict(profile.raw or profile.to_dict())
         if model:
@@ -477,6 +482,20 @@ class Dispatcher:
         except (OSError, ValueError) as exc:
             report.notes.append(f"{run.task.id}: restart failed: {exc}")
             return
+        # The reaper reads only AGENT_STARTED, so the restart is recorded
+        # before the run adopts it.  A restart whose record cannot be
+        # written is killed by the helper, never left running invisible.
+        record_error = self.harness._record_started(
+            run.task.id, run.lease, profile, adapter, new_slot,
+            run.worktree,
+            extra={"mode": mode, "model": model or profile.model,
+                   "previous_profile": run.lease.holder})
+        if record_error:
+            report.notes.append(
+                f"{run.task.id}: restart failed: {record_error}")
+            return
+        run.profile = profile
+        run.adapter = adapter
         run.slot = new_slot
         run.last_change = time.time()
         self.runs[run.task.id] = run

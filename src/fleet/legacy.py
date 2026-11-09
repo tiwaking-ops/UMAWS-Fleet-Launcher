@@ -220,20 +220,25 @@ def launch_legacy(entry: LauncherEntry, *, keep_open: bool = True,
     shell = find_shell()
     if shell is None:
         raise RuntimeError("PowerShell (pwsh / powershell) was not found on PATH.")
-    cwd = entry.cwd.strip()
-    if cwd:
+    requested_cwd = entry.cwd.strip()
+    if requested_cwd:
         # Set-Location and Popen must agree on one absolute directory; a
         # stored relative cwd used to resolve against whichever directory the
         # Console process happened to have.
-        cwd = str(Path(cwd).expanduser().resolve())
+        cwd = str(Path(requested_cwd).expanduser().resolve())
         if not os.path.isdir(cwd):
             raise FileNotFoundError(f"Working directory not found: {cwd}")
+    else:
+        # An entry without a stored cwd still gets an explicit path.  This
+        # preserves the inherited-directory behavior while satisfying the
+        # rule that no fleet spawn may omit cwd=.
+        cwd = str(Path.cwd().resolve())
 
     script_dir = script_dir or tempfile.mkdtemp(prefix="llm_launcher_")
     os.makedirs(script_dir, exist_ok=True)
     safe_name = (entry.name or "prompt").replace("'", "''")
     lines = [f"$Host.UI.RawUI.WindowTitle = '{safe_name}'"]
-    if cwd:
+    if requested_cwd:
         lines.append("Set-Location -LiteralPath '" + cwd.replace("'", "''") + "'")
     lines.append(build_command(entry))
     script = os.path.join(script_dir, f"launch_{entry.id[:8]}.ps1")
@@ -247,7 +252,8 @@ def launch_legacy(entry: LauncherEntry, *, keep_open: bool = True,
     args += ["-ExecutionPolicy", "Bypass", "-File", script]
 
     flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
-    proc = subprocess.Popen(args, cwd=cwd or None, creationflags=flags)
+    proc = subprocess.Popen(
+        args, cwd=cwd, creationflags=flags)
     return {"pid": proc.pid, "script": script, "command": build_command(entry)}
 
 

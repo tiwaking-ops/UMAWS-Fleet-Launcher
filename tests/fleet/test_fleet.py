@@ -397,6 +397,11 @@ def test_a_failing_oracle_triggers_a_fix_round_then_fails(fake_kernel):
     assert result.outcome == "failed"
     assert result.fix_rounds >= 1
     assert all(not o["ok"] for o in result.oracles)
+    started = [e for e in fake_kernel.events()
+               if e.type == "AGENT_STARTED" and e.subject == task.id]
+    assert len(started) >= result.fix_rounds + 1
+    assert all(e.payload.get("pid") is not None for e in started)
+    assert all("creation_time" in e.payload for e in started)
 
 
 def test_killing_a_worker_mid_task_does_not_promote_it(fake_kernel):
