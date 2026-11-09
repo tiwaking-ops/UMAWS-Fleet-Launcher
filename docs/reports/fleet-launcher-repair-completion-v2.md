@@ -5,7 +5,7 @@
 **Branch:** `repair/fleet-launcher-2026-11-09`, fast-forwarded to `main` locally
 **Entry base:** `e7d272504f16d6c75a0805b56f01ad5ba7f10be6` (`main`)
 **Gated code base:** `09cca8515d6d8dd75f1c412db72a98867e5a6a3d`
-**Status:** **repair landed; clean-base gate green; H2 conftest split fixed; H6 gate-output persistence is implemented and proven by the fresh supervised canary `T-0191` (`DONE`, merge `c7fcdf3`, bundle `EB-T-0191-158` with non-empty `gate_output`); remaining Phase 6 hardening deferred.** No push. Project remains `PAUSED`.
+**Status:** **repair landed; clean-base gate green; H2 conftest split fixed; H6 gate-output persistence is implemented and proven by the fresh supervised canary `T-0191` (`DONE`, merge `c7fcdf3`, bundle `EB-T-0191-158` with non-empty `gate_output`); H1/H3/H4/H7 are captured as prechecked `PROPOSED` cards `T-0192`–`T-0195`; Phase 6 hardening remains deferred.** No push. Project remains `PAUSED`.
 
 All claims below are labelled **Confirmed** (measured in this execution), **Derived** (inferred from measurements), or **Unknown**.
 
@@ -33,7 +33,7 @@ Before this canary record, the remaining dirty files were exactly the Kernel-wri
 | 3 — slice commits | **done** | S1 `c6cc02f`, S2 `e1ed1c3`, S3 `9cb1b98`, S4 `a438901`; focused suites green (S1 after one load flake, see §5) |
 | 4 — lease hygiene | **done (skip)** | `active_leases: 0`; no revoke needed; evidence `tmp/rb-4` class |
 | 5 — clean-base gate + standing check | **done** | gate **exit 0** at `712ca1a`; `tools/check_clean_base.ps1` committed (`42882d2`, fixed in `59273d3`/`712ca1a`) |
-| 6 — hardening H1–H7 | **partial — H2/H6 fixed** | H2 fixture split landed; H6 persists gate output on success/failure, has a regression test, and is proven by T-0191; H1/H3/H4/H7 absent; H5 exists and passes; see §4 |
+| 6 — hardening H1–H7 | **partial — H2/H6 fixed; H1/H3/H4/H7 carded** | H2 fixture split landed; H6 persists gate output on success/failure, has a regression test, and is proven by T-0191; H1/H3/H4/H7 are absent from the implementation but captured as prechecked `PROPOSED` cards T-0192–T-0195; H5 exists and passes; see §4 |
 | 7 — worktree census | **done (measure + capture); no deletion** | 32 pmk vs 44 git, difference fully explained; 7 dirty trees archived to `stranded/`; CP-3 not exercised |
 | 8 — governance records | **done (drafts)** | erratum in both report copies; D-70/D-71 drafted; census and uncommitted inventory written; sentinel re-measured `ok: true` |
 | 9 — whole-system verification | **partial** | final gate **exit 0** at `09cca85`; env lint **exit 0**; pins/fleet **ok**; combined collection **exit 0** after the H2 fixture split (DoD-2) |
@@ -67,7 +67,20 @@ Before this canary record, the remaining dirty files were exactly the Kernel-wri
 | H6 gate output in bundles | **Resolved and proven** — `merge.integrate()` builds `gate_output` from `_gate_diagnostics()` and writes it to `Bundle.gate_output` on success, gate failure, and launch failure. Regression: `tests/fleet/test_merge_queue.py::test_gate_output_is_persisted_in_the_bundle` covers both outcomes. Fresh canary T-0191 produced `EB-T-0191-158` with a non-empty `gate_output`; the historical T-0190 bundle remains unchanged. |
 | H7 prune awareness | `src/pmk/worktrees.py` has `prune`/`archive`, no `%TEMP%/pmk-merge-*` awareness. Unimplemented. |
 
-Deferral reason: H1/H3/H4/H7 remain new work under A-5 and require cards; the project is `PAUSED` and no card was admitted in this programme. H2 was fixed in the repair; H6 was implemented directly for the operator's requested hardening and is covered by a focused regression.
+Deferral reason: H1/H3/H4/H7 remain new work under A-5; they are now captured as focused `PROPOSED` cards T-0192–T-0195 and prechecked at base `9b92c936`, but none was admitted in this programme. H2 was fixed in the repair; H6 was implemented directly for the operator's requested hardening and is covered by a focused regression.
+
+### Post-report update — prechecked H-item cards (2026-11-10)
+
+The four remaining deferrals were converted to focused cards at hint base `9b92c936` (priorities 10/20/30/40, attempts max 2). All remain `PROPOSED`; none was admitted or dispatched. Each oracle failed at the base because its new focused test file was absent, then passed on the scratch fixture; Kernel precheck reports `canary_valid: true` for all four.
+
+| Card | Item | Write scope | Oracle | Precheck result |
+|---|---|---|---|---|
+| `T-0192` | H1 — Kernel worktree-lease admission | `src/pmk/api.py`; `tests/pmk/test_lease_admission.py` | `python -m pytest -q tests/pmk/test_lease_admission.py tests/pmk/test_tasks.py` | base exit 4 → scratch exit 0, 36 passed; valid; `tmp/precheck-h1.json`, `tmp/h1.patch` |
+| `T-0193` | H3 — Console startup reconciliation | `src/console/app.py`; `tests/fleet/test_reconcile_startup.py` | `python -m pytest -q tests/fleet/test_reconcile_startup.py tests/fleet/test_console_dispatch.py` | base exit 4 → scratch exit 0, 10 passed; valid; `tmp/precheck-h3.json`, `tmp/h3.patch` |
+| `T-0194` | H4 — non-empty model attribution | `src/fleet/harness.py`; `tests/fleet/test_model_attribution.py` | `python -m pytest -q tests/fleet/test_model_attribution.py tests/fleet/test_fleet.py tests/fleet/test_provenance.py` | base exit 4 → scratch exit 0, 69 passed; valid; `tmp/precheck-h4.json`, `tmp/h4.patch` |
+| `T-0195` | H7 — `%TEMP%/pmk-merge-*` prune discovery | `src/pmk/worktrees.py`; `tests/pmk/test_prune_merge_trees.py` | `python -m pytest -q tests/pmk/test_prune_merge_trees.py tests/pmk/test_worktree_lifecycle.py` | base exit 4 → scratch exit 0, 47 passed; valid; `tmp/precheck-h7.json`, `tmp/h7.patch` |
+
+No source or documentation changes are associated with the cards themselves; they are prechecked backlog items, not completed H-items. The project remains `PAUSED` with 0 active leases, and there are no `READY` cards.
 
 ## 5. Deviations (B-18)
 
