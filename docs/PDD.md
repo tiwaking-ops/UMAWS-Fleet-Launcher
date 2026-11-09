@@ -1,4 +1,4 @@
-# PDD: Digital Edition of The Campaign for North Africa (CNA) — version: 1 — status: draft
+# PDD: Digital Edition of The Campaign for North Africa (CNA) — version: 1 — status: released (G-001/G-002); full product in progress
 
 ## 1. Purpose
 
@@ -7,8 +7,9 @@ Build a single-player, Windows-only digital version of SPI's 1979 board wargame 
 ## 2. Goals (re-scoped 2026-11-02 per Q-060/Q-069/Q-070)
 
 Re-scope: keep only the automated/oracle goals that are delivered and verified.
-G-002, G-004, G-005, and G-006 are accepted as incomplete/manual-check goals
-out of scope for this close and are not tracked as release blockers.
+G-001 and G-002 are the release goals for this close. G-004, G-005, and G-006
+are accepted as incomplete/manual-check goals out of scope for this close and
+are not tracked as release blockers.
 
 ### G-001 Rules implemented, cited, and covered
 
@@ -36,7 +37,7 @@ oracle: `python -m pytest -q tests/test_engine_contract.py`
 - Windows 10 native only. No WSL.
 - Python 3.11+, standard library plus `pytest` only (additional packages require a recorded decision, `RD-xxxx`).
 - Official sources only. No fabricated data presented as real.
-- Work only inside `C:\temp\projects\cfna`.
+- Work only inside the live project root `C:\temp\projects\testproject1` (the former `C:\temp\projects\cfna` path is retired).
 - No `@`-imports of proposals or rules into `CLAUDE.md` or `AGENTS.md`.
 - Oracles must be Windows-safe: `python -m pytest -q` or `python -c "..."`.
 - Max six concurrent workers.
