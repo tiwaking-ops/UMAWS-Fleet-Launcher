@@ -20,7 +20,7 @@ import pytest
 from pmk import plat, worktrees
 from pmk.api import KernelError
 from pmk.sentinel import check
-from conftest import make_bundle, make_card
+from _pmk_fixtures import make_bundle, make_card
 
 
 # ---------------------------------------------------------------------------

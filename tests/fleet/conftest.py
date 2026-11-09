@@ -2,7 +2,8 @@
 
 The Fleet tests run against the **fake CLI**, never a real one: fleet rule
 19 says every Fleet behaviour is tested on the fake before any real CLI or
-real quota is used.
+real quota is used.  The non-fixture builders live in ``_fleet_fixtures`` so
+they are importable by name next to ``tests/pmk``.
 """
 
 from __future__ import annotations
@@ -17,12 +18,13 @@ ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from _fleet_fixtures import fake_profile, write_agents  # noqa: E402
 from pmk.api import Kernel  # noqa: E402
 from pmk.clock import FakeClock  # noqa: E402
 from pmk.store import Repo  # noqa: E402
-
-FIXTURE_ROOT = ROOT / "tests" / "fleet" / "fixtures"
 
 
 def _git(root: Path, *args: str) -> None:
@@ -89,64 +91,6 @@ def git_repo_master(tmp_path: Path) -> Repo:
     return repo
 
 
-def _toml_value(value) -> str:
-    """Render a scalar the way TOML expects: booleans are lower case."""
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, str):
-        return f'"{value}"'
-    if isinstance(value, list):
-        return "[" + ", ".join(_toml_value(item) for item in value) + "]"
-    return str(value)
-
-
-def write_agents(repo: Repo, profiles: list[dict], fleet: dict | None = None,
-                 overseer: dict | None = None) -> None:
-    """Write an ``agents.toml`` with the given profiles."""
-    lines = ["[fleet]"]
-    for key, value in (fleet or {"max_total_agents": 20,
-                                 "dispatch_tick_s": 1,
-                                 "stall_minutes": 15,
-                                 "min_free_ram_mb": 0}).items():
-        lines.append(f"{key} = {_toml_value(value)}")
-    lines.append("")
-    lines.append("[overseer]")
-    lines.append(f"profiles = {overseer or {'profiles': []}['profiles']}")
-    lines.append("")
-    for profile in profiles:
-        lines.append("[[profile]]")
-        for key, value in profile.items():
-            if isinstance(value, list):
-                rendered = ", ".join(f'"{v}"' for v in value)
-                lines.append(f"{key} = [{rendered}]")
-            elif isinstance(value, bool):
-                lines.append(f"{key} = {'true' if value else 'false'}")
-            elif isinstance(value, str):
-                lines.append(f'{key} = "{value}"')
-            else:
-                lines.append(f"{key} = {value}")
-        lines.append("")
-    repo.agents_path.write_text("\n".join(lines), encoding="utf-8")
-
-
-def fake_profile(profile_id: str = "fake-a", *, priority: int = 10,
-                 scenario: str = "ok", family: str = "unknown",
-                 max_concurrent: int = 2,
-                 roles: list | None = None) -> dict:
-    return {
-        "id": profile_id,
-        "adapter": "fake",
-        "family": family,
-        "priority": priority,
-        "max_concurrent": max_concurrent,
-        "via_gateway": False,
-        "roles": roles or ["implement", "review", "plan", "verify"],
-        "argv_new": [],
-        "argv_resume": [],
-        "scenario": scenario,
-    }
-
-
 @pytest.fixture()
 def clock() -> FakeClock:
     return FakeClock()
@@ -164,16 +108,3 @@ def fake_kernel(kernel: Kernel, git_repo: Repo) -> Kernel:
     """A kernel whose only profile is the fake CLI."""
     write_agents(git_repo, [fake_profile()])
     return kernel
-
-
-def make_task(kernel: Kernel, **overrides):
-    kwargs = dict(
-        title="Do the thing",
-        type="implement",
-        goal_ref="G-001",
-        scope={"write": ["src/thing.py"], "read": []},
-        oracles=["pytest -q tests/test_thing.py"],
-        budget={"tokens": 1000, "wall_min": 5},
-    )
-    kwargs.update(overrides)
-    return kernel.task_create(**kwargs)

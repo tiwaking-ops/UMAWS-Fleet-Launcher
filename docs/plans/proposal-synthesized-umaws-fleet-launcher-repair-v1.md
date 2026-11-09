@@ -740,7 +740,7 @@ Fill from measurements, never from memory. Each DoD is machine-checkable.
 | DoD | Criterion | Command / proof | Measured | Evidence file |
 |---|---|---|---|---|
 | **DoD-1** | Gate green in a detached clean worktree at the recorded post-landing base, imports resolving inside it | Phase 5.2/9.3 at the Phase 10 SHA → exit 0 | _pending_ | `tmp\rb-9-final-gate.log` |
-| **DoD-2** | `tests/fleet` + `tests/pmk` collect in one command | `python -m pytest -q --collect-only tests/fleet tests/pmk` → exit 0 | _pending_ | H2 test output |
+| **DoD-2** | `tests/fleet` + `tests/pmk` collect in one command | `python -m pytest -q --collect-only tests/fleet tests/pmk` → exit 0 | **PASS** — exit 0 after the H2 fixture split | `tmp/combined-collection-only.log` |
 | **DoD-3** | Env invariant holds for all `src/fleet` subprocess sites | `python tools\check_subprocess_env.py` → exit 0 | _pending_ | tool output |
 | **DoD-4** | Censuses reconcile or the difference is fully explained; no un-captured deletion | `pmk worktree list` vs `git worktree list` + archive records | _pending_ | `tmp\rb-7-*` |
 | **DoD-5** | Lease admission check rejects repo-root / pid-less / expiry-less leases; `active_leases: 0` | `tests\pmk\test_lease_admission.py` passes; `pmk status` | _pending_ | test output + `tmp\rb-4-lease.txt` |
@@ -764,7 +764,7 @@ Fill from measurements, never from memory. Each DoD is machine-checkable.
 | OQ-03 / R-03 | Uncommitted repair | Phase 1 (capture) + Phase 3 (slices) + Phase 10 (CP-1) | open — 31 files (+2298/−451, Confirmed) |
 | OQ-04 / R-14 | No passing canary; A10 blocked | Phase 11 + Phase 12 (CP-4) | open; `T-0189` READY, attempts exhausted |
 | OQ-05 / R-04 | Census disagreement; stale merge trees | Phase 7 (CP-3) + Phase 6 H7 | open — 29 vs 41 (Confirmed) |
-| OQ-06 / R-05 | conftest collision | Phase 6 H2 → DoD-2 | open (verify at Phase 2) |
+| OQ-06 / R-05 | conftest collision | Phase 6 H2 → DoD-2 | closed — H2 fixture split landed; combined collection exit 0 |
 | OQ-07 | Identity commits Unknown | Phase 8.2 (record Unknown; rewrite banned) | record-only (A-13) |
 | OQ-08 / R-11 | `Q-077` / policy window | Phase 8.2 + B-12 payload standard | record-only (A-13) |
 | OQ-09 / R-06 | `reconcile()` not wired | Phase 6 H3 | open |

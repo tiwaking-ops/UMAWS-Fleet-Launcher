@@ -22,7 +22,7 @@ from fleet.select import select_profile
 from fleet.spawn import worktree_path
 from fleet.state import FleetState
 
-from conftest import FIXTURE_ROOT, fake_profile, make_task, write_agents
+from _fleet_fixtures import FIXTURE_ROOT, fake_profile, make_task, write_agents
 
 
 # ---------------------------------------------------------------------------

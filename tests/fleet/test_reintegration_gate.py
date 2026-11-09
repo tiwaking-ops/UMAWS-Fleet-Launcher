@@ -21,7 +21,7 @@ from pmk.models import Lease
 
 from fleet.merge import integrate
 
-from conftest import make_task
+from _fleet_fixtures import make_task
 
 
 def _git(root: Path, *args: str) -> None:

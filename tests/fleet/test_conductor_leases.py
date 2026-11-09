@@ -26,7 +26,7 @@ from fleet.state import FleetState
 from pmk import plat, worktrees
 from pmk.api import KernelError
 
-from conftest import FIXTURE_ROOT, fake_profile, make_task
+from _fleet_fixtures import FIXTURE_ROOT, fake_profile, make_task
 
 TTL_S = 600.0
 

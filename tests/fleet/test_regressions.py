@@ -19,7 +19,7 @@ from fleet.harness import scope_check
 from fleet.merge import commit_worktree, integrate
 from fleet.spawn import worktree_status
 
-from conftest import fake_profile, make_task, write_agents
+from _fleet_fixtures import fake_profile, make_task, write_agents
 from pmk.bundle import Bundle, CommandResult, OracleResult
 from pmk.models import Lease
 

@@ -15,7 +15,7 @@ from fleet.dispatcher import Dispatcher
 from fleet.overseer import OverseerRunner
 from fleet.state import FleetState
 
-from conftest import FIXTURE_ROOT, make_task
+from _fleet_fixtures import FIXTURE_ROOT, make_task
 
 RETRY_S = 1800.0
 

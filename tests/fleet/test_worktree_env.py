@@ -28,7 +28,7 @@ from pmk.models import Lease
 from fleet.harness import Harness, run_command
 from fleet.merge import integrate
 
-from conftest import make_task
+from _fleet_fixtures import make_task
 
 
 # ---------------------------------------------------------------------------

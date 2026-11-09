@@ -12,7 +12,7 @@ import sys
 from fleet import precheck
 from pmk import cli
 
-from conftest import make_task
+from _fleet_fixtures import make_task
 
 PY = f'"{sys.executable}"'
 ORACLE = (

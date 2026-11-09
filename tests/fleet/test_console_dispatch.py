@@ -20,8 +20,8 @@ if str(SRC) not in __import__("sys").path:
     __import__("sys").path.insert(0, str(SRC))
 
 from console.app import Console  # noqa: E402
-from conftest import fake_profile  # noqa: E402
-from conftest import make_task, write_agents  # noqa: E402
+from _fleet_fixtures import fake_profile  # noqa: E402
+from _fleet_fixtures import make_task, write_agents  # noqa: E402
 from fleet.dispatcher import Dispatcher  # noqa: E402
 from fleet.state import FleetState  # noqa: E402
 

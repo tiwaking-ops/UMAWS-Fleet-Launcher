@@ -5,7 +5,7 @@
 **Branch:** `repair/fleet-launcher-2026-11-09`, fast-forwarded to `main` locally
 **Entry base:** `e7d272504f16d6c75a0805b56f01ad5ba7f10be6` (`main`)
 **Gated code base:** `09cca8515d6d8dd75f1c412db72a98867e5a6a3d`
-**Status:** **repair landed; clean-base gate green; Phase 6 hardening deferred; supervised canary BLOCKED by an operator-only card disposition.** No push. Project remains `PAUSED`.
+**Status:** **repair landed; clean-base gate green; H2 conftest split fixed; remaining Phase 6 hardening deferred; supervised canary BLOCKED by an operator-only card disposition.** No push. Project remains `PAUSED`.
 
 All claims below are labelled **Confirmed** (measured in this execution), **Derived** (inferred from measurements), or **Unknown**.
 
@@ -33,10 +33,10 @@ The remaining dirty files are exactly the Kernel-written `.pm/` state (never com
 | 3 — slice commits | **done** | S1 `c6cc02f`, S2 `e1ed1c3`, S3 `9cb1b98`, S4 `a438901`; focused suites green (S1 after one load flake, see §5) |
 | 4 — lease hygiene | **done (skip)** | `active_leases: 0`; no revoke needed; evidence `tmp/rb-4` class |
 | 5 — clean-base gate + standing check | **done** | gate **exit 0** at `712ca1a`; `tools/check_clean_base.ps1` committed (`42882d2`, fixed in `59273d3`/`712ca1a`) |
-| 6 — hardening H1–H7 | **deferred (verify-first)** | H2 confirmed red; H1/H3/H4/H7 absent; H5 exists and passes; H6 missing; see §4 |
+| 6 — hardening H1–H7 | **partial — H2 fixed** | H2 fixture split landed and the combined collection passes; H1/H3/H4/H7 absent; H5 exists and passes; H6 missing; see §4 |
 | 7 — worktree census | **done (measure + capture); no deletion** | 32 pmk vs 44 git, difference fully explained; 7 dirty trees archived to `stranded/`; CP-3 not exercised |
 | 8 — governance records | **done (drafts)** | erratum in both report copies; D-70/D-71 drafted; census and uncommitted inventory written; sentinel re-measured `ok: true` |
-| 9 — whole-system verification | **partial** | final gate **exit 0** at `09cca85`; env lint **exit 0**; pins/fleet **ok**; combined collection still **exit 2** (DoD-2, H2) |
+| 9 — whole-system verification | **partial** | final gate **exit 0** at `09cca85`; env lint **exit 0**; pins/fleet **ok**; combined collection **exit 0** after the H2 fixture split (DoD-2) |
 | 10 — land on `main` (CP-1) | **done** | ff-only merge to `09cca85`; no push |
 | 11 — supervised canary | **blocked** | T-0189 is the only READY card, attempts 1/1; void is operator-only, so the preflight "exactly one READY card" cannot pass |
 | 12 — decision/checklist/handback | **drafted** | D-72 below; checklist items 13/15/16 updated; this report |
@@ -60,7 +60,7 @@ The remaining dirty files are exactly the Kernel-written `.pm/` state (never com
 | Item | Measured state |
 |---|---|
 | H1 lease admission | `tests/pmk/test_lease_admission.py` **absent**; no Kernel admission check found. Not implemented. |
-| H2 conftest collision | `pytest --collect-only tests/fleet tests/pmk` → **exit 2**, 9 errors (bare `from conftest import …`). Confirmed broken. |
+| H2 conftest collision | **Resolved** — shared helpers moved to `tests/fleet/_fleet_fixtures.py` and `tests/pmk/_pmk_fixtures.py`; `pytest --collect-only tests/fleet tests/pmk` → **exit 0**. |
 | H3 reconcile wiring | `Dispatcher.reconcile()` exists at `src/fleet/dispatcher.py:520`; no startup caller in `src/fleet`. Unwired. |
 | H4 model attribution | `provenance.served_models*` can return an empty set and `harness.py:767` writes `sorted(models)`; no non-empty guard. Unimplemented. |
 | H5 env lint | `tools/check_subprocess_env.py` exists, 7 allowlisted exceptions, exits 0. Partially satisfied (extension not attempted). |
@@ -92,7 +92,7 @@ Consequence: the merge/identity path with a real agent, the bundle's `gate_outpu
 | DoD | Criterion | Measured | Evidence |
 |---|---|---|---|
 | DoD-1 | Gate green in a detached clean worktree at the recorded base; imports inside | **PASS** — exit 0 at `712ca1a` and `09cca85`; `cna.engine.loop` and `pmk` both inside the worktree | `tmp/clean-base-1794224200.log`, `tmp/clean-base-1794225200.log` |
-| DoD-2 | Combined fleet+pmk collection | **FAIL** — exit 2, 9 collection errors (H2) | `tmp/rb-9-collect.log` |
+| DoD-2 | Combined fleet+pmk collection | **PASS** — exit 0 after the H2 fixture split | `tmp/combined-collection-only.log` |
 | DoD-3 | Env invariant | **PASS** — exit 0, 7 allowlisted | tool output |
 | DoD-4 | Censuses explained; no un-captured deletion | **PASS (measure/capture)** — 32 vs 44, 12-entry difference explained; 7 dirty trees archived; no deletion | `tmp/rb-7-*`, `tmp/capture-pmk-archive.txt` |
 | DoD-5 | Lease admission check; `active_leases: 0` | **PARTIAL** — 0 leases confirmed; admission check absent (H1) | `pmk status` |

@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from fleet import precheck
 from fleet.harness import Harness
 
-from conftest import write_agents
+from _fleet_fixtures import write_agents
 
 PY = f'"{sys.executable}"'
 

@@ -7,7 +7,7 @@ import pytest
 from pmk.api import KernelError
 from pmk.models import (BLOCKED, DONE, LEASED, PROPOSED, READY, REWORK,
                         SUBMITTED, VOID, scope_overlaps)
-from conftest import make_bundle, make_card
+from _pmk_fixtures import make_bundle, make_card
 
 
 def _head_commit(kernel) -> str:

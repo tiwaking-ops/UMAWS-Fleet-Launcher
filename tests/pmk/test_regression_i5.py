@@ -22,7 +22,7 @@ from pmk.models import BLOCKED, DONE, LEASED, REWORK, VOID, VERIFYING
 from pmk.events import Actor
 from pmk.sentinel import check
 
-from conftest import make_bundle, make_card
+from _pmk_fixtures import make_bundle, make_card
 
 
 HUMAN = Actor.human("test-operator")

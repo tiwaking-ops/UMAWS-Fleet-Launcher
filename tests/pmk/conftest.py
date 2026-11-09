@@ -1,4 +1,8 @@
-"""Shared fixtures for the Kernel tests."""
+"""Shared fixtures for the Kernel tests.
+
+The non-fixture builders live in ``_pmk_fixtures`` so they are importable by
+name next to ``tests/fleet`` in one pytest invocation.
+"""
 
 from __future__ import annotations
 
@@ -14,7 +18,6 @@ if str(SRC) not in sys.path:
 
 from pmk.api import Kernel  # noqa: E402
 from pmk.clock import FakeClock  # noqa: E402
-from pmk.policy import DEFAULT_POLICY  # noqa: E402
 from pmk.store import Repo  # noqa: E402
 
 
@@ -54,39 +57,3 @@ def kernel(repo: Repo, clock: FakeClock) -> Kernel:
     k = Kernel(root=repo.root, clock=clock)
     k.init()
     return k
-
-
-def make_card(kernel: Kernel, **overrides):
-    """Create an admissible task card with sensible defaults."""
-    kwargs = dict(
-        title="Do the thing",
-        type="implement",
-        goal_ref="G-001",
-        scope={"write": ["src/thing.py"], "read": ["src/"]},
-        oracles=["pytest -q tests/test_thing.py"],
-        budget={"tokens": 10000, "wall_min": 10},
-    )
-    kwargs.update(overrides)
-    return kernel.task_create(**kwargs)
-
-
-def make_bundle(task_id: str, fence: int, *, ok: bool = True,
-                outputs=None, resolved_models=None):
-    """A valid evidence bundle."""
-    from pmk.bundle import Bundle, CommandResult, OracleResult
-    return Bundle(
-        task=task_id,
-        fence=fence,
-        base_commit="abc123",
-        outputs=outputs or [{"path": "src/thing.py", "sha256": "deadbeef"}],
-        diff_scope_check={"violations": []},
-        commands=[CommandResult(cmd="pytest -q", cwd=".", exit=0,
-                                stdout_hash="h1", stderr_hash="h2")],
-        oracle_results=[OracleResult(cmd="pytest -q", exit=0 if ok else 1, ok=ok,
-                                     stdout_hash="h1", stderr_hash="h2")],
-        premise_check={"refuted": False},
-        budget_used={"tokens": 1200, "wall_min": 3},
-        resolved_models=resolved_models or [{"provider": "fake", "model": "fake-1"}],
-        constitution_hash="c0n5t1tut10n",
-        context_hash="c0nt3xth4sh",
-    )

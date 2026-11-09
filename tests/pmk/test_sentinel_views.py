@@ -9,7 +9,7 @@ import pytest
 from pmk.pdd import lint_text
 from pmk.sentinel import check
 from pmk.views import render_status
-from conftest import make_bundle, make_card
+from _pmk_fixtures import make_bundle, make_card
 
 
 def _head_commit(kernel) -> str:
