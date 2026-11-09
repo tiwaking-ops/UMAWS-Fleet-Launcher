@@ -89,9 +89,9 @@ CASE_STATUSES = ("implemented", "partial", "unimplemented",
 #: other parsed case is ``unimplemented``.  Sources are relative to the
 #: repository root; tests are the files that exercise the implementation.
 CASE_STATUS: dict[str, dict[str, Any]] = {
-    "6.0": {"status": "partial", "source": "src/cna/rules/sec06_capability.py", "tests": ["tests/test_capability.py"], "reason": "section overview; 6.1-6.2 are structural headings"},
-    "6.1": {"status": "partial", "source": "src/cna/rules/sec06_capability.py", "tests": ["tests/test_capability.py"], "reason": "structural heading; child rules 6.11-6.17 are implemented"},
-    "6.2": {"status": "partial", "source": "src/cna/rules/sec06_capability.py", "tests": ["tests/test_capability.py"], "reason": "structural heading; 6.21-6.24 and 6.26-6.29 are implemented; 6.25 remains partial pending R-04"},
+    "6.0": {"status": "not_applicable", "source": "", "tests": [], "reason": "section heading and overview; the operative rule cases are 6.11-6.29"},
+    "6.1": {"status": "not_applicable", "source": "", "tests": [], "reason": "structural heading; child rules 6.11-6.17 carry the operative CPA rules"},
+    "6.2": {"status": "not_applicable", "source": "", "tests": [], "reason": "structural heading; child rules 6.21-6.29 carry the operative Cohesion rules (6.25 remains partial pending R-04)"},
     "6.3": {"status": "partial", "source": "src/cna/rules/sec06_capability.py", "tests": ["tests/test_capability.py"], "reason": "fixed CP costs are implemented; TEC/CPA-dependent rows await R-04"},
     "6.11": {"status": "implemented", "source": "src/cna/rules/sec06_capability.py", "tests": ["tests/test_capability.py"], "reason": ""},
     "6.12": {"status": "implemented", "source": "src/cna/rules/sec06_capability.py", "tests": ["tests/test_capability.py"], "reason": ""},

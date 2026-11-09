@@ -129,3 +129,14 @@ def test_case_inventory_reports_reviewed_statuses(tmp_path):
     assert report["counts"]["cases_implemented"] == 1
     assert report["counts"]["cases_partial"] == 2
     assert report["counts"]["cases_deferred"] == 0
+
+
+def test_section_6_structural_headings_are_not_applicable():
+    for case_id in ("6.0", "6.1", "6.2"):
+        entry = cov.CASE_STATUS[case_id]
+        assert entry["status"] == "not_applicable"
+        assert entry["reason"]
+        assert entry["source"] == ""
+        assert entry["tests"] == []
+    assert cov.CASE_STATUS["6.3"]["status"] == "partial"
+    assert cov.CASE_STATUS["6.25"]["status"] == "partial"

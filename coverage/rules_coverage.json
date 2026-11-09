@@ -10,9 +10,9 @@
     "rule_files_matching": 3,
     "cases": 1739,
     "cases_implemented": 193,
-    "cases_partial": 75,
+    "cases_partial": 72,
     "cases_unimplemented": 1466,
-    "cases_not_applicable": 1,
+    "cases_not_applicable": 4,
     "cases_deferred": 4
   },
   "rules": [
@@ -1148,36 +1148,30 @@
       "title": "THE CAPABILITY POINT SYSTEM",
       "rules_file": "sections/section-06.adoc",
       "line": 1,
-      "status": "partial",
-      "source": "src/cna/rules/sec06_capability.py",
-      "tests": [
-        "tests/test_capability.py"
-      ],
-      "reason": "section overview; 6.1-6.2 are structural headings"
+      "status": "not_applicable",
+      "source": "",
+      "tests": [],
+      "reason": "section heading and overview; the operative rule cases are 6.11-6.29"
     },
     {
       "case": "6.1",
       "title": "HOW THE CPA SYSTEM WORKS",
       "rules_file": "sections/section-06.adoc",
       "line": 17,
-      "status": "partial",
-      "source": "src/cna/rules/sec06_capability.py",
-      "tests": [
-        "tests/test_capability.py"
-      ],
-      "reason": "structural heading; child rules 6.11-6.17 are implemented"
+      "status": "not_applicable",
+      "source": "",
+      "tests": [],
+      "reason": "structural heading; child rules 6.11-6.17 carry the operative CPA rules"
     },
     {
       "case": "6.2",
       "title": "COHESION",
       "rules_file": "sections/section-06.adoc",
       "line": 83,
-      "status": "partial",
-      "source": "src/cna/rules/sec06_capability.py",
-      "tests": [
-        "tests/test_capability.py"
-      ],
-      "reason": "structural heading; 6.21-6.24 and 6.26-6.29 are implemented; 6.25 remains partial pending R-04"
+      "status": "not_applicable",
+      "source": "",
+      "tests": [],
+      "reason": "structural heading; child rules 6.21-6.29 carry the operative Cohesion rules (6.25 remains partial pending R-04)"
     },
     {
       "case": "6.3",
