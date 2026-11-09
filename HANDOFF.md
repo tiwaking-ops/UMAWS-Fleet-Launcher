@@ -1,11 +1,13 @@
 # HANDOFF — UMAWS Fleet CFNA Project (2026-11-01)
 
-## Project State: RUNNING
+## Project State: PAUSED
 
 **Root:** `C:\temp\projects\testproject1` (UMAWS repo root)  
-**Last update:** 2026-11-01T09:10:00Z  
-**I1 chain:** Verifies (2659 events)  
-**Kernel:** pmk v0.1.0  
+**Last update:** 2026-11-09
+**I1 chain:** Verifies (3436 events)
+**Kernel:** pmk v0.1.0
+
+> **Current evidence:** the 2026-11-01/02 sections below are historical. See **Latest evidence (2026-11-09)** at the end for the current state, the canary status and the A8 blocker.
 
 ---
 
@@ -171,3 +173,25 @@ for task_id, lease in state.leases.items():
 - PDD goals re-scoped to G-001 and G-002 (former G-003); G-002/G-004/G-005/G-006 are accepted as incomplete/manual-check goals.
 - Q-070 remains recorded as accepting the project as incomplete.
 - Provenance: author_llm = beam:cloud (OpenCode session); no independent assessor LLM recorded.
+
+---
+
+## Latest evidence (2026-11-09)
+
+Measured at `HEAD 7910de5531f2be30948feefb9656106ae8ec5f9e`. No task was leased and no dispatch was started in this check.
+
+| Item | Evidence |
+|---|---|
+| Project state | `PAUSED`; 185 cards: **143 VOID**, **32 DONE**, **10 PROPOSED**; 0 active leases; 0 open queue items; 103 incidents; 22 worktrees; `stopped: false` |
+| Chain | `I1 chain verifies (3436 events)` |
+| T-0146 | **VOID**, fence 125, block reason `superseded by T-0159 coverage regeneration`; `TASK_VOIDED` seq 3315 at `2026-11-08T12:40:44Z`, actor `operator` / `human` |
+| Ready queue | `pmk task list --state READY` returns no cards |
+| Sentinel | `pmk sentinel` returns `ok: true` with no findings (I1, I3, I4, I5, I6, I7, I8', I13, I14, I15, I16, I17). The red baseline in D-68 is historical, not current |
+| Identity guard | `git config --get core.hooksPath` returns nothing (exit 1): **A8 is outstanding**; run `git config core.hooksPath .githooks` before any canary |
+| Canary | No live dispatch has been run. Replacement packet: `pilot/drafts/d-69-canary-operator-packet-v1.md`; D-69 remains **PENDING** |
+| Canary preflight | On the current base the oracle exits **1** because `docs/reports/dispatch-repair-verification-v1.md` is absent (required by R-11); `git apply --check pilot/evidence/canary-replacement-v1.patch` exits **0** |
+| Report copies | `docs/reports/dispatch-failure-root-cause-and-remediation-v1.md` and `pilot/dispatch-failure-root-cause-and-remediation-v1.md` are byte-identical after correction: seq 3212 is **23:10:45**; seq 3225 is **2026-11-08 08:21** and its actor is recorded as **unknown** |
+
+**Report caveats.** The corrected copies still describe T-0146 as `READY` in F-04 and keep OQ-04 open; that is the report's writing-point state, not the current ledger state. T-0146 is `VOID` (seq 3315) and must not be reused as the canary. Their OQ-08 sentinel-red baseline is also historical; the current sentinel is green.
+
+**Current blocker and next action.** A8 is not applied. Run `git config core.hooksPath .githooks`, then follow the packet to create and admit one replacement card and run one supervised dispatch. Do **not** run `pmk project resume` for the canary; the project stays `PAUSED` and the Console's Conductor still drains the merge queue. D-69 is filled only after a real run; a PASS is required before A10 resumption.

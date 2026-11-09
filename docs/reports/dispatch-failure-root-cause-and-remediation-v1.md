@@ -113,8 +113,10 @@ Three properties are load-bearing and were all violated or unenforced:
 | 3159 | 20:41:38 | `INTEGRATED` `e31d70a` | T-0150 `DONE` |
 | 3197 | 23:06:49 | `AGENT_STARTED` T-0146 attempt 1, base `e08fa8d` | false hint, unpinned env |
 | 3199 | 23:07:48 | `OVERSEER_WOKEN` disabled | ninth refusal |
-| 3212 | 23:12:04 | `MODEL_SERVED` T-0145, `served_models: []` | attribution gap |
-| 3225 | — | T-0145 `VOID` (operator) | card superseded |
+| 3212 | 23:10:45 | `MODEL_SERVED` T-0145, `served_models: []` | attribution gap |
+| 3225 | 2026-11-08 08:21 | T-0145 `VOID` — actor **unknown** (ledger records `human/operator`) | card superseded |
+
+**Seq 3225 actor.** The ledger actor field says `human/operator`, but the operator has not confirmed typing the command; the draft D-65 claim that Buffy executed it is not evidence. The actor is recorded as **unknown** here.
 
 ---
 
