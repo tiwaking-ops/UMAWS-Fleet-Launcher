@@ -1,0 +1,1 @@
+base=e302119728dcdf066b7f5555a14df4e5424da1bc; corpus=docs/rules/CNA-Rules.adoc present; rule_files=69; gate=pytest -q
