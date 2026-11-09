@@ -9,9 +9,9 @@
     "rule_files_declaring_paths": 3,
     "rule_files_matching": 3,
     "cases": 1739,
-    "cases_implemented": 176,
-    "cases_partial": 69,
-    "cases_unimplemented": 1489,
+    "cases_implemented": 193,
+    "cases_partial": 75,
+    "cases_unimplemented": 1466,
     "cases_not_applicable": 1,
     "cases_deferred": 4
   },
@@ -9424,10 +9424,12 @@
       "title": "WEATHER",
       "rules_file": "sections/section-29.adoc",
       "line": 2,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
+      "reason": "section overview; 29.1-29.7 are reviewed below"
     },
     {
       "case": "29.1",
@@ -9437,18 +9439,21 @@
       "status": "partial",
       "source": "src/cna/rules/sec29_weather.py",
       "tests": [
-        "tests/test_initiative_weather.py"
+        "tests/test_initiative_weather.py",
+        "tests/test_weather_effects.py"
       ],
-      "reason": "synthetic-test table only; the historical R-04 table and map areas are absent"
+      "reason": "synthetic Weather Table only; the official R-04 table is absent"
     },
     {
       "case": "29.2",
       "title": "NORMAL WEATHER",
       "rules_file": "sections/section-29.adoc",
       "line": 42,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
       "reason": ""
     },
     {
@@ -9456,71 +9461,84 @@
       "title": "HOT WEATHER",
       "rules_file": "sections/section-29.adoc",
       "line": 49,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
+      "reason": "section heading; 29.31-29.35 are reviewed below"
     },
     {
       "case": "29.4",
       "title": "SANDSTORMS",
       "rules_file": "sections/section-29.adoc",
       "line": 75,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
+      "reason": "section heading; 29.41-29.47 are reviewed below"
     },
     {
       "case": "29.5",
       "title": "RAINSTORMS",
       "rules_file": "sections/section-29.adoc",
       "line": 111,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
+      "reason": "section heading; 29.51-29.58 are reviewed below"
     },
     {
       "case": "29.6",
       "title": "WEATHER TABLE",
       "rules_file": "sections/section-29.adoc",
       "line": 153,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_initiative_weather.py",
+        "tests/test_weather_effects.py"
+      ],
+      "reason": "official R-04 Weather Table absent; the synthetic table is caller-supplied"
     },
     {
       "case": "29.7",
       "title": "FOUR WEATHER LOCATION TABLE",
       "rules_file": "sections/section-29.adoc",
       "line": 158,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
+      "reason": "official R-04 Four Weather Location Table absent; the synthetic table is caller-supplied"
     },
     {
       "case": "29.31",
       "title": "When hot weather occurs, it occurs on ail sections of all",
       "rules_file": "sections/section-29.adoc",
       "line": 52,
-      "status": "partial",
+      "status": "implemented",
       "source": "src/cna/rules/sec29_weather.py",
       "tests": [
-        "tests/test_initiative_weather.py"
+        "tests/test_weather_effects.py"
       ],
-      "reason": "hot weather is classified; its map-wide effects are not implemented"
+      "reason": ""
     },
     {
       "case": "29.32",
       "title": "When undergoing construction, the sites, exclusive of the",
       "rules_file": "sections/section-29.adoc",
       "line": 56,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
       "reason": ""
     },
     {
@@ -9528,9 +9546,11 @@
       "title": "When determining Breakdown during hot weather, adjust the.",
       "rules_file": "sections/section-29.adoc",
       "line": 61,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
       "reason": ""
     },
     {
@@ -9538,22 +9558,24 @@
       "title": "If the weather is hot, all Fuel and Water Levels (not",
       "rules_file": "sections/section-29.adoc",
       "line": 65,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
+      "reason": "5% factor implemented; fuel/water ledger integration and rounding remain absent"
     },
     {
       "case": "29.35",
       "title": "During hot weather, water requirements for all units are doubled.",
       "rules_file": "sections/section-29.adoc",
       "line": 72,
-      "status": "partial",
+      "status": "implemented",
       "source": "src/cna/rules/sec29_weather.py",
       "tests": [
-        "tests/test_initiative_weather.py"
+        "tests/test_weather_effects.py"
       ],
-      "reason": "water requirements are not tracked"
+      "reason": ""
     },
     {
       "case": "29.41",
@@ -9563,18 +9585,20 @@
       "status": "partial",
       "source": "src/cna/rules/sec29_weather.py",
       "tests": [
-        "tests/test_initiative_weather.py"
+        "tests/test_weather_effects.py"
       ],
-      "reason": "storm location is rolled; map-section effects are not implemented"
+      "reason": "storm effects implemented; official R-04 location mapping absent, synthetic table used"
     },
     {
       "case": "29.42",
       "title": "No construction may occur in a hex in which there is a",
       "rules_file": "sections/section-29.adoc",
       "line": 88,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
       "reason": ""
     },
     {
@@ -9582,9 +9606,11 @@
       "title": "No aircraft may fly into or out of a hex with a sandstorm.",
       "rules_file": "sections/section-29.adoc",
       "line": 92,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
       "reason": ""
     },
     {
@@ -9592,9 +9618,11 @@
       "title": "All movement costs for hexes with a sandstorm are doubled.",
       "rules_file": "sections/section-29.adoc",
       "line": 95,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
       "reason": ""
     },
     {
@@ -9602,9 +9630,11 @@
       "title": "If a unit expends 50% or more of its Capability Points for",
       "rules_file": "sections/section-29.adoc",
       "line": 98,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
       "reason": ""
     },
     {
@@ -9612,9 +9642,11 @@
       "title": "Sandstorms do not extend out into the Mediterranean (they stop",
       "rules_file": "sections/section-29.adoc",
       "line": 104,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
       "reason": ""
     },
     {
@@ -9622,10 +9654,12 @@
       "title": "Sandstorms may damage Grounded Aircraft (see Case 38.5)",
       "rules_file": "sections/section-29.adoc",
       "line": 108,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
+      "reason": "grounded-aircraft damage remains in §38.5 / the Air Game"
     },
     {
       "case": "29.51",
@@ -9635,18 +9669,20 @@
       "status": "partial",
       "source": "src/cna/rules/sec29_weather.py",
       "tests": [
-        "tests/test_initiative_weather.py"
+        "tests/test_weather_effects.py"
       ],
-      "reason": "rainstorms are classified; map-section effects are not implemented"
+      "reason": "rainstorm effects implemented; official R-04 location mapping absent, synthetic table used"
     },
     {
       "case": "29.52",
       "title": "No aircraft may fly into or out of a rainstorm hex. Note:",
       "rules_file": "sections/section-29.adoc",
       "line": 123,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
       "reason": ""
     },
     {
@@ -9654,9 +9690,11 @@
       "title": "All depleted wells are filled during a rainstorm.",
       "rules_file": "sections/section-29.adoc",
       "line": 128,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
       "reason": ""
     },
     {
@@ -9664,9 +9702,11 @@
       "title": "No construction may occur during a rainstorm (see",
       "rules_file": "sections/section-29.adoc",
       "line": 131,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
       "reason": ""
     },
     {
@@ -9674,9 +9714,11 @@
       "title": "All wadi hexsides are uncrossable during a rainstorm, except",
       "rules_file": "sections/section-29.adoc",
       "line": 135,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
       "reason": ""
     },
     {
@@ -9684,9 +9726,11 @@
       "title": "All road hexes have the same Movement Cost and Breakdown Rate",
       "rules_file": "sections/section-29.adoc",
       "line": 139,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
       "reason": ""
     },
     {
@@ -9694,9 +9738,11 @@
       "title": "All river hexsides not crossed by roads or railroads are",
       "rules_file": "sections/section-29.adoc",
       "line": 144,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
       "reason": ""
     },
     {
@@ -9704,9 +9750,11 @@
       "title": "No vehicle or motorized unit may enter a delta hex, unless it",
       "rules_file": "sections/section-29.adoc",
       "line": 148,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec29_weather.py",
+      "tests": [
+        "tests/test_weather_effects.py"
+      ],
       "reason": ""
     },
     {

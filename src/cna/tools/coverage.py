@@ -295,30 +295,128 @@ CASE_STATUS: dict[str, dict[str, Any]] = {
         "status": "implemented", "source": "src/cna/rules/sec07_initiative.py",
         "tests": ["tests/test_initiative_weather.py"], "reason": "",
     },
+    "29.0": {
+        "status": "partial", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"],
+        "reason": "section overview; 29.1-29.7 are reviewed below",
+    },
     "29.1": {
         "status": "partial", "source": "src/cna/rules/sec29_weather.py",
-        "tests": ["tests/test_initiative_weather.py"],
-        "reason": "synthetic-test table only; the historical R-04 table and map areas are absent",
+        "tests": ["tests/test_initiative_weather.py", "tests/test_weather_effects.py"],
+        "reason": "synthetic Weather Table only; the official R-04 table is absent",
+    },
+    "29.2": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
+    },
+    "29.3": {
+        "status": "partial", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"],
+        "reason": "section heading; 29.31-29.35 are reviewed below",
+    },
+    "29.4": {
+        "status": "partial", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"],
+        "reason": "section heading; 29.41-29.47 are reviewed below",
+    },
+    "29.5": {
+        "status": "partial", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"],
+        "reason": "section heading; 29.51-29.58 are reviewed below",
+    },
+    "29.6": {
+        "status": "partial", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_initiative_weather.py", "tests/test_weather_effects.py"],
+        "reason": "official R-04 Weather Table absent; the synthetic table is caller-supplied",
+    },
+    "29.7": {
+        "status": "partial", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"],
+        "reason": "official R-04 Four Weather Location Table absent; the synthetic table is caller-supplied",
     },
     "29.31": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
+    },
+    "29.32": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
+    },
+    "29.33": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
+    },
+    "29.34": {
         "status": "partial", "source": "src/cna/rules/sec29_weather.py",
-        "tests": ["tests/test_initiative_weather.py"],
-        "reason": "hot weather is classified; its map-wide effects are not implemented",
+        "tests": ["tests/test_weather_effects.py"],
+        "reason": "5% factor implemented; fuel/water ledger integration and rounding remain absent",
     },
     "29.35": {
-        "status": "partial", "source": "src/cna/rules/sec29_weather.py",
-        "tests": ["tests/test_initiative_weather.py"],
-        "reason": "water requirements are not tracked",
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
     },
     "29.41": {
         "status": "partial", "source": "src/cna/rules/sec29_weather.py",
-        "tests": ["tests/test_initiative_weather.py"],
-        "reason": "storm location is rolled; map-section effects are not implemented",
+        "tests": ["tests/test_weather_effects.py"],
+        "reason": "storm effects implemented; official R-04 location mapping absent, synthetic table used",
+    },
+    "29.42": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
+    },
+    "29.43": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
+    },
+    "29.44": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
+    },
+    "29.45": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
+    },
+    "29.46": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
+    },
+    "29.47": {
+        "status": "partial", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"],
+        "reason": "grounded-aircraft damage remains in §38.5 / the Air Game",
     },
     "29.51": {
         "status": "partial", "source": "src/cna/rules/sec29_weather.py",
-        "tests": ["tests/test_initiative_weather.py"],
-        "reason": "rainstorms are classified; map-section effects are not implemented",
+        "tests": ["tests/test_weather_effects.py"],
+        "reason": "rainstorm effects implemented; official R-04 location mapping absent, synthetic table used",
+    },
+    "29.52": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
+    },
+    "29.53": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
+    },
+    "29.54": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
+    },
+    "29.55": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
+    },
+    "29.56": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
+    },
+    "29.57": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
+    },
+    "29.58": {
+        "status": "implemented", "source": "src/cna/rules/sec29_weather.py",
+        "tests": ["tests/test_weather_effects.py"], "reason": "",
     },
     "32.0": {"status": "partial", "source": "src/cna/rules/sec32_abstract.py", "tests": ["tests/test_abstract_supply_air.py"], "reason": "section overview; 32.1-32.9 are implemented for LAND_ABSTRACT; full Logistics and Air remain P2/P3"},
     "32.1": {"status": "partial", "source": "src/cna/rules/sec32_abstract.py", "tests": ["tests/test_abstract_supply_air.py"], "reason": "section heading; Supply Units 32.11-32.18 are implemented"},
