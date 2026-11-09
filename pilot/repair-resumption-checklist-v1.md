@@ -16,10 +16,10 @@ Status as of 2026-11-09. Tick only what is verified; an unticked box is a blocke
 | 10 | Already-satisfied pre-lease guard | `tests/fleet/test_precheck.py`; `agents.toml [fleet] precheck_satisfied = true` | **done** |
 | 11 | Decision records drafted and ratified | `pilot/decisions.md` D-62…D-69; `pilot/drafts/decisions-d62-plus.md` (A9, 2026-11-09) | **done** |
 | 12 | Decision gap report | `docs/reports/decision-gaps-2026-11-08.md` | **done** |
-| 13 | Suite green | **Clean-worktree gate failed** on `test_coverage_reports_case_statuses_and_evidence` (untracked `tests/test_transport.py`); the main-tree pass is not reproducible in a clean worktree | **failed — base repair required** |
+| 13 | Suite green | Clean-worktree gate exit 0 at `712ca1a` (`tmp/clean-base-1794224200.log`) and again at `09cca85` (`tmp/clean-base-1794225200.log`); `cna.engine.loop`/`pmk` resolve inside the gate worktree | **done** |
 | 14 | Sentinel at the recorded baseline | 5 × I6 + 1 × I13, unchanged from before the repair | **done (red, recorded)** |
-| 15 | Live canary reaches DONE | T-0189 ran 2026-11-09; **FAILED** at the gate (`REWORK`, `EB-T-0189-156`); D-69 records the base-tree defect | **failed — base repair required** |
-| 16 | Dispatch resumed | A10 not authorized after FAIL; project remains `PAUSED` | **blocked** |
+| 15 | Live canary reaches DONE | No canary run: T-0189 is READY with attempts 1/1 and only the operator can void it, so the Phase 11 preflight (exactly one READY card) cannot pass (D-72) | **blocked — operator action required** |
+| 16 | Dispatch resumed | A10 remains the operator's decision; the repaired base has no PASS canary yet; project remains `PAUSED` | **blocked** |
 
 ## Order for resuming
 
@@ -27,4 +27,5 @@ Status as of 2026-11-09. Tick only what is verified; an unticked box is a blocke
 2. ~~Run the canary (item 15). Record D-69.~~ **done; T-0189 FAILED at the gate.**
 3. ~~Ratify D-62…D-69 (A9).~~ **done 2026-11-09; D-69 is ratified as FAIL.**
 4. **Do not resume dispatch.** Repair the committed base (resolve the dangling `tests/test_transport.py` reference), then run a fresh canary; A10 only after a PASS.
-5. Keep the eleven extra worktrees until a separate, evidence-based decision; `pilot/repair-worktree-census-v1.md` is the basis.
+5. Keep the extra worktrees until a separate, evidence-based decision; `pilot/repair-worktree-census-v1.md` is the basis.
+6. Repair landed at `09cca85` with a green clean-base gate; the canary is blocked on T-0189's operator-only disposition (D-72).
