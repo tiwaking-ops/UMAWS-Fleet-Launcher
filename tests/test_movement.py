@@ -12,9 +12,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from cna.rules.sec08_movement import (
     CONTACT_BREAK_OFF_CP,
     ENGAGED_BREAK_OFF_CP,
+    TEC,
+    HexsideRow,
     MoveContext,
     MovingUnit,
     MovementError,
+    TECError,
+    TerrainCrossing,
+    TerrainRow,
     break_off_clears,
     break_off_cost,
     contact_state,
@@ -284,3 +289,161 @@ def test_8_98_truck_convoys_may_not_exceed_their_cpa():
     error = raises(MovementError, lambda: move_unit(
         convoy, "A", ["B", "C", "D"], context))
     assert "8.98" in str(error)
+
+
+# ---------------------------------------------------------------------------
+# the Terrain Effects Chart (8.31-8.37)
+# ---------------------------------------------------------------------------
+
+def chart():
+    """A synthetic TEC; no value is historical (R-04 remains open)."""
+    return TEC(
+        terrain={
+            "clear": TerrainRow(cp={"default": 1, "truck": 2},
+                                breakdown=Fraction(1, 2),
+                                stacking_limit=6),
+            "rough": TerrainRow(cp=2, breakdown=1),
+            "desert": TerrainRow(cp=1, breakdown=1,
+                                 prohibited=frozenset({"light_truck"})),
+            "salt_marsh": TerrainRow(cp=1, breakdown=1),
+        },
+        hexsides={
+            "ridge": HexsideRow(cp=1, breakdown=1),
+            "slope": HexsideRow(cp=1, breakdown=1),
+            "escarpment": HexsideRow(cp=2, breakdown=0),
+            "wadi": HexsideRow(cp=2, breakdown=0),
+        },
+        road_cp={"default": 1, "truck": Fraction(1, 2)},
+        road_breakdown=Fraction(1, 2),
+    )
+
+
+def test_8_31_tec_entry_cost_uses_the_unit_class_column():
+    """RULE: 8.31."""
+    tec = chart()
+    assert tec.enter(unit(), "clear").cp == 1
+    assert tec.enter(unit(unit_class="truck"), "clear").cp == 2
+    assert tec.enter(unit(), "rough").cp == 2
+    context = MoveContext(
+        cost=lambda moving, source, destination: tec.enter(moving, "clear"))
+    assert move_unit(unit(), "A", ["B"], context).movement_cost == 1
+
+
+def test_8_32_tec_prohibits_terrain_and_hexsides():
+    """RULE: 8.32."""
+    tec = chart()
+    error = raises(MovementError, lambda: move_unit(
+        unit(unit_class="light_truck"), "A", ["B"],
+        MoveContext(cost=lambda moving, source, destination:
+                    tec.enter(moving, "desert"))))
+    assert "8.32" in str(error)
+    assert tec.enter(unit(unit_class="tank"), "clear",
+                     hexside="escarpment", direction="up").prohibited
+
+
+def test_8_33_road_and_track_ignore_other_terrain():
+    """RULE: 8.33, 8.46, 8.47."""
+    tec = chart()
+    truck = unit(unit_class="truck")
+    road = tec.enter(truck, "rough", road=True)
+    assert (road.cp, road.breakdown) == (Fraction(1, 2), Fraction(1, 2))
+    track = tec.enter(truck, "rough", track=True)
+    assert (track.cp, track.breakdown) == (1, Fraction(1, 2))
+    unconstructed = tec.enter(truck, "rough", unconstructed_road=True)
+    assert (unconstructed.cp, unconstructed.breakdown) == (
+        1, Fraction(1, 2))
+    wadi_road = tec.enter(truck, "clear", hexside="wadi", road=True)
+    assert wadi_road.cp == Fraction(1, 2)
+
+
+def test_8_35_tec_slopes_ridges_and_escarpments():
+    """RULE: 8.35, 8.42-8.43."""
+    tec = chart()
+    ridge = tec.enter(unit(), "clear", hexside="ridge")
+    assert (ridge.cp, ridge.breakdown) == (2, Fraction(3, 2))
+    slope = tec.enter(unit(), "clear", hexside="slope")
+    assert (slope.cp, slope.breakdown) == (2, Fraction(3, 2))
+    tank = unit(unit_class="tank")
+    assert tec.enter(tank, "clear", hexside="escarpment",
+                     direction="up").prohibited
+    down = tec.enter(tank, "clear", hexside="escarpment", track=True,
+                     direction="down")
+    assert (down.cp, down.breakdown) == (10, 6)
+
+
+def test_8_37_tec_stacking_limit_and_missing_rows():
+    """RULE: 8.37."""
+    tec = chart()
+    assert tec.stacking_limit("clear") == 6
+    raises(TECError, lambda: tec.enter(unit(), "unknown"))
+    raises(TECError, lambda: tec.enter(unit(), "clear", hexside="unknown"))
+
+
+# ---------------------------------------------------------------------------
+# Breakdown checks inside movement (21.21-21.27, 21.37)
+# ---------------------------------------------------------------------------
+
+def breakdown_context(**kwargs):
+    return MoveContext(
+        cost=lambda moving, source, destination: TerrainCrossing(
+            cp=1, breakdown=1),
+        adjacent=adjacent, **kwargs)
+
+
+def truck(**kwargs):
+    return unit(unit_id="truck", unit_class="truck", motorized=True,
+                base_cpa=10, breakdown_bar=0, toe_points=3, **kwargs)
+
+
+def test_21_21_24_breakdown_points_accumulate_during_movement():
+    """RULE: 21.21, 21.24, 21.25, 21.27, 21.34-21.35."""
+    context = breakdown_context(breakdown_roll=33,
+                                breakdown_table=lambda roll, column: 10)
+    result = move_unit(truck(), "A", ["B", "C", "D", "E"], context)
+    check = result.breakdown
+    assert check is not None
+    assert check.points == 4
+    assert check.column == 4
+    assert check.required and check.resolved
+    assert check.percent == 10 and check.losses == 1
+    assert check.last_column == 4
+
+
+def test_21_26_breakdown_rechecks_only_in_a_higher_column():
+    """RULE: 21.26."""
+    context = breakdown_context(breakdown_roll=33,
+                                breakdown_table=lambda roll, column: 10)
+    first = move_unit(truck(), "A", ["B", "C", "D", "E"], context)
+    same = move_unit(
+        truck(breakdown_points=first.breakdown.points,
+              breakdown_last_column=first.breakdown.last_column),
+        "E", ["D"], context)
+    assert same.breakdown.points == 5
+    assert not same.breakdown.required
+    higher = move_unit(
+        truck(breakdown_points=10, breakdown_last_column=4),
+        "E", ["D"], context)
+    assert higher.breakdown.points == 11
+    assert higher.breakdown.required
+    assert higher.breakdown.column == 11
+
+
+def test_21_15_off_map_boxes_do_not_check():
+    """RULE: 21.15."""
+    result = move_unit(truck(off_map_box=True), "A",
+                       ["B", "C", "D", "E"], breakdown_context())
+    assert result.breakdown.suppressed
+    assert not result.breakdown.required
+
+
+def test_21_11_infantry_is_not_subject_to_breakdown():
+    """RULE: 21.11."""
+    context = breakdown_context()
+    assert move_unit(unit(), "A", ["B"], context).breakdown is None
+
+
+def test_21_37_rainstorm_road_breakdown_is_halved():
+    """RULE: 21.37c."""
+    road = crossing(unit(unit_class="truck"), base_cp=1, base_breakdown=2,
+                    road=True, rainstorm=True)
+    assert road.breakdown == 1

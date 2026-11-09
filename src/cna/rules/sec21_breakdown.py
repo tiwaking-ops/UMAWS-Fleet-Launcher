@@ -14,6 +14,7 @@ Every chart this block depends on is R-04 and remains caller-supplied:
 
 The module implements the rule procedures around those tables: column shifts
 and clamps, cumulative Breakdown Points, the single-point 10% exception,
+stack/Parent-formation grouping and forced placement (21.28-21.29, 21.41),
 supply costs, phase restrictions, structure levels and minefield effects.
 """
 
@@ -64,6 +65,15 @@ def _bool(value: Any, *, name: str) -> bool:
 #: 21.11: the vehicle types subject to Breakdown.
 BREAKDOWN_TYPES = frozenset({"truck", "tank", "recce", "armored_car", "sp_gun"})
 
+#: 21.28: the three separate dice groups.
+BREAKDOWN_GROUPS = {
+    "truck": "trucks",
+    "tank": "tanks_and_guns",
+    "sp_gun": "tanks_and_guns",
+    "recce": "armored_recce",
+    "armored_car": "armored_recce",
+}
+
 #: 21.14: fixed Breakdown Adjustment Ratings; tanks and SP guns use their chart.
 FIXED_BAR = {"truck": -2, "armored_car": -1, "recce": 0}
 
@@ -93,6 +103,15 @@ def breakdown_bar(vehicle_type: str, *, chart_bar: int | None = None) -> int:
                 "tank and SP gun BAR values come from their characteristics chart")
         return _whole(chart_bar, name="chart_bar", minimum=-2, maximum=2)
     return FIXED_BAR[vehicle_type]
+
+
+def breakdown_group_type(vehicle_type: str) -> str:
+    """21.28: the dice group one vehicle type is checked in."""
+    try:
+        return BREAKDOWN_GROUPS[vehicle_type]
+    except KeyError:
+        raise BreakdownError(
+            f"not subject to Breakdown: {vehicle_type!r}") from None
 
 
 def column_for(points: Fraction | int) -> int | None:
@@ -185,6 +204,59 @@ class BreakdownTrack:
         return True, BreakdownTrack(self.points, column)
 
 
+@dataclass(frozen=True)
+class BreakdownCheck:
+    """The result of one stop-and-check (21.24-21.27, 21.34-21.35).
+
+    ``last_column`` is the column the unit has checked in this Operations
+    Stage.  It advances only after the check has actually been resolved;
+    an unresolved check therefore stays due at the next stop.
+    """
+
+    points: Fraction
+    column: int | None
+    required: bool
+    last_column: int | None
+    suppressed: bool = False
+    resolved: bool = False
+    percent: int | None = None
+    losses: int | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "points", _points(self.points))
+        if self.column is not None and self.column not in COLUMN_BOUNDS:
+            raise BreakdownError(f"not a Breakdown column: {self.column!r}")
+        if self.last_column is not None:
+            _whole(self.last_column, name="last_column", minimum=0)
+        for name in ("required", "suppressed", "resolved"):
+            _bool(getattr(self, name), name=name)
+        if self.resolved and not self.required:
+            raise BreakdownError("only a required check can be resolved")
+        if self.percent is not None:
+            _whole(self.percent, name="percent", minimum=0, maximum=100)
+        if self.losses is not None:
+            _whole(self.losses, name="losses", minimum=0)
+
+    @property
+    def pending(self) -> bool:
+        """A check is due but has not had its dice/table applied."""
+        return self.required and not self.resolved
+
+    def to_obj(self) -> dict[str, Any]:
+        return {
+            "points": str(self.points),
+            "column": self.column,
+            "required": self.required,
+            "last_column": self.last_column,
+            "suppressed": self.suppressed,
+            "resolved": self.resolved,
+            "pending": self.pending,
+            "percent": self.percent,
+            "losses": self.losses,
+            "rule": "21.24-21.27, 21.34-21.35",
+        }
+
+
 def breakdown_percent(roll: int, column: int,
                       table: Callable[[int, int], int]) -> int:
     """21.34-21.35: two sequential dice on the caller's Breakdown Table."""
@@ -207,6 +279,55 @@ def losses_from_percent(percent: int, toe_points: Fraction | int) -> int:
     return math.ceil(points * share / 100)
 
 
+def evaluate_breakdown(points: Fraction | int, *, last_column: int | None,
+                       bar: int = 0, weather: str = "normal",
+                       sandstorm_majority: bool = False,
+                       suppressed: bool = False,
+                       roll: int | None = None,
+                       table: Callable[[int, int], int] | None = None,
+                       toe_points: Fraction | int | None = None
+                       ) -> BreakdownCheck:
+    """21.24-21.27, 21.34-21.35: decide and optionally resolve one check.
+
+    The caller supplies the two-dice read-out and the Breakdown Table; this
+    function supplies the cumulative points, the column shifts, the 21.26
+    higher-column rule and the 21.35 loss rounding.  If the dice are not
+    supplied the check is reported as pending and ``last_column`` does not
+    move, so the same check remains due at the next stop.
+    """
+    total = _points(points)
+    if last_column is not None:
+        _whole(last_column, name="last_column", minimum=0)
+    _bool(suppressed, name="suppressed")
+    if (roll is None) != (table is None):
+        raise BreakdownError("roll and table must be supplied together")
+    if table is not None and not callable(table):
+        raise BreakdownError("table must be callable")
+    if toe_points is not None:
+        _points(toe_points, name="toe_points")
+
+    if suppressed:
+        return BreakdownCheck(total, None, False, last_column,
+                              suppressed=True)
+
+    required, column = breakdown_check_required(
+        total, last_column=last_column, bar=bar, weather=weather,
+        sandstorm_majority=sandstorm_majority)
+    if not required:
+        return BreakdownCheck(total, column, False, last_column)
+
+    percent = losses = None
+    resolved = False
+    if roll is not None:
+        percent = breakdown_percent(roll, column, table)
+        resolved = True
+        if toe_points is not None:
+            losses = losses_from_percent(percent, toe_points)
+    return BreakdownCheck(total, column, True,
+                          column if resolved else last_column,
+                          resolved=resolved, percent=percent, losses=losses)
+
+
 def distribute_evenly(total: int, *, groups: int) -> tuple[int, ...]:
     """21.36: spread Breakdowns proportionally and evenly."""
     amount = _whole(total, name="total", minimum=0)
@@ -220,6 +341,264 @@ def forced_breakdown_share(*, near_enemy_battalion: bool) -> Fraction:
     """21.41: half the broken-down points stay at the starting hex."""
     return Fraction(1, 2) if _bool(near_enemy_battalion,
                                    name="near_enemy_battalion") else Fraction(0)
+
+
+@dataclass(frozen=True)
+class BreakdownPlacement:
+    """21.41: where one unit's broken-down points are placed."""
+
+    start_hex: str
+    stop_hex: str
+    at_start: int
+    at_stop: int
+
+    def __post_init__(self) -> None:
+        for name in ("start_hex", "stop_hex"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip():
+                raise BreakdownError(f"{name} must be a non-empty string")
+        _whole(self.at_start, name="at_start", minimum=0)
+        _whole(self.at_stop, name="at_stop", minimum=0)
+
+    @property
+    def total(self) -> int:
+        return self.at_start + self.at_stop
+
+
+def forced_breakdown_placement(losses: int, *, start_hex: str,
+                               stop_hex: str,
+                               near_enemy_battalion: bool
+                               ) -> BreakdownPlacement:
+    """21.41: at least half the losses stay in the starting hex."""
+    count = _whole(losses, name="losses", minimum=0)
+    _bool(near_enemy_battalion, name="near_enemy_battalion")
+    at_start = math.ceil(count * forced_breakdown_share(
+        near_enemy_battalion=near_enemy_battalion))
+    if start_hex == stop_hex:
+        return BreakdownPlacement(start_hex, stop_hex, 0, count)
+    return BreakdownPlacement(start_hex, stop_hex, at_start,
+                              count - at_start)
+
+
+# ---------------------------------------------------------------------------
+# 21.28-21.29 stack and Parent-formation grouping
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class BreakdownUnit:
+    """One vehicle in the stack or Parent formation being checked.
+
+    ``toe_points`` is TOE Strength Points, or Truck Points for a truck unit
+    (21.35).  ``bar`` defaults to the fixed 21.14 rating and must be supplied
+    from the vehicle chart for tanks and SP guns.
+    """
+
+    unit_id: str
+    vehicle_type: str
+    toe_points: Fraction | int
+    breakdown_points: Fraction | int = Fraction(0)
+    breakdown_last_column: int | None = None
+    parent_id: str | None = None
+    bar: int | None = None
+    start_hex: str = ""
+    stop_hex: str = ""
+    near_enemy_battalion: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.unit_id, str) or not self.unit_id.strip():
+            raise BreakdownError("unit_id must be a non-empty string")
+        if self.vehicle_type not in BREAKDOWN_TYPES:
+            raise BreakdownError(
+                f"not subject to Breakdown: {self.vehicle_type!r}")
+        object.__setattr__(self, "toe_points",
+                           _points(self.toe_points, name="toe_points"))
+        object.__setattr__(self, "breakdown_points",
+                           _points(self.breakdown_points,
+                                   name="breakdown_points"))
+        if self.breakdown_last_column is not None:
+            _whole(self.breakdown_last_column,
+                   name="breakdown_last_column", minimum=0)
+        if self.parent_id is not None and (
+                not isinstance(self.parent_id, str)
+                or not self.parent_id.strip()):
+            raise BreakdownError(
+                "parent_id must be a non-empty string or None")
+        if self.bar is None:
+            if self.vehicle_type in ("tank", "sp_gun"):
+                raise BreakdownError(
+                    "tank and SP gun BAR values come from their "
+                    "characteristics chart")
+            bar = FIXED_BAR[self.vehicle_type]
+        else:
+            bar = _whole(self.bar, name="bar", minimum=-2, maximum=2)
+        object.__setattr__(self, "bar", bar)
+        for name in ("start_hex", "stop_hex"):
+            if not isinstance(getattr(self, name), str):
+                raise BreakdownError(f"{name} must be a string")
+        _bool(self.near_enemy_battalion, name="near_enemy_battalion")
+
+
+@dataclass(frozen=True)
+class BreakdownGroup:
+    """One 21.28/21.29 dice group.
+
+    Units share a Parent Formation, a 21.28 type, the same tank/gun BAR when
+    that rating splits the group, and the same Breakdown Point column
+    (21.29).  ``bar`` is the rating that split a tank/gun group, or ``None``
+    when the group is not split by BAR.
+    """
+
+    unit_type: str
+    parent_id: str | None
+    bar: int | None
+    column: int
+    members: tuple[BreakdownUnit, ...]
+
+    def __post_init__(self) -> None:
+        if self.unit_type not in set(BREAKDOWN_GROUPS.values()):
+            raise BreakdownError(
+                f"unknown Breakdown group: {self.unit_type!r}")
+        if self.parent_id is not None and (
+                not isinstance(self.parent_id, str)
+                or not self.parent_id.strip()):
+            raise BreakdownError(
+                "parent_id must be a non-empty string or None")
+        if self.bar is not None:
+            _whole(self.bar, name="bar", minimum=-2, maximum=2)
+        if self.unit_type == "tanks_and_guns" and self.bar is None:
+            raise BreakdownError("a tank/gun group needs its BAR")
+        if self.column not in COLUMN_BOUNDS:
+            raise BreakdownError(
+                f"not a Breakdown column: {self.column!r}")
+        members = tuple(self.members)
+        if not members:
+            raise BreakdownError("a Breakdown group needs at least one unit")
+        for member in members:
+            if not isinstance(member, BreakdownUnit):
+                raise BreakdownError(
+                    "a Breakdown group member must be a BreakdownUnit")
+            if breakdown_group_type(member.vehicle_type) != self.unit_type:
+                raise BreakdownError(
+                    "a Breakdown group mixes 21.28 unit types")
+            if (self.unit_type == "tanks_and_guns"
+                    and member.bar != self.bar):
+                raise BreakdownError(
+                    "a tank/gun group mixes Breakdown Adjustment Ratings")
+        object.__setattr__(self, "members", members)
+
+    @property
+    def unit_ids(self) -> tuple[str, ...]:
+        return tuple(member.unit_id for member in self.members)
+
+    @property
+    def toe_points(self) -> Fraction:
+        return sum((member.toe_points for member in self.members),
+                   Fraction(0))
+
+
+def group_breakdown_units(units: Iterable[BreakdownUnit], *,
+                          weather: str = "normal",
+                          sandstorm_majority: bool = False
+                          ) -> tuple[BreakdownGroup, ...]:
+    """21.28-21.29: group the checks due in one stack by separate dice roll.
+
+    Only units whose 21.24 check is due are grouped; a unit that has not
+    reached a higher column does not join a group or consume a roll.
+    """
+    if weather not in WEATHER_SHIFTS:
+        raise BreakdownError(f"unknown weather: {weather!r}")
+    _bool(sandstorm_majority, name="sandstorm_majority")
+    ordered: list[BreakdownUnit] = []
+    for unit in units:
+        if not isinstance(unit, BreakdownUnit):
+            raise BreakdownError("units must be BreakdownUnit instances")
+        ordered.append(unit)
+    ordered.sort(key=lambda unit: (
+        unit.parent_id or "", breakdown_group_type(unit.vehicle_type),
+        unit.unit_id))
+    buckets: dict[tuple[Any, ...], list[BreakdownUnit]] = {}
+    for unit in ordered:
+        unit_type = breakdown_group_type(unit.vehicle_type)
+        required, column = breakdown_check_required(
+            unit.breakdown_points,
+            last_column=unit.breakdown_last_column,
+            bar=unit.bar, weather=weather,
+            sandstorm_majority=sandstorm_majority)
+        if not required or column is None:
+            continue
+        key = (unit.parent_id, unit_type,
+               unit.bar if unit_type == "tanks_and_guns" else None,
+               column)
+        buckets.setdefault(key, []).append(unit)
+    return tuple(
+        BreakdownGroup(unit_type=key[1], parent_id=key[0], bar=key[2],
+                       column=key[3], members=tuple(bucket))
+        for key, bucket in buckets.items()
+    )
+
+
+@dataclass(frozen=True)
+class BreakdownShare:
+    """One unit's share of a group's 21.35 losses and its 21.41 placement."""
+
+    unit_id: str
+    losses: int
+    placement: BreakdownPlacement
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.unit_id, str) or not self.unit_id.strip():
+            raise BreakdownError("unit_id must be a non-empty string")
+        _whole(self.losses, name="losses", minimum=0)
+        if not isinstance(self.placement, BreakdownPlacement):
+            raise BreakdownError(
+                "placement must be a BreakdownPlacement")
+
+
+@dataclass(frozen=True)
+class BreakdownGroupResult:
+    """One group's 21.28/21.29 dice roll and its distributed losses."""
+
+    group: BreakdownGroup
+    roll: int
+    percent: int
+    losses: int
+    shares: tuple[BreakdownShare, ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.group, BreakdownGroup):
+            raise BreakdownError("group must be a BreakdownGroup")
+        _whole(self.roll, name="roll")
+        _whole(self.percent, name="percent", minimum=0, maximum=100)
+        _whole(self.losses, name="losses", minimum=0)
+        shares = tuple(self.shares)
+        if len(shares) != len(self.group.members):
+            raise BreakdownError(
+                "each group member needs exactly one loss share")
+        if sum(share.losses for share in shares) != self.losses:
+            raise BreakdownError(
+                "loss shares must add up to the group losses")
+        object.__setattr__(self, "shares", shares)
+
+
+def resolve_breakdown_group(group: BreakdownGroup, *, roll: int,
+                            table: Callable[[int, int], int]
+                            ) -> BreakdownGroupResult:
+    """21.28-21.29, 21.34-21.36, 21.41: one roll for one group."""
+    if not isinstance(group, BreakdownGroup):
+        raise BreakdownError("group must be a BreakdownGroup")
+    percent = breakdown_percent(roll, group.column, table)
+    losses = losses_from_percent(percent, group.toe_points)
+    shares = distribute_evenly(losses, groups=len(group.members))
+    results = tuple(
+        BreakdownShare(
+            member.unit_id, share,
+            forced_breakdown_placement(
+                share, start_hex=member.start_hex,
+                stop_hex=member.stop_hex,
+                near_enemy_battalion=member.near_enemy_battalion))
+        for member, share in zip(group.members, shares)
+    )
+    return BreakdownGroupResult(group, roll, percent, losses, results)
 
 
 def breakdown_check_suppressed(off_map_box: bool) -> bool:

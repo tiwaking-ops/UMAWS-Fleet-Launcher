@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 import sys
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
@@ -15,7 +16,10 @@ if str(SRC) not in sys.path:
 
 from cna.ai.player import NoProgressAction, RandomLegalPlayer  # noqa: E402
 from cna.engine import Action, Decision  # noqa: E402
-from cna.tools.soak import run_game, run_soak  # noqa: E402
+from cna.rules.sec08_movement import MovingUnit  # noqa: E402
+from cna.tools.soak import (run_game, run_soak,  # noqa: E402
+                            synthetic_scenario,
+                            synthetic_scenario_document)
 
 
 def _decision() -> Decision:
@@ -65,3 +69,32 @@ def test_twenty_seeded_games_complete_six_turns_without_illegals() -> None:
     assert all(game.illegal_actions == 0 for game in report.games)
     assert all(game.error == "" for game in report.games)
     assert len({game.state_hash for game in report.games}) == 20
+
+
+def test_synthetic_map_costs_and_breakdown_points_come_from_the_tec() -> None:
+    scenario = synthetic_scenario()
+    truck = MovingUnit("ax-t", "axis", base_cpa=12, unit_class="truck",
+                       motorized=True, stacking_points=1, toe_points=3)
+
+    clear = scenario.cost(truck, "A", "C")
+    rough = scenario.cost(truck, "A", "B")
+
+    assert (clear.cp, clear.breakdown) == (Fraction(1), Fraction(1))
+    assert (rough.cp, rough.breakdown) == (Fraction(2), Fraction(2))
+    assert scenario.breakdown_table is not None
+
+
+def test_soak_games_exercise_breakdown_resolution() -> None:
+    result = run_game(17, game_turns=3)
+    assert result.breakdowns > 0
+    assert result.to_obj()["breakdowns"] > 0
+
+
+def test_the_soak_runs_from_a_loaded_scenario_document() -> None:
+    document = synthetic_scenario_document()
+    document["id"] = "synthetic-loader-check"
+
+    report = run_soak([5], game_turns=1, scenario_document=document)
+
+    assert report.ok is True
+    assert report.to_obj()["scenario"].startswith("synthetic-loader-check:")

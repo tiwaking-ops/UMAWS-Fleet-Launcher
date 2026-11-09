@@ -17,11 +17,13 @@ from cna.rules.sec21_breakdown import (
     BREAKDOWN_TYPES,
     BreakdownError,
     BreakdownTrack,
+    BreakdownUnit,
     air_bombardment_affects_level3_city,
     air_facility_construction,
     breakdown_bar,
     breakdown_check_required,
     breakdown_column,
+    breakdown_group_type,
     breakdown_percent,
     capture_tow_hexes,
     column_for,
@@ -36,6 +38,7 @@ from cna.rules.sec21_breakdown import (
     engineer_assault_column_bonus,
     engineer_can_build_bridges,
     engineer_minefield_additional_cp,
+    evaluate_breakdown,
     facility_repair_allowed,
     facility_repair_modifier,
     facility_supply_cost,
@@ -44,12 +47,14 @@ from cna.rules.sec21_breakdown import (
     field_tank_fuel_cost,
     field_tank_repair,
     field_truck_repair,
+    forced_breakdown_placement,
     forced_breakdown_share,
     fortification_affects_movement_or_breakdown,
     fortification_allowed,
     fortification_level,
     fortification_rebuild_in_zoc_allowed,
     friendly_minefield_engineer_cost,
+    group_breakdown_units,
     hot_water_cost,
     losses_from_percent,
     minefield_construction,
@@ -65,6 +70,7 @@ from cna.rules.sec21_breakdown import (
     repair_phase_allowed,
     repair_weather_allowed,
     repaired_vehicle_training_required,
+    resolve_breakdown_group,
     road_build_capacity,
     road_build_cost,
     supply_dump_cost,
@@ -89,6 +95,15 @@ def raises(error_type, call):
     except error_type:
         return
     raise AssertionError(f"expected {error_type.__name__}")
+
+
+def breakdown_vehicle(unit_id, vehicle_type, *, points, toe=3,
+                      parent="p1", bar=None, start="A", stop="B",
+                      near=False, last=None):
+    return BreakdownUnit(
+        unit_id, vehicle_type, toe, breakdown_points=points,
+        breakdown_last_column=last, parent_id=parent, bar=bar,
+        start_hex=start, stop_hex=stop, near_enemy_battalion=near)
 
 
 # ---------------------------------------------------------------------------
@@ -182,6 +197,62 @@ def test_21_36_breakdowns_are_distributed_evenly():
     assert distribute_evenly(0, groups=2) == (0, 0)
 
 
+def test_21_28_groups_types_and_tank_ratings_for_separate_rolls():
+    """RULE: 21.28."""
+    groups = group_breakdown_units([
+        breakdown_vehicle("truck", "truck", points=21),
+        breakdown_vehicle("tank-0", "tank", points=4, bar=0),
+        breakdown_vehicle("tank-1", "tank", points=4, bar=1),
+        breakdown_vehicle("recce", "recce", points=4),
+        breakdown_vehicle("armored", "armored_car", points=11),
+        breakdown_vehicle("quiet", "truck", points=3),
+    ])
+
+    assert [(group.unit_type, group.bar, group.column, group.unit_ids)
+            for group in groups] == [
+        ("armored_recce", None, 4, ("armored", "recce")),
+        ("tanks_and_guns", 0, 4, ("tank-0",)),
+        ("tanks_and_guns", 1, 11, ("tank-1",)),
+        ("trucks", None, 4, ("truck",)),
+    ]
+    assert breakdown_group_type("sp_gun") == "tanks_and_guns"
+    raises(BreakdownError,
+           lambda: breakdown_vehicle("x", "infantry", points=4))
+
+
+def test_21_29_columns_and_parent_formations_get_separate_rolls():
+    """RULE: 21.29."""
+    groups = group_breakdown_units([
+        breakdown_vehicle("t1", "truck", points=21, parent="p1"),
+        breakdown_vehicle("t2", "truck", points=31, parent="p1"),
+        breakdown_vehicle("t3", "truck", points=21, parent="p2"),
+        breakdown_vehicle("t4", "truck", points=21, parent="p1"),
+    ])
+
+    assert [(group.parent_id, group.column, group.unit_ids)
+            for group in groups] == [
+        ("p1", 4, ("t1", "t4")),
+        ("p1", 11, ("t2",)),
+        ("p2", 4, ("t3",)),
+    ]
+
+
+def test_21_28_29_a_group_uses_the_combined_toe_points():
+    """RULE: 21.28-21.29, 21.35-21.36."""
+    group, = group_breakdown_units([
+        breakdown_vehicle("t1", "truck", points=21),
+        breakdown_vehicle("t2", "truck", points=21),
+    ])
+
+    result = resolve_breakdown_group(
+        group, roll=33, table=lambda roll, column: 50)
+
+    assert group.toe_points == 6
+    assert result.percent == 50 and result.losses == 3
+    assert [(share.unit_id, share.losses) for share in result.shares] == [
+        ("t1", 2), ("t2", 1)]
+
+
 def test_21_34_breakdown_table_is_caller_supplied():
     """RULE: 21.34."""
     table = lambda roll, column: 10 if (roll, column) == (33, 31) else 0
@@ -193,6 +264,39 @@ def test_21_41_half_the_breakdowns_stay_near_the_enemy():
     """RULE: 21.41."""
     assert forced_breakdown_share(near_enemy_battalion=True) == Fraction(1, 2)
     assert forced_breakdown_share(near_enemy_battalion=False) == 0
+
+
+def test_21_41_forced_placement_keeps_at_least_half_at_the_start():
+    """RULE: 21.41."""
+    forced = forced_breakdown_placement(
+        5, start_hex="A", stop_hex="B", near_enemy_battalion=True)
+    assert (forced.at_start, forced.at_stop) == (3, 2)
+    assert forced.total == 5
+
+    free = forced_breakdown_placement(
+        5, start_hex="A", stop_hex="B", near_enemy_battalion=False)
+    assert (free.at_start, free.at_stop) == (0, 5)
+
+    same = forced_breakdown_placement(
+        5, start_hex="A", stop_hex="A", near_enemy_battalion=True)
+    assert (same.at_start, same.at_stop) == (0, 5)
+
+
+def test_21_41_each_units_share_is_placed_from_its_own_start_hex():
+    """RULE: 21.41."""
+    group, = group_breakdown_units([
+        breakdown_vehicle("t1", "truck", points=21, start="A", stop="B",
+                          near=True),
+        breakdown_vehicle("t2", "truck", points=21, start="C", stop="B"),
+    ])
+
+    result = resolve_breakdown_group(
+        group, roll=33, table=lambda roll, column: 50)
+
+    assert [(share.unit_id, share.losses,
+             share.placement.at_start, share.placement.at_stop)
+            for share in result.shares] == [
+        ("t1", 2, 1, 1), ("t2", 1, 0, 1)]
 
 
 def test_21_52_54_capturing_broken_down_vehicles():
@@ -543,3 +647,28 @@ def test_26_26_defender_shifts_one_column_in_a_minefield():
                                            defender_in_enemy_minefield=True) == 1
     assert minefield_defender_column_shift(attacker_in_enemy_minefield=False,
                                            defender_in_enemy_minefield=False) == 0
+
+
+def test_21_24_27_evaluate_breakdown_is_pending_until_resolved():
+    """RULE: 21.24-21.27, 21.34-21.35."""
+    pending = evaluate_breakdown(4, last_column=None)
+    assert pending.required and pending.pending
+    assert pending.last_column is None and pending.percent is None
+
+    table = lambda roll, column: 10
+    resolved = evaluate_breakdown(4, last_column=None, roll=33, table=table,
+                                  toe_points=3)
+    assert resolved.column == 4 and resolved.resolved
+    assert resolved.last_column == 4
+    assert resolved.percent == 10 and resolved.losses == 1
+
+    same = evaluate_breakdown(5, last_column=4, roll=33, table=table)
+    assert not same.required and same.last_column == 4
+    higher = evaluate_breakdown(11, last_column=4, roll=33, table=table)
+    assert higher.required and higher.column == 11
+    assert higher.last_column == 11
+    assert not evaluate_breakdown(3, last_column=None).required
+    suppressed = evaluate_breakdown(4, last_column=None, suppressed=True)
+    assert suppressed.suppressed and not suppressed.required
+    raises(BreakdownError,
+           lambda: evaluate_breakdown(4, last_column=None, roll=33))

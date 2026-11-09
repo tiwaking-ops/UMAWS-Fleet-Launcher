@@ -46,6 +46,9 @@ from .decision import (HISTORY_KEY, RESOLUTIONS_KEY, Decision, actor_in_play,
                        apply, legal_actions, pending, resolved_action)
 from .errors import (AlreadyResolved, ClosedDecision, EngineError,
                      IllegalAction, UnknownAction)
+from .loop import (MoveOption, StageError, StageResult, StageScenario,
+                   apply_move, build_decision, controlled_hexes, legal_moves,
+                   play_operations_stage, stage_phases)
 
 __all__ = [
     # the model
@@ -69,4 +72,15 @@ __all__ = [
     "ClosedDecision",
     "AlreadyResolved",
     "UnknownAction",
+    # the Operations Stage loop
+    "StageScenario",
+    "StageResult",
+    "StageError",
+    "MoveOption",
+    "play_operations_stage",
+    "build_decision",
+    "legal_moves",
+    "apply_move",
+    "controlled_hexes",
+    "stage_phases",
 ]

@@ -1,7 +1,7 @@
 """Land movement.
 
-RULE: 8.0, 8.11-8.18, 8.21-8.24, 8.31-8.34, 8.41-8.47, 8.51-8.55, 8.61-8.68,
-8.91-8.94, 8.98
+RULE: 8.0, 8.11-8.18, 8.21-8.24, 8.31-8.37, 8.41-8.47, 8.51-8.55, 8.61-8.68,
+8.91-8.94, 8.98, 21.21-21.27
 
 A unit has no movement allowance: every hex it enters is paid for out of its
 CPA (8.11, 8.16), and the price comes from the Terrain Effects Chart.  The
@@ -20,13 +20,16 @@ state.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from fractions import Fraction
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Mapping
 
+from cna.rules.sec21_breakdown import (BreakdownCheck, WEATHER_SHIFTS,
+                                      evaluate_breakdown)
 from cna.rules.sec10_zoc import may_move_zoc_to_zoc
 
-RULE = "8.11-8.24, 8.41-8.47, 8.51-8.55, 8.61-8.68, 8.91-8.94, 8.98"
+RULE = ("8.11-8.24, 8.31-8.37, 8.41-8.47, 8.51-8.55, 8.61-8.68, "
+        "8.91-8.94, 8.98, 21.21-21.27")
 
 #: A unit at this Cohesion or worse may not move (6.26, 8.17).
 COLLAPSE_AT = -26
@@ -125,6 +128,11 @@ class MovingUnit:
     stacked_with_friendly_combat: bool = False
     size_level: str = "battalion"
     raider: bool = False
+    breakdown_points: Fraction = Fraction(0)
+    breakdown_last_column: int | None = None
+    breakdown_bar: int = 0
+    toe_points: Fraction | None = None
+    off_map_box: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.unit_id, str) or not self.unit_id.strip():
@@ -156,6 +164,24 @@ class MovingUnit:
                     "transport_cpa must be a non-negative integer or None")
         if self.size_level not in ("company", "battalion", "brigade", "division"):
             raise MovementError(f"unknown size level: {self.size_level!r}")
+        object.__setattr__(self, "breakdown_points",
+                           _points(self.breakdown_points,
+                                   name="breakdown_points"))
+        if self.breakdown_last_column is not None:
+            if (isinstance(self.breakdown_last_column, bool)
+                    or not isinstance(self.breakdown_last_column, int)
+                    or self.breakdown_last_column < 0):
+                raise MovementError(
+                    "breakdown_last_column must be a non-negative integer or None")
+        if (isinstance(self.breakdown_bar, bool)
+                or not isinstance(self.breakdown_bar, int)
+                or not -2 <= self.breakdown_bar <= 2):
+            raise MovementError("breakdown_bar must be an integer from -2 to 2")
+        if self.toe_points is not None:
+            object.__setattr__(self, "toe_points",
+                               _points(self.toe_points, name="toe_points"))
+        if not isinstance(self.off_map_box, bool):
+            raise MovementError("off_map_box must be a bool")
 
     @property
     def cpa(self) -> int:
@@ -169,6 +195,11 @@ class MovingUnit:
     @property
     def is_combat(self) -> bool:
         return self.kind == "combat"
+
+    @property
+    def is_breakdown_subject(self) -> bool:
+        """21.11/21.21: vehicles and motorized units accumulate Breakdown."""
+        return self.is_vehicle or self.motorized
 
     @property
     def non_motorized(self) -> bool:
@@ -188,7 +219,7 @@ class MovingUnit:
         return Fraction(3, 2) * self.base_cpa
 
 
-CostFn = Callable[[MovingUnit, str, str], Fraction | None]
+CostFn = Callable[[MovingUnit, str, str], Any]
 AdjacencyFn = Callable[[str, str], bool]
 
 
@@ -210,6 +241,10 @@ class MoveContext:
     advance_allowed: frozenset[str] = frozenset()
     adjacent: AdjacencyFn | None = None
     phase: str = "movement"
+    weather: str = "normal"
+    sandstorm_majority: bool = False
+    breakdown_roll: int | None = None
+    breakdown_table: Callable[[int, int], int] | None = None
 
     def __post_init__(self) -> None:
         if not callable(self.cost):
@@ -222,6 +257,23 @@ class MoveContext:
             raise MovementError(f"unknown movement phase: {self.phase!r}")
         if self.adjacent is not None and not callable(self.adjacent):
             raise MovementError("adjacent must be callable or None")
+        if self.weather not in WEATHER_SHIFTS:
+            raise MovementError(f"unknown weather: {self.weather!r}")
+        if not isinstance(self.sandstorm_majority, bool):
+            raise MovementError("sandstorm_majority must be a bool")
+        if (self.breakdown_roll is None) != (self.breakdown_table is None):
+            raise MovementError(
+                "breakdown_roll and breakdown_table must be supplied together")
+        if self.breakdown_roll is not None:
+            value = self.breakdown_roll
+            if (isinstance(value, bool) or not isinstance(value, int)
+                    or not (11 <= value <= 66)
+                    or not all(1 <= int(d) <= 6 for d in str(value))):
+                raise MovementError(
+                    "breakdown_roll must be a sequential two-dice read-out")
+        if self.breakdown_table is not None and not callable(
+                self.breakdown_table):
+            raise MovementError("breakdown_table must be callable")
 
     @property
     def controlled(self) -> frozenset[str]:
@@ -241,9 +293,10 @@ class MoveResult:
     stopped: str
     remaining: tuple[str, ...]
     voluntary_spent: Fraction
+    breakdown: BreakdownCheck | None = None
 
     def to_obj(self) -> dict[str, Any]:
-        return {
+        data = {
             "unit_id": self.unit_id,
             "origin": self.origin,
             "entered": list(self.entered),
@@ -256,6 +309,9 @@ class MoveResult:
             "voluntary_spent": str(self.voluntary_spent),
             "rule": RULE,
         }
+        if self.breakdown is not None:
+            data["breakdown"] = self.breakdown.to_obj()
+        return data
 
 
 def break_off_cost(unit: MovingUnit, *, phase: str = "movement") -> Fraction:
@@ -273,6 +329,19 @@ def break_off_cost(unit: MovingUnit, *, phase: str = "movement") -> Fraction:
     if unit.contact:
         return CONTACT_BREAK_OFF_CP
     return Fraction(0)
+
+
+def _breakdown_at_stop(unit: MovingUnit, context: MoveContext,
+                       points: Fraction) -> BreakdownCheck | None:
+    """21.24-21.27: the check due when *unit* ceases movement."""
+    if not unit.is_breakdown_subject:
+        return None
+    return evaluate_breakdown(
+        points, last_column=unit.breakdown_last_column,
+        bar=unit.breakdown_bar, weather=context.weather,
+        sandstorm_majority=context.sandstorm_majority,
+        suppressed=unit.off_map_box, roll=context.breakdown_roll,
+        table=context.breakdown_table, toe_points=unit.toe_points)
 
 
 def move_unit(unit: MovingUnit, origin: str, path: Iterable[str],
@@ -300,6 +369,7 @@ def move_unit(unit: MovingUnit, origin: str, path: Iterable[str],
     break_off = break_off_cost(unit, phase=context.phase)
     spent = break_off
     voluntary = unit.voluntary_spent + break_off
+    breakdown_points = unit.breakdown_points
     if (context.phase == "movement" and unit.non_motorized
             and voluntary > (unit.voluntary_cap or Fraction(0))):
         raise MovementError(
@@ -333,12 +403,26 @@ def move_unit(unit: MovingUnit, origin: str, path: Iterable[str],
                 raise MovementError(
                     "10.29: a non-combat unit may not voluntarily enter an "
                     "unoccupied hex in an Enemy ZOC")
-        step = context.cost(unit, current, destination)
-        if step is None:
+        raw = context.cost(unit, current, destination)
+        if raw is None:
             raise MovementError(
                 "8.31/8.32: the Terrain Effects Chart prohibits this unit "
                 "from entering that hex or crossing that hexside")
+        if isinstance(raw, TerrainCrossing):
+            if raw.prohibited:
+                raise MovementError(
+                    raw.reason or
+                    "8.31/8.32: the Terrain Effects Chart prohibits this "
+                    "unit from entering that hex or crossing that hexside")
+            step = raw.cp
+            step_breakdown = raw.breakdown
+        else:
+            step = raw
+            step_breakdown = Fraction(0)
         step = _points(step, name="step cost")
+        if step_breakdown and unit.is_breakdown_subject and not unit.off_map_box:
+            breakdown_points += _points(step_breakdown,
+                                        name="step breakdown")
         spent += step
         voluntary += step
         if context.phase == "movement" and unit.non_motorized:
@@ -363,12 +447,15 @@ def move_unit(unit: MovingUnit, origin: str, path: Iterable[str],
                 entered=tuple(entered), position=current,
                 break_off=break_off, movement_cost=movement, total=spent,
                 stopped=stopped, remaining=remaining,
-                voluntary_spent=voluntary)
+                voluntary_spent=voluntary,
+                breakdown=_breakdown_at_stop(unit, context, breakdown_points))
 
     return MoveResult(
         unit_id=unit.unit_id, origin=origin, entered=tuple(entered),
         position=current, break_off=break_off, movement_cost=movement,
-        total=spent, stopped="", remaining=(), voluntary_spent=voluntary)
+        total=spent, stopped="", remaining=(), voluntary_spent=voluntary,
+        breakdown=(_breakdown_at_stop(unit, context, breakdown_points)
+                   if entered else None))
 
 
 def may_continue_moving(unit: MovingUnit, *, distance_to_enemy: int,
@@ -566,8 +653,9 @@ def crossing(unit: MovingUnit, *, base_cp: Fraction | int,
             reason="8.41: wadi crossed without Road or Track")
 
     if road:
-        return TerrainCrossing(cp=cp, breakdown=breakdown,   # 8.33
-                               reason="8.33: Road ignores other terrain")
+        return TerrainCrossing(                              # 8.33, 21.37c
+            cp=cp, breakdown=breakdown / 2 if rainstorm else breakdown,
+            reason="8.33: Road ignores other terrain")
 
     if track:
         if hexside:
@@ -579,3 +667,239 @@ def crossing(unit: MovingUnit, *, base_cp: Fraction | int,
                                reason="8.46: Track is one CP per hex")
 
     return TerrainCrossing(cp=cp, breakdown=breakdown)
+
+
+# ---------------------------------------------------------------------------
+# The Terrain Effects Chart interface (8.31-8.37)
+# ---------------------------------------------------------------------------
+
+class TECError(MovementError):
+    """The caller's Terrain Effects Chart is missing or malformed."""
+
+
+def _normalize_cost(value: Any, *, name: str
+                    ) -> Fraction | Mapping[str, Fraction]:
+    if isinstance(value, Mapping):
+        normalized: dict[str, Fraction] = {}
+        for key, raw in value.items():
+            if not isinstance(key, str) or not key.strip():
+                raise TECError(f"{name} keys must be non-empty strings")
+            normalized[key] = _points(raw, name=f"{name}[{key!r}]")
+        if not normalized:
+            raise TECError(f"{name} must have at least one unit-class column")
+        return normalized
+    return _points(value, name=name)
+
+
+def _cost_for(value: Fraction | Mapping[str, Fraction], unit: MovingUnit, *,
+              name: str) -> Fraction:
+    if isinstance(value, Mapping):
+        for key in (unit.unit_class,
+                    "motorized" if unit.motorized else "",
+                    "default"):
+            if key and key in value:
+                return value[key]
+        raise TECError(f"{name} has no cost for {unit.unit_class!r}")
+    return value
+
+
+@dataclass(frozen=True)
+class TerrainRow:
+    """One terrain line of the caller-supplied TEC (8.31-8.32, 8.37).
+
+    ``cp`` is either one cost or a mapping keyed by unit class, ``motorized``
+    or ``default``.  ``prohibited`` accepts unit classes plus the tokens
+    ``vehicles`` and ``motorized``.  ``stacking_limit`` is the 9.14 limit the
+    same chart supplies.
+    """
+
+    cp: Fraction | Mapping[str, Fraction]
+    breakdown: Fraction = Fraction(0)
+    prohibited: frozenset[str] = frozenset()
+    stacking_limit: Fraction | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "cp", _normalize_cost(self.cp, name="cp"))
+        object.__setattr__(self, "breakdown",
+                           _points(self.breakdown, name="breakdown"))
+        if isinstance(self.prohibited, str):
+            prohibited = frozenset({self.prohibited})
+        else:
+            prohibited = frozenset(str(item) for item in self.prohibited)
+        object.__setattr__(self, "prohibited", prohibited)
+        if self.stacking_limit is not None:
+            object.__setattr__(self, "stacking_limit",
+                               _points(self.stacking_limit,
+                                       name="stacking_limit"))
+
+    def cost_for(self, unit: MovingUnit) -> Fraction:
+        return _cost_for(self.cp, unit, name="cp")
+
+    def prohibits(self, unit: MovingUnit) -> bool:
+        return (unit.unit_class in self.prohibited
+                or ("vehicles" in self.prohibited and unit.is_vehicle)
+                or ("motorized" in self.prohibited and unit.motorized))
+
+
+@dataclass(frozen=True)
+class HexsideRow:
+    """One hexside line of the TEC (8.35, 8.42-8.43)."""
+
+    cp: Fraction | Mapping[str, Fraction]
+    breakdown: Fraction = Fraction(0)
+    prohibited: frozenset[str] = frozenset()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "cp", _normalize_cost(self.cp, name="cp"))
+        object.__setattr__(self, "breakdown",
+                           _points(self.breakdown, name="breakdown"))
+        if isinstance(self.prohibited, str):
+            prohibited = frozenset({self.prohibited})
+        else:
+            prohibited = frozenset(str(item) for item in self.prohibited)
+        object.__setattr__(self, "prohibited", prohibited)
+
+    def cost_for(self, unit: MovingUnit) -> Fraction:
+        return _cost_for(self.cp, unit, name="cp")
+
+    def prohibits(self, unit: MovingUnit) -> bool:
+        return (unit.unit_class in self.prohibited
+                or ("vehicles" in self.prohibited and unit.is_vehicle)
+                or ("motorized" in self.prohibited and unit.motorized))
+
+
+@dataclass(frozen=True)
+class TEC:
+    """A caller-supplied Terrain Effects Chart (8.31-8.37).
+
+    The official chart is R-04 and is not in the repository.  This interface
+    holds whatever verified rows the caller has; tests and the soak use
+    explicitly synthetic rows.  Track movement is fixed by 8.46 at one CP
+    per hex and half the terrain Breakdown Points; Road costs and Breakdown
+    values come from the chart because 8.31 only gives their range.
+    """
+
+    terrain: Mapping[str, TerrainRow]
+    hexsides: Mapping[str, HexsideRow] = field(default_factory=dict)
+    road_cp: Fraction | Mapping[str, Fraction] = Fraction(1)
+    road_breakdown: Fraction = Fraction(0)
+
+    def __post_init__(self) -> None:
+        terrain = dict(self.terrain)
+        if not terrain:
+            raise TECError("the TEC must have at least one terrain row")
+        for key, row in terrain.items():
+            if not isinstance(key, str) or not key.strip():
+                raise TECError("terrain keys must be non-empty strings")
+            if not isinstance(row, TerrainRow):
+                raise TECError(f"terrain row {key!r} must be a TerrainRow")
+        hexsides = dict(self.hexsides)
+        for key, row in hexsides.items():
+            if not isinstance(key, str) or not key.strip():
+                raise TECError("hexside keys must be non-empty strings")
+            if not isinstance(row, HexsideRow):
+                raise TECError(f"hexside row {key!r} must be a HexsideRow")
+        object.__setattr__(self, "terrain", terrain)
+        object.__setattr__(self, "hexsides", hexsides)
+        object.__setattr__(self, "road_cp",
+                           _normalize_cost(self.road_cp, name="road_cp"))
+        object.__setattr__(self, "road_breakdown",
+                           _points(self.road_breakdown,
+                                   name="road_breakdown"))
+
+    def row(self, terrain: str) -> TerrainRow:
+        try:
+            return self.terrain[terrain]
+        except KeyError:
+            raise TECError(
+                f"the TEC has no terrain row for {terrain!r} (R-04)") from None
+
+    def hexside(self, name: str) -> HexsideRow:
+        try:
+            return self.hexsides[name]
+        except KeyError:
+            raise TECError(
+                f"the TEC has no hexside row for {name!r} (R-04)") from None
+
+    def stacking_limit(self, terrain: str) -> Fraction | None:
+        return self.row(terrain).stacking_limit
+
+    def enter(self, unit: MovingUnit, terrain: str, *, hexside: str = "",
+              road: bool = False, track: bool = False,
+              unconstructed_road: bool = False, direction: str = "",
+              rainstorm: bool = False) -> TerrainCrossing:
+        """The 8.31-8.37 result of entering one hex or crossing a hexside."""
+        if not isinstance(unit, MovingUnit):
+            raise TECError("unit must be a MovingUnit")
+        if not isinstance(terrain, str) or not terrain.strip():
+            raise TECError("terrain must be a non-empty string")
+        for name, value in (("road", road), ("track", track),
+                            ("unconstructed_road", unconstructed_road),
+                            ("rainstorm", rainstorm)):
+            if not isinstance(value, bool):
+                raise TECError(f"{name} must be a bool")
+        if not isinstance(hexside, str):
+            raise TECError("hexside must be a string")
+        if unconstructed_road:
+            track = True                                       # 8.47
+        if road:
+            track = False                                      # Road wins
+
+        row = self.row(terrain)
+        if row.prohibits(unit):
+            return TerrainCrossing(
+                cp=Fraction(0), breakdown=Fraction(0), prohibited=True,
+                reason=f"8.32: {unit.unit_class} may not enter {terrain}")
+        side = self.hexside(hexside) if hexside else None
+        if side is not None and side.prohibits(unit):
+            return TerrainCrossing(
+                cp=Fraction(0), breakdown=Fraction(0), prohibited=True,
+                reason=f"8.32: {unit.unit_class} may not cross {hexside}")
+
+        base_cp = row.cost_for(unit)
+        base_breakdown = row.breakdown
+        if terrain in ("desert", "salt_marsh"):       # 8.44-8.45
+            return crossing(unit, base_cp=base_cp,
+                            base_breakdown=base_breakdown, terrain=terrain,
+                            road=road, track=track)
+
+        if side is not None:
+            if hexside == "escarpment":                     # 8.42
+                return crossing(unit, base_cp=side.cost_for(unit),
+                                base_breakdown=side.breakdown,
+                                terrain="escarpment", direction=direction,
+                                road=road, track=track)
+            if hexside == "wadi":                           # 8.41
+                if road:
+                    return crossing(
+                        unit, base_cp=_cost_for(self.road_cp, unit,
+                                                name="road_cp"),
+                        base_breakdown=self.road_breakdown, terrain="wadi",
+                        hexside=True, road=True, rainstorm=rainstorm)
+                return crossing(unit, base_cp=base_cp + side.cost_for(unit),
+                                base_breakdown=side.breakdown,
+                                terrain="wadi", hexside=True, road=road,
+                                track=track, rainstorm=rainstorm)
+            if road:                                        # 8.33
+                return crossing(unit, base_cp=_cost_for(
+                    self.road_cp, unit, name="road_cp"),
+                    base_breakdown=self.road_breakdown, road=True,
+                    rainstorm=rainstorm)
+            if track:                                       # 8.46
+                return crossing(unit, base_cp=base_cp + side.cost_for(unit),
+                                base_breakdown=base_breakdown + side.breakdown,
+                                track=True)
+            return TerrainCrossing(                        # 8.35/8.43
+                cp=base_cp + side.cost_for(unit),
+                breakdown=base_breakdown + side.breakdown,
+                reason=f"8.35: {hexside} hexside")
+
+        if road:
+            return crossing(unit, base_cp=_cost_for(
+                self.road_cp, unit, name="road_cp"),
+                base_breakdown=self.road_breakdown, road=True,
+                rainstorm=rainstorm)
+        if track:
+            return crossing(unit, base_cp=base_cp,
+                            base_breakdown=base_breakdown, track=True)
+        return TerrainCrossing(cp=base_cp, breakdown=base_breakdown)
