@@ -38,3 +38,31 @@ Read-only: nothing below was removed.
 - A branch marked `no` may hold unmerged work: it must be inspected, not deleted.
 - The count gap (15 vs 26) means the Kernel does not know it owns 11 of these directories.
 - Disposition is an operator decision (proposal §4.3 excludes deletion from this repair).
+
+---
+
+## Re-measurement 2026-11-09 (repair execution)
+
+Measured with `pmk worktree list` and `git worktree list` after the Phase 1
+capture (`tmp/rb-7-pmk-census.txt`, `tmp/rb-7-git-census.txt`).
+
+- **`pmk`:** 32 worktrees, 417.6 MiB, **7 dirty** (all archived).
+- **git:** **44** entries.
+- **Union difference:** git knows 12 entries `pmk` does not — `main`, the
+  `.claude/worktrees/agent-a8ea164055f940daf` tree, and **10**
+  `%TEMP%/pmk-merge-*` trees. `pmk` counts 8 non-lease trees under `work/`
+  (gate trees, the H1–H4 branch, the two H1–H4 clean trees, the launcher-repair
+  clean tree, and the legacy cwd-fallback tree) as worktrees; their task/fence
+  is `None` and state `?`.
+- **Dirty capture:** `pmk worktree archive --all-dirty` captured all 7 dirty
+  trees under `stranded/` (dry-run first, no refusals, no deletions):
+  `T-0142-119`, `T-0145-122`, `T-0146-124`, `T-0189-156`,
+  `H1-H4-clean-1794215552`, `H1-H4-clean-1794218904`,
+  `launcher-repair-clean-1794220000`. Output: `tmp/capture-pmk-archive.txt`.
+- **Deletion:** not performed. CP-3 was not exercised; the proposal reserves
+  deletion for operator approval, and the archive is the prerequisite either
+  way. The `%TEMP%/pmk-merge-*` trees remain untouched.
+
+Delta from the 2026-11-08 measurement: +17 git entries and +17 pmk entries,
+explained by the repair's detached gate/clean trees (`work/`) and the session's
+new gate tree; no unexplained tree appeared.

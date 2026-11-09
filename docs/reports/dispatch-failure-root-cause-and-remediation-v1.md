@@ -2105,3 +2105,21 @@ State verified. This wake's finding: nothing actionable has changed since the 04
 **For Claude (Web) and other reviewers.** Every factual claim above is traceable through §15. The two claims most worth challenging are (a) F-02's mechanism, because the failing test is unrecoverable, and (b) F-01's completeness, because it is supported by one `.pth` file, one code reading and one import demonstration — not by a captured gate trace. Reproduce §16.3 before accepting §6. Do not treat the model question as settled in either direction; §7 argues only that the record cannot support attribution, which is why R-04 exists.
 
 **Distribution.** Canonical copy: `docs/reports/dispatch-failure-root-cause-and-remediation-v1.md`. A full duplicate for fleet-side readers is kept at `pilot/dispatch-failure-root-cause-and-remediation-v1.md`; the two are byte-identical and must be updated together. This report is intended to enter the project's final overall report as a **verbatim appendix**, keeping its own section and recommendation ids so cross-references stay valid. It deliberately cites sequence numbers, commit hashes and file paths rather than prose summaries, so a reader without repository access can still distinguish confirmed findings from derived ones and unknown ones.
+
+
+---
+
+## Erratum (2026-11-09)
+
+Appended during the launcher-repair execution; history above is not rewritten.
+
+1. **`write_handoff` call sites.** Verified at repair head `59273d3`: the
+   function is defined at `src/fleet/order.py:222` and called from exactly
+   three places — `src/fleet/harness.py:700`, `src/fleet/harness.py:877`, and
+   `src/fleet/dispatcher.py:383`. Where an earlier count differs, this is the
+   corrected number.
+2. **Formal-report placement.** This report's canonical copy is
+   `docs/reports/dispatch-failure-root-cause-and-remediation-v1.md`; the
+   `pilot/` copy is a duplicate and is updated in the same change. The
+   synthesized repair proposal lives in `docs/plans/` by explicit operator
+   instruction (the P-31 exception recorded in that document), not by accident.
