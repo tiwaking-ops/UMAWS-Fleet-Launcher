@@ -10,6 +10,7 @@ import hashlib
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -1540,6 +1541,74 @@ def test_agent_started_includes_main_tree_status(git_repo_master):
     started = [e for e in events if e.type == "AGENT_STARTED"]
     assert len(started) == 1
     assert "main_tree_status" in started[0].payload
+
+
+def test_a_failed_agent_started_write_kills_the_process_and_gives_up_the_lease(
+        git_repo_master, monkeypatch):
+    """A live writer the log cannot see must not outlive a failed record.
+
+    ``_record_started`` is the only writer of ``AGENT_STARTED``, and the
+    reaper trusts that event before it deletes a worktree.  When the record
+    cannot be written, ``start()`` must kill the process it just spawned and
+    revoke/quarantine the lease.  The fake profile is the ``hang`` scenario,
+    so the process is still running when the record fails and only the kill
+    can stop it.
+    """
+    from fleet import spawn as spawn_mod
+    from fleet.harness import Harness
+    from fleet.profiles import Profile
+    from fleet.state import FleetState
+
+    repo = git_repo_master
+    kernel = _make_kernel_from_repo(repo)
+    profile_dict = fake_profile(scenario="hang")
+    write_agents(repo, [profile_dict])
+
+    task = make_task(kernel, scope={"write": ["out.txt"], "read": []})
+
+    real_spawn = spawn_mod.spawn_slot
+    spawned = []
+
+    def capture_spawn(*args, **kwargs):
+        slot = real_spawn(*args, **kwargs)
+        spawned.append((slot, kwargs["fence"]))
+        return slot
+
+    monkeypatch.setattr(spawn_mod, "spawn_slot", capture_spawn)
+
+    real_record_event = kernel.record_event
+
+    def fail_agent_started(event_type, **kwargs):
+        if event_type == "AGENT_STARTED":
+            raise OSError("event log is read-only")
+        return real_record_event(event_type, **kwargs)
+
+    monkeypatch.setattr(kernel, "record_event", fail_agent_started)
+
+    harness = Harness(kernel, FleetState())
+    run, result = harness.start(task, Profile.from_dict(profile_dict))
+
+    assert run is None
+    assert result is not None
+    assert result.outcome == "failed"
+    assert "start record" in result.error
+    assert "OSError" in result.error
+
+    assert len(spawned) == 1, "the process under test was never spawned"
+    slot, fence = spawned[0]
+    deadline = time.monotonic() + 10
+    while spawn_mod.slot_alive(slot) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert not spawn_mod.slot_alive(slot), (
+        "the spawned process outlived the failed AGENT_STARTED write")
+
+    events = kernel.events()
+    assert not [e for e in events if e.type == "AGENT_STARTED"]
+    revoked = [e for e in events if e.type == "REVOKED" and e.fence == fence]
+    assert len(revoked) == 1
+    assert revoked[0].payload["reason"] == (
+        "could not record the started process")
+    assert [e for e in events if e.type == "QUARANTINED" and e.fence == fence]
 
 
 def test_scope_conflict_is_recorded_once_per_cause(git_repo_master):
