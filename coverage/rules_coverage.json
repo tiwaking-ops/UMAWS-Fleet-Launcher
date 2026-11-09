@@ -2,18 +2,18 @@
   "schema_version": 1,
   "rules_dir": "docs/rules",
   "counts": {
-    "paths": 82,
-    "covered": 82,
+    "paths": 94,
+    "covered": 94,
     "uncovered": 0,
     "rule_files": 69,
     "rule_files_declaring_paths": 3,
     "rule_files_matching": 3,
     "cases": 1739,
-    "cases_implemented": 5,
-    "cases_partial": 8,
-    "cases_unimplemented": 1721,
-    "cases_not_applicable": 0,
-    "cases_deferred": 5
+    "cases_implemented": 176,
+    "cases_partial": 69,
+    "cases_unimplemented": 1489,
+    "cases_not_applicable": 1,
+    "cases_deferred": 4
   },
   "rules": [
     {
@@ -546,7 +546,7 @@
       "globs": [
         "**/*"
       ],
-      "match_count": 82,
+      "match_count": 94,
       "matching": true,
       "matched_paths": [
         "src/cna/ai/__init__.py",
@@ -560,12 +560,24 @@
         "src/cna/engine/actions.py",
         "src/cna/engine/decision.py",
         "src/cna/engine/errors.py",
+        "src/cna/engine/loop.py",
         "src/cna/engine/rulesets.py",
         "src/cna/engine/sealed.py",
         "src/cna/rules/__init__.py",
         "src/cna/rules/sec05_sequence.py",
+        "src/cna/rules/sec06_capability.py",
         "src/cna/rules/sec07_initiative.py",
+        "src/cna/rules/sec08_movement.py",
+        "src/cna/rules/sec08_transport.py",
+        "src/cna/rules/sec09_stacking.py",
+        "src/cna/rules/sec10_zoc.py",
+        "src/cna/rules/sec11_combat.py",
+        "src/cna/rules/sec16_morale.py",
+        "src/cna/rules/sec19_organization.py",
+        "src/cna/rules/sec21_breakdown.py",
+        "src/cna/rules/sec27_raiders.py",
         "src/cna/rules/sec29_weather.py",
+        "src/cna/rules/sec32_abstract.py",
         "src/cna/state/__init__.py",
         "src/cna/state/model.py",
         "src/cna/state/views.py",
@@ -1136,49 +1148,59 @@
       "title": "THE CAPABILITY POINT SYSTEM",
       "rules_file": "sections/section-06.adoc",
       "line": 1,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
+      "reason": "section overview; 6.1-6.2 are structural headings"
     },
     {
       "case": "6.1",
       "title": "HOW THE CPA SYSTEM WORKS",
       "rules_file": "sections/section-06.adoc",
       "line": 17,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
+      "reason": "structural heading; child rules 6.11-6.17 are implemented"
     },
     {
       "case": "6.2",
       "title": "COHESION",
       "rules_file": "sections/section-06.adoc",
       "line": 83,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
+      "reason": "structural heading; 6.21-6.24 and 6.26-6.29 are implemented; 6.25 remains partial pending R-04"
     },
     {
       "case": "6.3",
       "title": "CAPABILITY POINT COST SUMMARY",
       "rules_file": "sections/section-06.adoc",
       "line": 187,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
+      "reason": "fixed CP costs are implemented; TEC/CPA-dependent rows await R-04"
     },
     {
       "case": "6.11",
       "title": "Each unit has a Capability Point Allowance (CPA). The CPA for",
       "rules_file": "sections/section-06.adoc",
       "line": 20,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
       "reason": ""
     },
     {
@@ -1186,9 +1208,11 @@
       "title": "Every function that a unit would need to perform costs that",
       "rules_file": "sections/section-06.adoc",
       "line": 25,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
       "reason": ""
     },
     {
@@ -1196,9 +1220,11 @@
       "title": "The CPA for a given unit refers to the number of Capability",
       "rules_file": "sections/section-06.adoc",
       "line": 31,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
       "reason": ""
     },
     {
@@ -1206,9 +1232,11 @@
       "title": "The allotment of CP's for an Operations Stage refers to both",
       "rules_file": "sections/section-06.adoc",
       "line": 38,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
       "reason": ""
     },
     {
@@ -1216,9 +1244,11 @@
       "title": "The CPA of a \"Parent Formation\" (e.g., division, brigade,",
       "rules_file": "sections/section-06.adoc",
       "line": 58,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
       "reason": ""
     },
     {
@@ -1226,9 +1256,11 @@
       "title": "A unit does not have to use all of its CP's in a single",
       "rules_file": "sections/section-06.adoc",
       "line": 66,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
       "reason": ""
     },
     {
@@ -1236,9 +1268,11 @@
       "title": "Certain units may become \"motorized\" during the game: i.e.,",
       "rules_file": "sections/section-06.adoc",
       "line": 73,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
       "reason": ""
     },
     {
@@ -1246,9 +1280,11 @@
       "title": "Whenever a unit exceeds its CPA within a given Operations Stage",
       "rules_file": "sections/section-06.adoc",
       "line": 94,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
       "reason": ""
     },
     {
@@ -1256,9 +1292,11 @@
       "title": "DP's are used to decrease the Cohesion Level of a unit. Thus a",
       "rules_file": "sections/section-06.adoc",
       "line": 103,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
       "reason": ""
     },
     {
@@ -1266,9 +1304,11 @@
       "title": "A unit's Cohesion Level may be increased by earning",
       "rules_file": "sections/section-06.adoc",
       "line": 118,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
       "reason": ""
     },
     {
@@ -1276,9 +1316,11 @@
       "title": "RP's are earned under the following circumstances:",
       "rules_file": "sections/section-06.adoc",
       "line": 126,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
       "reason": ""
     },
     {
@@ -1286,19 +1328,23 @@
       "title": "A unit with a positive Cohesion Level (e.g., +3) may have its",
       "rules_file": "sections/section-06.adoc",
       "line": 140,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
+      "reason": "Cohesion is supplied; the morale/cohesion modifier table is absent (R-04)"
     },
     {
       "case": "6.26",
       "title": "A unit with a Cohesion Level of -26 (or worse) may not move,",
       "rules_file": "sections/section-06.adoc",
       "line": 146,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
       "reason": ""
     },
     {
@@ -1306,9 +1352,11 @@
       "title": "If a Player has more than one unit (or individual combat",
       "rules_file": "sections/section-06.adoc",
       "line": 154,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
       "reason": ""
     },
     {
@@ -1316,9 +1364,11 @@
       "title": "If a Parent Formation has many units within it that have",
       "rules_file": "sections/section-06.adoc",
       "line": 169,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
       "reason": ""
     },
     {
@@ -1326,9 +1376,11 @@
       "title": "Notwithstanding anything said in <<6_27,6.27>> or <<6_28,6.28>>, each",
       "rules_file": "sections/section-06.adoc",
       "line": 181,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec06_capability.py",
+      "tests": [
+        "tests/test_capability.py"
+      ],
       "reason": ""
     },
     {
@@ -1436,10 +1488,13 @@
       "title": "LAND MOVEMENT",
       "rules_file": "sections/section-08.adoc",
       "line": 1,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py",
+        "tests/test_transport.py"
+      ],
+      "reason": "section overview; rail and off-map transport are implemented in sec08_transport; supply movement is deferred"
     },
     {
       "case": "8.1",
@@ -1506,20 +1561,24 @@
       "title": "RAIL MOVEMENT OF LAND UNITS",
       "rules_file": "sections/section-08.adoc",
       "line": 432,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
+      "reason": "rail procedure implemented; the printed rail map is caller-supplied (R-05)"
     },
     {
       "case": "8.8",
       "title": "TRIPOLI AND TUNISIA",
       "rules_file": "sections/section-08.adoc",
       "line": 485,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
+      "reason": "off-map procedure implemented; the Off-Map Distance Chart and map edge are caller-supplied (R-04/R-05)"
     },
     {
       "case": "8.9",
@@ -1536,29 +1595,35 @@
       "title": "Units may be moved voluntarily only during the Movement",
       "rules_file": "sections/section-08.adoc",
       "line": 27,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
+      "reason": "movement and CP are implemented; the section 21 Breakdown check is not"
     },
     {
       "case": "8.12",
       "title": "Under certain conditions — usually combat — a unit may be forced",
       "rules_file": "sections/section-08.adoc",
       "line": 38,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
+      "reason": "retreat CP is charged; section 21 Breakdown is not implemented"
     },
     {
       "case": "8.13",
       "title": "A unit may never enter a hex containing an enemy unit (see,",
       "rules_file": "sections/section-08.adoc",
       "line": 45,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1566,9 +1631,11 @@
       "title": "If a unit moves into an enemy Zone of Control (<<10_0,10.0>>) it must",
       "rules_file": "sections/section-08.adoc",
       "line": 50,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1576,9 +1643,11 @@
       "title": "A unit that begins a Movement Segment in an enemy Zone of",
       "rules_file": "sections/section-08.adoc",
       "line": 56,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1586,9 +1655,11 @@
       "title": "Units may continue to move and fight as long as they wish, with",
       "rules_file": "sections/section-08.adoc",
       "line": 69,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1596,9 +1667,11 @@
       "title": "Non-motorized units — those units with CPA's of ten or less —",
       "rules_file": "sections/section-08.adoc",
       "line": 74,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1606,9 +1679,11 @@
       "title": "Second and Third Line Trucks (i.e., Truck Convoys; see",
       "rules_file": "sections/section-08.adoc",
       "line": 83,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1626,9 +1701,11 @@
       "title": "Units are not limited as to the number of times they may move",
       "rules_file": "sections/section-08.adoc",
       "line": 112,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1636,19 +1713,23 @@
       "title": "Within a given Movement/Combat Phase there may be several",
       "rules_file": "sections/section-08.adoc",
       "line": 120,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
+      "reason": "movement can repeat and accumulate CP; combat and exploitation procedures are out of scope"
     },
     {
       "case": "8.23",
       "title": "Only those Phasing units that have finished a Movement Segment",
       "rules_file": "sections/section-08.adoc",
       "line": 131,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1656,9 +1737,11 @@
       "title": "A Phasing unit that begins any Movement/Combat Phase in the",
       "rules_file": "sections/section-08.adoc",
       "line": 139,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1676,9 +1759,11 @@
       "title": "Units expend a varying number of CP's to enter hexes or cross certain",
       "rules_file": "sections/section-08.adoc",
       "line": 157,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1686,9 +1771,11 @@
       "title": "Certain types of hexes and/or hexsides are prohibited to",
       "rules_file": "sections/section-08.adoc",
       "line": 165,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1696,9 +1783,11 @@
       "title": "Roads and Tracks may be used to facilitate movement through terrain",
       "rules_file": "sections/section-08.adoc",
       "line": 170,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1706,9 +1795,11 @@
       "title": "A unit comprised (at least in part) of vehicles (i.e., tanks,",
       "rules_file": "sections/section-08.adoc",
       "line": 179,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1716,9 +1807,11 @@
       "title": "Most of the terrain in CNA is self explanatory, especially when",
       "rules_file": "sections/section-08.adoc",
       "line": 187,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1726,29 +1819,35 @@
       "title": "Certain types of terrain restrict combat or give the attacker",
       "rules_file": "sections/section-08.adoc",
       "line": 209,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
+      "reason": "combat terrain benefits belong to §§11-15; the TEC combat columns are R-04"
     },
     {
       "case": "8.37",
       "title": "*[8.37] Terrain Effects Chart*",
       "rules_file": "sections/section-08.adoc",
       "line": 214,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
+      "reason": "TEC interface is implemented; official chart values and limits are absent (R-04)"
     },
     {
       "case": "8.41",
       "title": "_Wadis_. Wadis are, in essence, dried-out river beds. There are",
       "rules_file": "sections/section-08.adoc",
       "line": 228,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1756,9 +1855,11 @@
       "title": "_Escarpments_. The escarpments, which were such an integral part",
       "rules_file": "sections/section-08.adoc",
       "line": 249,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1766,9 +1867,11 @@
       "title": "Slopes and Ridges. These were discussed in <<8_35,8.35>>. All units may",
       "rules_file": "sections/section-08.adoc",
       "line": 261,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1776,9 +1879,11 @@
       "title": "_Salt Marsh_. Salt marshes are depressions consisting of very",
       "rules_file": "sections/section-08.adoc",
       "line": 265,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1786,9 +1891,11 @@
       "title": "_Desert_. Desert hexes, which comprise the area known as the",
       "rules_file": "sections/section-08.adoc",
       "line": 278,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1796,9 +1903,11 @@
       "title": "_Tracks_. The major communication network of the North African",
       "rules_file": "sections/section-08.adoc",
       "line": 288,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1806,9 +1915,11 @@
       "title": "_Railroads and Roads_. The use of these two are discussed quite",
       "rules_file": "sections/section-08.adoc",
       "line": 298,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1836,9 +1947,11 @@
       "title": "Reaction is the process of movement by a Friendly, non-Phasing",
       "rules_file": "sections/section-08.adoc",
       "line": 325,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1846,9 +1959,11 @@
       "title": "A given unit may React as many times as the Player wishes",
       "rules_file": "sections/section-08.adoc",
       "line": 331,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1856,9 +1971,11 @@
       "title": "All units may react, with the following exceptions:",
       "rules_file": "sections/section-08.adoc",
       "line": 336,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1866,9 +1983,11 @@
       "title": "Notwithstanding anything said in <<8_53,8.53>>, no battalion size unit",
       "rules_file": "sections/section-08.adoc",
       "line": 361,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1876,9 +1995,11 @@
       "title": "Reacting units may never enter an Enemy Zone of Control during",
       "rules_file": "sections/section-08.adoc",
       "line": 371,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1896,9 +2017,11 @@
       "title": "Breaking Off is a function of Movement that occurs when a unit",
       "rules_file": "sections/section-08.adoc",
       "line": 390,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1906,9 +2029,11 @@
       "title": "Units are in Conract if they are in an Enemy Zone of Control at",
       "rules_file": "sections/section-08.adoc",
       "line": 396,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1916,9 +2041,11 @@
       "title": "Units are Engaged directly as a result of Close Assault;",
       "rules_file": "sections/section-08.adoc",
       "line": 400,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1926,9 +2053,11 @@
       "title": "A unit in Contact or Engaged with an Enemy combat unit at the",
       "rules_file": "sections/section-08.adoc",
       "line": 405,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1936,9 +2065,11 @@
       "title": "A unit in Contact must expend two CP's to Break Off before",
       "rules_file": "sections/section-08.adoc",
       "line": 414,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1946,9 +2077,11 @@
       "title": "A unit that is Engaged must expend four CP's to Break Off",
       "rules_file": "sections/section-08.adoc",
       "line": 418,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1956,9 +2089,11 @@
       "title": "When all of the Friendly units that were in Contact or Engaged",
       "rules_file": "sections/section-08.adoc",
       "line": 422,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1966,9 +2101,11 @@
       "title": "Contact and Engaged markers affect only the combat units in the",
       "rules_file": "sections/section-08.adoc",
       "line": 427,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -1976,9 +2113,11 @@
       "title": "There are two rail lines in the game. The Alexandria-Mersa",
       "rules_file": "sections/section-08.adoc",
       "line": 435,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
       "reason": ""
     },
     {
@@ -1986,19 +2125,23 @@
       "title": "The Commonwealth Player may use Rail Movement once per",
       "rules_file": "sections/section-08.adoc",
       "line": 444,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
+      "reason": "unit rail movement and the per-direction budget are implemented; a separate supply cargo ledger is not"
     },
     {
       "case": "8.73",
       "title": "To use Rail Movement a unit must start the Operations Stage on a",
       "rules_file": "sections/section-08.adoc",
       "line": 452,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
       "reason": ""
     },
     {
@@ -2006,9 +2149,11 @@
       "title": "The Commonwealth Player may use the two railroad lines once in",
       "rules_file": "sections/section-08.adoc",
       "line": 459,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
       "reason": ""
     },
     {
@@ -2016,9 +2161,11 @@
       "title": "The maximum number of Stacking Points that may be carried by",
       "rules_file": "sections/section-08.adoc",
       "line": 465,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
       "reason": ""
     },
     {
@@ -2026,9 +2173,11 @@
       "title": "Rail hexes that have been destroyed by bombing, etc. may not be",
       "rules_file": "sections/section-08.adoc",
       "line": 470,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
       "reason": ""
     },
     {
@@ -2036,9 +2185,11 @@
       "title": "Units may be picked up and dropped off anywhere along a rail",
       "rules_file": "sections/section-08.adoc",
       "line": 476,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
       "reason": ""
     },
     {
@@ -2046,9 +2197,11 @@
       "title": "No Rail hex west of any rail hex occupied by an Axis combat unit",
       "rules_file": "sections/section-08.adoc",
       "line": 481,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
       "reason": ""
     },
     {
@@ -2056,9 +2209,11 @@
       "title": "The area around Tripoli and Tunisia, both important entry ports",
       "rules_file": "sections/section-08.adoc",
       "line": 488,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
       "reason": ""
     },
     {
@@ -2066,9 +2221,11 @@
       "title": "Only Axis units and Commonwealth airplanes may enter the",
       "rules_file": "sections/section-08.adoc",
       "line": 498,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
       "reason": ""
     },
     {
@@ -2076,9 +2233,11 @@
       "title": "Air movement to/from the area is performed as per the standard Air Rules,",
       "rules_file": "sections/section-08.adoc",
       "line": 503,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
       "reason": ""
     },
     {
@@ -2086,19 +2245,23 @@
       "title": "The number of Operation Stages of movement required by a",
       "rules_file": "sections/section-08.adoc",
       "line": 514,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
+      "reason": "abstract transit and reversal are implemented; official chart values are absent (R-04)"
     },
     {
       "case": "8.85",
       "title": "For a unit to be moved off the game map towards Tripolitania it",
       "rules_file": "sections/section-08.adoc",
       "line": 529,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
       "reason": ""
     },
     {
@@ -2106,9 +2269,11 @@
       "title": "Reinforcements and replacements arriving in Tunis or Tripoli may",
       "rules_file": "sections/section-08.adoc",
       "line": 538,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
       "reason": ""
     },
     {
@@ -2116,9 +2281,11 @@
       "title": "There are no stacking restrictions and unlimited Water in the",
       "rules_file": "sections/section-08.adoc",
       "line": 542,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
       "reason": ""
     },
     {
@@ -2126,29 +2293,35 @@
       "title": "The Tripoli/Tunisia boxes are considered to be Supply Dumps of",
       "rules_file": "sections/section-08.adoc",
       "line": 548,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
+      "reason": "the supply-dump properties and loading/unloading movement lock are implemented; no truck/supply ledger is integrated"
     },
     {
       "case": "8.89",
       "title": "*[8.89] Off-Map Land Units Movement Distance Chart*",
       "rules_file": "sections/section-08.adoc",
       "line": 553,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec08_transport.py",
+      "tests": [
+        "tests/test_transport.py"
+      ],
+      "reason": "chart interface is implemented; official Off-Map Land Unit Movement Distance Chart values are absent (R-04)"
     },
     {
       "case": "8.91",
       "title": "A motorized unit in CNA is one that always contains enough",
       "rules_file": "sections/section-08.adoc",
       "line": 561,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -2156,9 +2329,11 @@
       "title": "Non-motorized units (i.e., \"leg\" infantry and a few gun units,",
       "rules_file": "sections/section-08.adoc",
       "line": 569,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -2176,10 +2351,12 @@
       "title": "A motorized unit maintains its CPA even if it is performing an",
       "rules_file": "sections/section-08.adoc",
       "line": 584,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
+      "reason": "motorized CPA is accepted; retaining it while performing non-vehicle actions is not modelled"
     },
     {
       "case": "8.95",
@@ -2216,10 +2393,12 @@
       "title": "During the owning Player's Player-Turn, trucks that are attached",
       "rules_file": "sections/section-08.adoc",
       "line": 631,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
+      "reason": "the convoy CPA cap is enforced; involuntary capture is not"
     },
     {
       "case": "8.99",
@@ -2236,10 +2415,12 @@
       "title": "STACKING",
       "rules_file": "sections/section-09.adoc",
       "line": 1,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
+      "reason": "section overview; the 9.4 level chart is absent (R-04)"
     },
     {
       "case": "9.1",
@@ -2286,9 +2467,11 @@
       "title": "Each unit (or counter) in the game has a Stacking Point value",
       "rules_file": "sections/section-09.adoc",
       "line": 13,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2296,9 +2479,11 @@
       "title": "HQ units, whether Division, Brigade, or Regiment, have",
       "rules_file": "sections/section-09.adoc",
       "line": 18,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2306,9 +2491,11 @@
       "title": "Stacking Points not only represent a given number of men but",
       "rules_file": "sections/section-09.adoc",
       "line": 25,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2316,9 +2503,11 @@
       "title": "Each hex, or rather each type of terrain, has a maximum number",
       "rules_file": "sections/section-09.adoc",
       "line": 33,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2326,9 +2515,11 @@
       "title": "Informational markers and air units of all types do not have any",
       "rules_file": "sections/section-09.adoc",
       "line": 38,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2336,9 +2527,11 @@
       "title": "There are three specific types of units that, on certain",
       "rules_file": "sections/section-09.adoc",
       "line": 42,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2346,9 +2539,11 @@
       "title": "A Division is considered to represent all units assigned and",
       "rules_file": "sections/section-09.adoc",
       "line": 62,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2356,29 +2551,35 @@
       "title": "The next lowest level of unit organization in CNA is the Brigade",
       "rules_file": "sections/section-09.adoc",
       "line": 70,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
+      "reason": "the caller supplies the 9.4 Stacking Point-to-level table"
     },
     {
       "case": "9.23",
       "title": "The basic combat unit in the game is the infantry and tank",
       "rules_file": "sections/section-09.adoc",
       "line": 85,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
+      "reason": "level lookup is caller-supplied; the 9.4 chart is absent"
     },
     {
       "case": "9.24",
       "title": "Regardless of its organizational designation, every artillery",
       "rules_file": "sections/section-09.adoc",
       "line": 91,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2386,9 +2587,11 @@
       "title": "There are a number of companies and batteries in the game with a",
       "rules_file": "sections/section-09.adoc",
       "line": 97,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2396,9 +2599,11 @@
       "title": "A Division is considered a \"shell\" (see Case <<3_1,3.1>>) when 50% or",
       "rules_file": "sections/section-09.adoc",
       "line": 109,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2406,9 +2611,11 @@
       "title": "If a unit attached to a parent formation is a shell, it does not",
       "rules_file": "sections/section-09.adoc",
       "line": 125,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2416,9 +2623,11 @@
       "title": "A unit that is a shell is reduced one level to the next",
       "rules_file": "sections/section-09.adoc",
       "line": 133,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2426,9 +2635,11 @@
       "title": "First line (attached) Trucks do not count in any way towards",
       "rules_file": "sections/section-09.adoc",
       "line": 140,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2436,9 +2647,11 @@
       "title": "Units may never cease movement in a hex in violation of stacking",
       "rules_file": "sections/section-09.adoc",
       "line": 156,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2446,9 +2659,11 @@
       "title": "Units may always move through other friendly units, and stacking",
       "rules_file": "sections/section-09.adoc",
       "line": 160,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2456,9 +2671,11 @@
       "title": "A motorized unit (tank, truck, artillery, motorcycle, etc.)",
       "rules_file": "sections/section-09.adoc",
       "line": 165,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2476,9 +2693,11 @@
       "title": "Stacking restrictions do apply during involuntary Retreats",
       "rules_file": "sections/section-09.adoc",
       "line": 191,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec09_stacking.py",
+      "tests": [
+        "tests/test_stacking.py"
+      ],
       "reason": ""
     },
     {
@@ -2486,10 +2705,12 @@
       "title": "ZONES OF CONTROL",
       "rules_file": "sections/section-10.adoc",
       "line": 1,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
+      "reason": "section overview; the hex grid and terrain predicates are caller-supplied"
     },
     {
       "case": "10.1",
@@ -2526,9 +2747,11 @@
       "title": "All combat units above battalion-equivalent (i.e. with more",
       "rules_file": "sections/section-10.adoc",
       "line": 15,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2536,9 +2759,11 @@
       "title": "Aircraft, Squadron Ground Support units, and warships exert",
       "rules_file": "sections/section-10.adoc",
       "line": 22,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2546,9 +2771,11 @@
       "title": "Informational markers, such as dumps, minefields, airfields,",
       "rules_file": "sections/section-10.adoc",
       "line": 26,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2556,9 +2783,11 @@
       "title": "Units with a Cohesion Level of —26 or worse do not exert",
       "rules_file": "sections/section-10.adoc",
       "line": 30,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2566,9 +2795,11 @@
       "title": "Regardless of <<10_11,10.11>>, any unit(s) in a hex that total less",
       "rules_file": "sections/section-10.adoc",
       "line": 34,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2576,9 +2807,11 @@
       "title": "The non-Phasing Player must inform the Phasing Player whether",
       "rules_file": "sections/section-10.adoc",
       "line": 40,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2586,9 +2819,11 @@
       "title": "ZOC's extend into all hexes on the gamemap, with the following exceptions:",
       "rules_file": "sections/section-10.adoc",
       "line": 49,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2596,9 +2831,11 @@
       "title": "There is no cost in CP's to enter an Enemy",
       "rules_file": "sections/section-10.adoc",
       "line": 64,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2606,9 +2843,11 @@
       "title": "A unit must cease movement upon entering an",
       "rules_file": "sections/section-10.adoc",
       "line": 68,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2616,9 +2855,11 @@
       "title": "No units may be moved directly from one Enemy-controlled hex",
       "rules_file": "sections/section-10.adoc",
       "line": 76,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2626,9 +2867,11 @@
       "title": "Friendly units may move through hexes adjacent to an Enemy",
       "rules_file": "sections/section-10.adoc",
       "line": 85,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2636,9 +2879,11 @@
       "title": "For all movement purposes, the presence of a Friendly combat",
       "rules_file": "sections/section-10.adoc",
       "line": 90,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2646,9 +2891,11 @@
       "title": "Opposing units exerting ZOC's on each other are considered to",
       "rules_file": "sections/section-10.adoc",
       "line": 95,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2656,9 +2903,11 @@
       "title": "There is no additional effect when more than one unit exerts a",
       "rules_file": "sections/section-10.adoc",
       "line": 100,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2666,9 +2915,11 @@
       "title": "Truck Convoys may not enter an Enemy ZOC unless such hex is",
       "rules_file": "sections/section-10.adoc",
       "line": 104,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2676,9 +2927,11 @@
       "title": "All hexes containing Enemy units exerting Zones of Control on",
       "rules_file": "sections/section-10.adoc",
       "line": 115,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2686,9 +2939,11 @@
       "title": "As an exception to <<10_31,10.31>>, if the Friendly units in such",
       "rules_file": "sections/section-10.adoc",
       "line": 125,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2696,9 +2951,11 @@
       "title": "Players may use a special \"Holding Off\" Artillery Barrage to",
       "rules_file": "sections/section-10.adoc",
       "line": 131,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2706,9 +2963,11 @@
       "title": "To perform a Holding Off Barrage, a Friendly Player must",
       "rules_file": "sections/section-10.adoc",
       "line": 138,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2716,9 +2975,11 @@
       "title": "If, according to the precepts of <<10_34,10.34>>, a Friendly Phasing",
       "rules_file": "sections/section-10.adoc",
       "line": 148,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -2726,9 +2987,11 @@
       "title": "If, for any reason, a unit can neither Assault nor Hold Off an",
       "rules_file": "sections/section-10.adoc",
       "line": 154,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec10_zoc.py",
+      "tests": [
+        "tests/test_zoc.py"
+      ],
       "reason": ""
     },
     {
@@ -6346,79 +6609,95 @@
       "title": "BREAKDOWN",
       "rules_file": "sections/section-21.adoc",
       "line": 2,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "section overview; individual cases are reviewed below"
     },
     {
       "case": "21.1",
       "title": "WHICH UNITS BREAKDOWN",
       "rules_file": "sections/section-21.adoc",
       "line": 38,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "section heading; cases 21.11-21.15 are reviewed individually"
     },
     {
       "case": "21.2",
       "title": "WHEN BREAKDOWN OCCURS",
       "rules_file": "sections/section-21.adoc",
       "line": 87,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "section heading; cases 21.21-21.29 are reviewed individually"
     },
     {
       "case": "21.3",
       "title": "HOW BREAKDOWN IS DETERMINED",
       "rules_file": "sections/section-21.adoc",
       "line": 175,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "section heading; cases 21.31-21.38 are reviewed individually"
     },
     {
       "case": "21.4",
       "title": "BROKEN DOWN VEHICLES",
       "rules_file": "sections/section-21.adoc",
       "line": 254,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "section heading; cases 21.41-21.45 are reviewed individually"
     },
     {
       "case": "21.5",
       "title": "CAPTURING BROKEN DOWN VEHICLES",
       "rules_file": "sections/section-21.adoc",
       "line": 299,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "section heading; cases 21.51-21.55 are reviewed individually"
     },
     {
       "case": "21.6",
       "title": "TOWING",
       "rules_file": "sections/section-21.adoc",
       "line": 334,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "section heading; cases 21.61-21.67 are reviewed individually"
     },
     {
       "case": "21.11",
       "title": "Only the following vehicles are subject to Breakdown: Truck",
       "rules_file": "sections/section-21.adoc",
       "line": 41,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6426,19 +6705,23 @@
       "title": "Each specific type of TOE Strength Point has its own Breakdown",
       "rules_file": "sections/section-21.adoc",
       "line": 46,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "fixed BARs are implemented; tank and SP gun BAR charts are R-04"
     },
     {
       "case": "21.13",
       "title": "The Breakdown Adjustment Rating is used to adjust the",
       "rules_file": "sections/section-21.adoc",
       "line": 52,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6446,19 +6729,23 @@
       "title": "Breakdown Adjustment Summary Breakdown Adjustment",
       "rules_file": "sections/section-21.adoc",
       "line": 57,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "truck/armored-car/Recce BARs are fixed; tank and SP gun charts are R-04"
     },
     {
       "case": "21.15",
       "title": "Vehicles are never required to check for Breakdown when moving",
       "rules_file": "sections/section-21.adoc",
       "line": 83,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -6466,19 +6753,23 @@
       "title": "Each hex (or rather the terrain in the hex) possesses a",
       "rules_file": "sections/section-21.adoc",
       "line": 90,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
+      "reason": "TEC Breakdown Point values are caller-supplied"
     },
     {
       "case": "21.22",
       "title": "Combat does not cause Breakdown, although any movement",
       "rules_file": "sections/section-21.adoc",
       "line": 99,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -6486,9 +6777,11 @@
       "title": "As a vehicle or motorized unit (see Case <<21_11,21.11>>) moves, it",
       "rules_file": "sections/section-21.adoc",
       "line": 103,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -6496,9 +6789,11 @@
       "title": "Whenever a vehicular or motorized unit ceases movement —",
       "rules_file": "sections/section-21.adoc",
       "line": 110,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -6506,9 +6801,11 @@
       "title": "All Breakdown Points garnered by a unit during a given",
       "rules_file": "sections/section-21.adoc",
       "line": 116,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -6516,9 +6813,12 @@
       "title": "If a unit has had a Breakdown check during an Operations Stage",
       "rules_file": "sections/section-21.adoc",
       "line": 125,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py",
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -6526,9 +6826,11 @@
       "title": "A unit does not check for Breakdown until it has accumulated",
       "rules_file": "sections/section-21.adoc",
       "line": 144,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6536,29 +6838,35 @@
       "title": "Breakdown is determined separately for each type of unit:",
       "rules_file": "sections/section-21.adoc",
       "line": 149,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "checks are per unit; stack/type grouping and separate dice per rating are not aggregated"
     },
     {
       "case": "21.29",
       "title": "*[21.29] Important*: In addition to Case <<21_28,21.28>>, Players must check",
       "rules_file": "sections/section-21.adoc",
       "line": 162,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "per-unit columns are tracked; same-column stack grouping is not aggregated"
     },
     {
       "case": "21.31",
       "title": "To determine Breakdown, the Breakdown Table (<<21_38,21.38>>) is used.",
       "rules_file": "sections/section-21.adoc",
       "line": 178,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6566,9 +6874,11 @@
       "title": "After the Player checking for Breakdown notes the Breakdown",
       "rules_file": "sections/section-21.adoc",
       "line": 185,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6576,9 +6886,11 @@
       "title": "Units accumulating more than 71 Breakdown Points use the 71+",
       "rules_file": "sections/section-21.adoc",
       "line": 193,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6586,19 +6898,24 @@
       "title": "Having determined the Breakdown Column, the Player throws two",
       "rules_file": "sections/section-21.adoc",
       "line": 200,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "procedure is implemented; the official Breakdown Table is R-04"
     },
     {
       "case": "21.35",
       "title": "All Breakdown fractions are rounded up, (as the 6.7 Tank",
       "rules_file": "sections/section-21.adoc",
       "line": 220,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py",
+        "tests/test_movement.py"
+      ],
       "reason": ""
     },
     {
@@ -6606,9 +6923,11 @@
       "title": "All breakdowns must be distributed as evenly as possible",
       "rules_file": "sections/section-21.adoc",
       "line": 226,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6616,9 +6935,12 @@
       "title": "Weather affects the Breakdown Rates/Columns as follows",
       "rules_file": "sections/section-21.adoc",
       "line": 234,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec08_movement.py",
+      "tests": [
+        "tests/test_movement.py",
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6626,19 +6948,23 @@
       "title": "Breakdown Table",
       "rules_file": "sections/section-21.adoc",
       "line": 249,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "the official Breakdown Table is R-04; callers supply the lookup"
     },
     {
       "case": "21.41",
       "title": "Breakdown occurs (for the sake of simplicity) in the hex in",
       "rules_file": "sections/section-21.adoc",
       "line": 257,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6646,59 +6972,71 @@
       "title": "When Breakdown occurs, the Player places a Broken Down Vehicle",
       "rules_file": "sections/section-21.adoc",
       "line": 266,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "marker placement and the broken-down vehicle sheet are not integrated"
     },
     {
       "case": "21.43",
       "title": "When a Truck Breaks down, its cargo stays with it, unless",
       "rules_file": "sections/section-21.adoc",
       "line": 273,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "truck cargo transfer and un-motorization are not integrated"
     },
     {
       "case": "21.44",
       "title": "Broken down vehicles have no Capability Point Allowance, nor",
       "rules_file": "sections/section-21.adoc",
       "line": 281,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "capability/combat flags exist; broken-down unit state is not yet a game object"
     },
     {
       "case": "21.45",
       "title": "Supplies on broken down Trucks may be transferred to working",
       "rules_file": "sections/section-21.adoc",
       "line": 287,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "CP costs are implemented; supply/truck transfer is not integrated"
     },
     {
       "case": "21.51",
       "title": "Broken down vehicles may be captured by the Enemy. Players",
       "rules_file": "sections/section-21.adoc",
       "line": 302,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "capture of a marker is not integrated with movement"
     },
     {
       "case": "21.52",
       "title": "At any time during movement, if a Friendly combat unit of",
       "rules_file": "sections/section-21.adoc",
       "line": 308,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6706,9 +7044,11 @@
       "title": "Broken down vehicles that are either stacked with Friendly",
       "rules_file": "sections/section-21.adoc",
       "line": 313,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6716,9 +7056,11 @@
       "title": "The capturing unit and the broken down vehicle must be",
       "rules_file": "sections/section-21.adoc",
       "line": 318,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6726,9 +7068,11 @@
       "title": "Captured Broken down vehicles may be placed (towed) a maximum",
       "rules_file": "sections/section-21.adoc",
       "line": 325,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6736,19 +7080,23 @@
       "title": "All vehicles scheduled for repairs at a Repair Facility —",
       "rules_file": "sections/section-21.adoc",
       "line": 337,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
+      "reason": "towing lifecycle is not integrated with the Repair Stage"
     },
     {
       "case": "21.62",
       "title": "Only vehicles not undergoing Field Repair (or any other type",
       "rules_file": "sections/section-21.adoc",
       "line": 343,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6756,9 +7104,11 @@
       "title": "There are no towing vehicles (however, see <<22_6,22.6>> and <<22_7,22.7>>).",
       "rules_file": "sections/section-21.adoc",
       "line": 348,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6766,9 +7116,11 @@
       "title": "No vehicle may ever be towed if it is in an Enemy-controlled",
       "rules_file": "sections/section-21.adoc",
       "line": 355,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6776,9 +7128,11 @@
       "title": "Towing incurs no costs for Fuel, Stores or Water. Towed",
       "rules_file": "sections/section-21.adoc",
       "line": 361,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6786,9 +7140,11 @@
       "title": "A Broken down vehicle that unsuccessfully undergoes Field",
       "rules_file": "sections/section-21.adoc",
       "line": 365,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -6796,9 +7152,11 @@
       "title": "Broken down vehicles and destroyed tanks must be towed towards",
       "rules_file": "sections/section-21.adoc",
       "line": 369,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec21_breakdown.py",
+      "tests": [
+        "tests/test_breakdown.py"
+      ],
       "reason": ""
     },
     {
@@ -9796,101 +10154,119 @@
       "title": "ABSTRACT LOGISTICS AND AIR RULES",
       "rules_file": "sections/section-32.adoc",
       "line": 1,
-      "status": "deferred",
-      "source": "src/cna/engine/rulesets.py",
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
       "tests": [
-        "tests/test_rulesets.py"
+        "tests/test_abstract_supply_air.py"
       ],
-      "reason": "abstract supply and air rules are not implemented in P1"
+      "reason": "section overview; 32.1-32.9 are implemented for LAND_ABSTRACT; full Logistics and Air remain P2/P3"
     },
     {
       "case": "32.1",
       "title": "SUPPLY UNITS AND SUPPLY",
       "rules_file": "sections/section-32.adoc",
       "line": 30,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "section heading; Supply Units 32.11-32.18 are implemented"
     },
     {
       "case": "32.2",
       "title": "SUPPLY EXPENDITURES",
       "rules_file": "sections/section-32.adoc",
       "line": 90,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "section heading; expenditure rules 32.21-32.25 are implemented"
     },
     {
       "case": "32.3",
       "title": "MOVEMENT OF SUPPLY UNITS",
       "rules_file": "sections/section-32.adoc",
       "line": 131,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "section heading; supply movement 32.31-32.37 is implemented"
     },
     {
       "case": "32.4",
       "title": "AVAILABLILITY OF SUPPLY UNITS",
       "rules_file": "sections/section-32.adoc",
       "line": 188,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "section heading; availability procedures 32.41-32.45 are implemented; official R-04 tables remain caller-supplied"
     },
     {
       "case": "32.5",
       "title": "MOTORIZATION POINTS",
       "rules_file": "sections/section-32.adoc",
       "line": 239,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "section heading; Motorization Points 32.51-32.59 are implemented except the R-04 loss chart"
     },
     {
       "case": "32.6",
       "title": "SIMPLIFIED AXIS NAVAL CONVOYS",
       "rules_file": "sections/section-32.adoc",
       "line": 308,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "section heading; convoy rules 32.61-32.66 are implemented except the R-04 bombing chart"
     },
     {
       "case": "32.7",
       "title": "BOMBARDMENT OF THE COMMONWEALTH FLEET",
       "rules_file": "sections/section-32.adoc",
       "line": 365,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "section heading; fleet bombardment 32.71-32.75 is implemented except the R-04 results table"
     },
     {
       "case": "32.8",
       "title": "ANTI-AIR UNIT MODIFICATIONS",
       "rules_file": "sections/section-32.adoc",
       "line": 405,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "section heading; anti-air modifications 32.81-32.84 are implemented"
     },
     {
       "case": "32.9",
       "title": "ROAD AND TRACK STACKING MODIFICATION",
       "rules_file": "sections/section-32.adoc",
       "line": 443,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -9898,19 +10274,21 @@
       "title": "ADDENDA",
       "rules_file": "sections/section-32.adoc",
       "line": 450,
-      "status": "unimplemented",
+      "status": "not_applicable",
       "source": "",
       "tests": [],
-      "reason": ""
+      "reason": "general addenda outside the abstract supply and air rules"
     },
     {
       "case": "32.11",
       "title": "The Players ignore all references to usage and expenditure of",
       "rules_file": "sections/section-32.adoc",
       "line": 33,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -9918,9 +10296,11 @@
       "title": "The Players will be receiving Supply Units, which are abstract",
       "rules_file": "sections/section-32.adoc",
       "line": 38,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -9928,9 +10308,11 @@
       "title": "A Supply Unit has no combat capabilities. If any enemy combat",
       "rules_file": "sections/section-32.adoc",
       "line": 43,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -9938,9 +10320,11 @@
       "title": "A Supply Unit possesses a stacking value of zero. However,",
       "rules_file": "sections/section-32.adoc",
       "line": 48,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -9948,9 +10332,11 @@
       "title": "A Supply Unit initially contains and may never contain more",
       "rules_file": "sections/section-32.adoc",
       "line": 54,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -9958,9 +10344,11 @@
       "title": "A Supply Unit may be drawn upon by any Friendly combat unit if",
       "rules_file": "sections/section-32.adoc",
       "line": 62,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -9968,9 +10356,11 @@
       "title": "Players may attempt to destroy Supply Units they are with. To",
       "rules_file": "sections/section-32.adoc",
       "line": 73,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -9978,9 +10368,11 @@
       "title": "Players may use dummy Supply Units to confuse their",
       "rules_file": "sections/section-32.adoc",
       "line": 83,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -9988,9 +10380,11 @@
       "title": "Ammo Points are expended by the number of individual",
       "rules_file": "sections/section-32.adoc",
       "line": 98,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -9998,9 +10392,11 @@
       "title": "Ammo Points must be expended at the instant of combat.",
       "rules_file": "sections/section-32.adoc",
       "line": 106,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10008,9 +10404,11 @@
       "title": "Fuel Points are expended per Operations State. Basically, each",
       "rules_file": "sections/section-32.adoc",
       "line": 109,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10018,9 +10416,11 @@
       "title": "Each tank battalion equivalent requires two fuel points for",
       "rules_file": "sections/section-32.adoc",
       "line": 119,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10028,9 +10428,11 @@
       "title": "Patrolling does not require supply expenditure.",
       "rules_file": "sections/section-32.adoc",
       "line": 128,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10038,9 +10440,11 @@
       "title": "Supply Units may be moved by land, rail, sea, and air. A",
       "rules_file": "sections/section-32.adoc",
       "line": 134,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10048,9 +10452,11 @@
       "title": "Supply Units may be transported by Motorization Points. Thirty",
       "rules_file": "sections/section-32.adoc",
       "line": 138,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10058,9 +10464,11 @@
       "title": "A supply unit being transported by Motorization Points may be",
       "rules_file": "sections/section-32.adoc",
       "line": 146,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10068,9 +10476,11 @@
       "title": "The Commonwealth Player may transport any two supply units",
       "rules_file": "sections/section-32.adoc",
       "line": 153,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10078,9 +10488,11 @@
       "title": "The Axis Player may transport supply units by Axis Coastal",
       "rules_file": "sections/section-32.adoc",
       "line": 158,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10088,9 +10500,11 @@
       "title": "The Commonwealth Player may transport a total of one supply",
       "rules_file": "sections/section-32.adoc",
       "line": 163,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10098,9 +10512,11 @@
       "title": "Only supply units may be transported by",
       "rules_file": "sections/section-32.adoc",
       "line": 171,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10108,9 +10524,11 @@
       "title": "At the start of each scenario the Players receive a specified",
       "rules_file": "sections/section-32.adoc",
       "line": 191,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10118,9 +10536,11 @@
       "title": "Supply Units for the Axis Player arrive as per convoy,",
       "rules_file": "sections/section-32.adoc",
       "line": 197,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10128,9 +10548,11 @@
       "title": "At the beginning of each Game-Turn, the Players plan for the",
       "rules_file": "sections/section-32.adoc",
       "line": 203,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10138,49 +10560,59 @@
       "title": "The Axis Player plans his supply using the following",
       "rules_file": "sections/section-32.adoc",
       "line": 211,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "planning procedure implemented; the Axis 32.46 table is R-04 caller-supplied"
     },
     {
       "case": "32.45",
       "title": "The Commonwealth Player plans his supply using the following",
       "rules_file": "sections/section-32.adoc",
       "line": 221,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "planning procedure implemented; the Commonwealth 32.47 table is R-04 caller-supplied"
     },
     {
       "case": "32.46",
       "title": "*[32.46] Axis Simplified Supply Availability Table*",
       "rules_file": "sections/section-32.adoc",
       "line": 229,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "official Axis availability table is R-04 caller-supplied"
     },
     {
       "case": "32.47",
       "title": "*[32.47] Commonwealth Simplified Supply Availability Table*",
       "rules_file": "sections/section-32.adoc",
       "line": 234,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "official Commonwealth availability table is R-04 caller-supplied"
     },
     {
       "case": "32.51",
       "title": "Motorization Points are used in place of Truck Points. They",
       "rules_file": "sections/section-32.adoc",
       "line": 242,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10188,9 +10620,11 @@
       "title": "Each scenario lists the number of Motorization Points",
       "rules_file": "sections/section-32.adoc",
       "line": 248,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10198,9 +10632,11 @@
       "title": "Motorization Points may be used to transport units and all",
       "rules_file": "sections/section-32.adoc",
       "line": 255,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10208,9 +10644,11 @@
       "title": "All 'leg' infantry units may be motorized. However, a Player",
       "rules_file": "sections/section-32.adoc",
       "line": 260,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10218,9 +10656,11 @@
       "title": "Motorization points are not subject to Breakdown. All other",
       "rules_file": "sections/section-32.adoc",
       "line": 266,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10228,9 +10668,11 @@
       "title": "Motorization Points are normally subject to loss only if the",
       "rules_file": "sections/section-32.adoc",
       "line": 270,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10238,19 +10680,23 @@
       "title": "Motorization Points are subject to (abstract) loss from",
       "rules_file": "sections/section-32.adoc",
       "line": 276,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "loss procedure implemented; the 32.59 R-04 chart is caller-supplied"
     },
     {
       "case": "32.58",
       "title": "Motorization Points transporting a supply unit have the",
       "rules_file": "sections/section-32.adoc",
       "line": 289,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10258,19 +10704,23 @@
       "title": "*[32.59] Abstract Truck/Motorization Loss Chart*",
       "rules_file": "sections/section-32.adoc",
       "line": 303,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "official Motorization Point loss chart is R-04 caller-supplied"
     },
     {
       "case": "32.61",
       "title": "In the abstract Logistics game system, Axis Naval Convoys",
       "rules_file": "sections/section-32.adoc",
       "line": 311,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10278,9 +10728,11 @@
       "title": "The Axis Player may never assign more than three Supply Units",
       "rules_file": "sections/section-32.adoc",
       "line": 317,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10288,9 +10740,11 @@
       "title": "The Commonwealth Player may attempt to destroy whatever is",
       "rules_file": "sections/section-32.adoc",
       "line": 324,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10298,39 +10752,47 @@
       "title": "Each attack is carried out as follows: The Commonwealth Player",
       "rules_file": "sections/section-32.adoc",
       "line": 331,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "bombing procedure implemented; the 32.66 R-04 chart and Bomb Points table are caller-supplied"
     },
     {
       "case": "32.65",
       "title": "The result obtained above on the Axis Naval' Convoy is",
       "rules_file": "sections/section-32.adoc",
       "line": 342,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "percentage losses implemented; tank/gun nationality distribution is caller-supplied"
     },
     {
       "case": "32.66",
       "title": "*[32.66] Simple Axis Naval Convoy Bombing Chart*",
       "rules_file": "sections/section-32.adoc",
       "line": 360,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "official Simple Axis Naval Convoy Bombing Chart is R-04 caller-supplied"
     },
     {
       "case": "32.71",
       "title": "The Axis Player may perform a limited number of Bombardment",
       "rules_file": "sections/section-32.adoc",
       "line": 368,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10338,9 +10800,11 @@
       "title": "The Axis Player determines the number of such attacks he is",
       "rules_file": "sections/section-32.adoc",
       "line": 372,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10348,9 +10812,11 @@
       "title": "The Axis Player may only perform one such attack per",
       "rules_file": "sections/section-32.adoc",
       "line": 379,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10358,19 +10824,23 @@
       "title": "The attack is performed as follows:",
       "rules_file": "sections/section-32.adoc",
       "line": 385,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
-      "reason": ""
+      "status": "partial",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
+      "reason": "attack-column and damage procedure implemented; the Air Bombardment results table is R-04 caller-supplied"
     },
     {
       "case": "32.75",
       "title": "No Bombardment attack may be made if Game-map section \"E\"'s",
       "rules_file": "sections/section-32.adoc",
       "line": 401,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10378,9 +10848,11 @@
       "title": "The Commonwealth Player removes all Anti-air units and all",
       "rules_file": "sections/section-32.adoc",
       "line": 408,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10388,9 +10860,11 @@
       "title": "The Axis Player removes all German antiair units with ID Codes",
       "rules_file": "sections/section-32.adoc",
       "line": 414,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10398,9 +10872,11 @@
       "title": "The Axis Player's Italian forces are affected as follows:",
       "rules_file": "sections/section-32.adoc",
       "line": 420,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {
@@ -10408,9 +10884,11 @@
       "title": "All of the above modifications and restrictions apply to",
       "rules_file": "sections/section-32.adoc",
       "line": 437,
-      "status": "unimplemented",
-      "source": "",
-      "tests": [],
+      "status": "implemented",
+      "source": "src/cna/rules/sec32_abstract.py",
+      "tests": [
+        "tests/test_abstract_supply_air.py"
+      ],
       "reason": ""
     },
     {

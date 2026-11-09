@@ -123,9 +123,9 @@ def test_case_inventory_reports_reviewed_statuses(tmp_path):
 
     assert cases["5.2"]["status"] == "partial"
     assert cases["7.14"]["status"] == "implemented"
-    assert cases["32.0"]["status"] == "deferred"
+    assert cases["32.0"]["status"] == "partial"
     assert report["counts"]["cases"] == len(report["cases"])
     assert report["counts"]["cases"] >= 3
     assert report["counts"]["cases_implemented"] == 1
-    assert report["counts"]["cases_partial"] == 1
-    assert report["counts"]["cases_deferred"] == 1
+    assert report["counts"]["cases_partial"] == 2
+    assert report["counts"]["cases_deferred"] == 0
