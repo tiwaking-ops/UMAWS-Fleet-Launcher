@@ -151,6 +151,18 @@ def _gate_diagnostics(stdout: str, stderr: str, *, lines: int = 40) -> dict:
     }
 
 
+def _gate_output(cmd: str, exit_code: int, stdout: str, stderr: str) -> dict:
+    """The gate verdict and bounded output, ready to persist in the bundle."""
+    return {"cmd": cmd, "exit": exit_code, "ok": exit_code == 0,
+            **_gate_diagnostics(stdout, stderr)}
+
+
+def _persist_gate_output(bundle, kernel, output: dict) -> None:
+    """Write the gate verdict back to the submitted evidence bundle."""
+    bundle.gate_output = output
+    bundle.write(kernel.repo.evidence_dir)
+
+
 def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
               gate_cmd: str = "", keep_worktree: bool = True) -> MergeResult:
     """Run one lease through the merge queue.
@@ -313,7 +325,15 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
                         result.gate_cmd = gate_cmd
                         result.gate_exit = 127
                         result.message = f"the gate command failed to run: {exc}"
+                        _persist_gate_output(
+                            bundle, kernel,
+                            _gate_output(gate_cmd, 127, "", str(exc)))
                         return result
+                    diagnostics = _gate_diagnostics(proc.stdout, proc.stderr)
+                    _persist_gate_output(
+                        bundle, kernel,
+                        _gate_output(gate_cmd, result.gate_exit,
+                                     proc.stdout, proc.stderr))
                     if result.gate_exit != 0:
                         result.message = (f"the gate command {gate_cmd!r} exited "
                                           f"{result.gate_exit}")
@@ -324,7 +344,7 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
                                                      "cmd": gate_cmd,
                                                      "exit": result.gate_exit,
                                                      "reintegration": changed_nothing,
-                                                     **_gate_diagnostics(proc.stdout, proc.stderr)})
+                                                     **diagnostics})
                         # Abort the merge in temp worktree
                         repo.git("merge", "--abort", cwd=temp_wt)
                         return result

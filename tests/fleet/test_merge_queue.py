@@ -6,6 +6,8 @@ file present in main in every case.
 
 from __future__ import annotations
 
+import json
+import sys
 import tempfile
 import subprocess
 from pathlib import Path
@@ -141,6 +143,37 @@ def test_gate_passes_main_head_is_merge_commit():
 
     # Verify unrelated file still exists
     assert (repo.root / "unrelated.txt").exists()
+
+
+@pytest.mark.parametrize("exit_code,expected_ok", [(0, True), (7, False)])
+def test_gate_output_is_persisted_in_the_bundle(tmp_path, exit_code, expected_ok):
+    """H6: the gate verdict and its tails survive both outcomes."""
+    kernel, repo = _make_kernel_with_git()
+    card, lease, worktree = _create_task_and_bundle(kernel, ["src/thing.py"])
+    gate_script = tmp_path / "gate_output.py"
+    gate_script.write_text(
+        "import sys\n"
+        "print('GATE-STDOUT')\n"
+        "print('GATE-STDERR', file=sys.stderr)\n"
+        f"sys.exit({exit_code})\n",
+        encoding="utf-8")
+    gate_cmd = f'"{sys.executable}" "{gate_script}"'
+
+    try:
+        result = integrate(kernel, card, lease, worktree, gate_cmd=gate_cmd)
+        assert result.ok is expected_ok, result.message
+
+        bundle_path = (repo.evidence_dir / f"EB-{card.id}-{lease.fence}"
+                       / "bundle.json")
+        bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+        output = bundle["gate_output"]
+        assert output["cmd"] == gate_cmd
+        assert output["exit"] == exit_code
+        assert output["ok"] is expected_ok
+        assert "GATE-STDOUT" in "\n".join(output["stdout_tail"])
+        assert "GATE-STDERR" in "\n".join(output["stderr_tail"])
+    finally:
+        _git(repo, "worktree", "remove", "--force", str(worktree))
 
 
 def test_main_moves_mid_run_retry_and_success():

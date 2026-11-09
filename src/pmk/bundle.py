@@ -112,6 +112,7 @@ class Bundle:
     resolved_models: list = field(default_factory=list)
     constitution_hash: str = ""
     context_hash: str = ""
+    gate_output: dict = field(default_factory=dict)
     extras: dict = field(default_factory=dict)
 
     def to_obj(self) -> dict:
@@ -130,6 +131,7 @@ class Bundle:
             "resolved_models": self.resolved_models,
             "constitution_hash": self.constitution_hash,
             "context_hash": self.context_hash,
+            "gate_output": self.gate_output,
         }
         obj.update(self.extras)
         return obj
@@ -152,6 +154,7 @@ class Bundle:
             resolved_models=list(obj.get("resolved_models") or []),
             constitution_hash=str(obj.get("constitution_hash", "")),
             context_hash=str(obj.get("context_hash", "")),
+            gate_output=dict(obj.get("gate_output") or {}),
             extras=extras,
         )
 
