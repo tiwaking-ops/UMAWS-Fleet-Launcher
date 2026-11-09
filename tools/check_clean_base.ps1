@@ -25,12 +25,16 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$RepoRoot = (Split-Path -Parent $PSScriptRoot),
+    [string]$RepoRoot = '',
     [string]$Stamp = (Get-Date -Format 'yyyyMMdd-HHmmss'),
     [string]$Python = 'python'
 )
 
 $ErrorActionPreference = 'Stop'
+
+if (-not $RepoRoot) {
+    $RepoRoot = Split-Path -Parent $PSScriptRoot
+}
 
 if (-not (Test-Path (Join-Path $RepoRoot '.git'))) {
     throw "not a git worktree: $RepoRoot"
