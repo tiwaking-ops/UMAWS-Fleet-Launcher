@@ -1,6 +1,6 @@
 # Dispatch resumption checklist — repair v1
 
-Status as of 2026-11-08. Tick only what is verified; an unticked box is a blocker, not an oversight.
+Status as of 2026-11-09. Tick only what is verified; an unticked box is a blocker, not an oversight.
 
 | # | Item | Evidence | Status |
 |---|---|---|---|
@@ -12,19 +12,19 @@ Status as of 2026-11-08. Tick only what is verified; an unticked box is a blocke
 | 6 | T-0145 voided with a reason | `pmk task show T-0145` → `VOID` | **done** |
 | 7 | T-0146 oracle satisfiable on main and in a worktree | dry-run worktree: index 0, coverage 0, both payloads ok | **done** |
 | 8 | Pipeline commit identity pinned | `tests/fleet/test_identity_guard.py`; merge path `-c user.name=umaws-pilot` | **done** |
-| 9 | Interactive identity logging enabled | `.githooks/pre-commit` present; **`core.hooksPath` not yet set** (needs A8) | **pending** |
+| 9 | Interactive identity logging enabled | `.githooks/pre-commit` present; `core.hooksPath=.githooks` (A8 applied 2026-11-09) | **done** |
 | 10 | Already-satisfied pre-lease guard | `tests/fleet/test_precheck.py`; `agents.toml [fleet] precheck_satisfied = true` | **done** |
-| 11 | Decision records drafted | `pilot/drafts/decisions-d62-plus.md`; **ratification (A9) outstanding** | **pending** |
+| 11 | Decision records drafted and ratified | `pilot/decisions.md` D-62…D-69; `pilot/drafts/decisions-d62-plus.md` (A9, 2026-11-09) | **done** |
 | 12 | Decision gap report | `docs/reports/decision-gaps-2026-11-08.md` | **done** |
-| 13 | Suite green | 532 passed, exit 0 | **done** |
+| 13 | Suite green | **Clean-worktree gate failed** on `test_coverage_reports_case_statuses_and_evidence` (untracked `tests/test_transport.py`); the main-tree pass is not reproducible in a clean worktree | **failed — base repair required** |
 | 14 | Sentinel at the recorded baseline | 5 × I6 + 1 × I13, unchanged from before the repair | **done (red, recorded)** |
-| 15 | Live canary reaches DONE | `pilot/repair-canary-runbook-v1.md` | **pending — operator** |
-| 16 | Dispatch resumed | operator action after 15 | **pending — operator** |
+| 15 | Live canary reaches DONE | T-0189 ran 2026-11-09; **FAILED** at the gate (`REWORK`, `EB-T-0189-156`); D-69 records the base-tree defect | **failed — base repair required** |
+| 16 | Dispatch resumed | A10 not authorized after FAIL; project remains `PAUSED` | **blocked** |
 
 ## Order for resuming
 
-1. `git config core.hooksPath .githooks` (A8).
-2. Run the canary (item 15). Record D-69.
-3. Ratify D-62…D-68 (A9); leave D-69 as completed by the canary.
-4. Start the Console and resume dispatch. Record the start time in the checkpoint.
+1. ~~`git config core.hooksPath .githooks` (A8).~~ **done 2026-11-09.**
+2. ~~Run the canary (item 15). Record D-69.~~ **done; T-0189 FAILED at the gate.**
+3. ~~Ratify D-62…D-69 (A9).~~ **done 2026-11-09; D-69 is ratified as FAIL.**
+4. **Do not resume dispatch.** Repair the committed base (resolve the dangling `tests/test_transport.py` reference), then run a fresh canary; A10 only after a PASS.
 5. Keep the eleven extra worktrees until a separate, evidence-based decision; `pilot/repair-worktree-census-v1.md` is the basis.

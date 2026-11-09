@@ -2,25 +2,27 @@
 document:
   title: "Project Report: Dispatch Failure of the UMAWS Fleet — Root Cause, Remediation, and Safeguards (T-0145/T-0146/T-0148/T-0150)"
   status: "Open — engineering remediation landed on local main; supervised canary and decision ratification outstanding; dispatch paused"
-  version: "1.2.0"
+  version: "1.2.1"
 provenance:
   author_llm:
     name: "Buffy"
-    version: "Codebuff agent (freebuff-buffy-01); report version 1.2"
+    version: "Codebuff agent (freebuff-buffy-01); report version 1.2.1"
   created_date: "2026-11-08"
-  last_modified_date: "2026-11-08"
+  last_modified_date: "2026-11-09"
   scope: "C:\\temp\\projects\\testproject1 (branch main, live repo), local commits c3aaca0..9606757 (never pushed), the Kernel ledger .pm/events/2026-11-07.jsonl and 2026-11-08.jsonl, evidence bundles .pm/evidence/EB-T-0148-120 and EB-T-0150-121, fleet agent logs .pm/fleet/logs/**, task cards T-0145/T-0146/T-0148/T-0150, and one throwaway-worktree reproduction run"
   source_of_truth: "Ledger events by sequence number (seq 3135–3160 for the canary window; 3194–3229 for T-0145/T-0146); bundle.json for EB-T-0148-120 and EB-T-0150-121; agent transcripts .pm/fleet/logs/T-0148/120-0.log, T-0150/121-0.log, T-0146/124-0.log, T-0145/122-0.log, 122-1.log, 123-0.log, and the Overseer log .pm/fleet/logs/overseer/0-0.log; source at the cited commits; measured test runs recorded under .pmwork/*.txt"
 ---
 
 # Dispatch Failure of the UMAWS Fleet — Root Cause, Remediation, and Safeguards
 
-**Author:** Buffy (Codebuff agent), `freebuff-buffy-01` — **v1.2**
+**Author:** Buffy (Codebuff agent), `freebuff-buffy-01` — **v1.2.1**
 **Report ID:** `dispatch-failure-root-cause-and-remediation-v1`
 **Date:** 2026-11-08
 **Status:** **Open.** Remediation is implemented and unit-verified on local `main`; the supervised live canary, decision ratification (D-62…D-68) and dispatch resumption are outstanding. Dispatch remains `PAUSED` with zero active leases.
 **Repository state at writing:** HEAD `9606757` (local only, never pushed), 542 tests, `pmk pins check` `ok: true`, 150 task cards, 103 incidents, 64 dirty working-tree paths (mostly pre-existing scratch artifacts and live Kernel state), 15 Kernel worktrees / 26 git worktrees.
 **Related documents:** `report-umaws-problems-and-issues-v1.md` (pre-repair diagnosis), `proposal-umaws-problems-and-issues-repair-v1.md` (approved plan), `pilot/repair-dispatch-rootcause-v1.md` (working notes), `pilot/repair-canary-runbook-v1.md`, `pilot/cards/canary-replacement-v1.md`, `pilot/drafts/decisions-d62-plus.md`.
+
+**Post-report reconciliation (2026-11-09).** T-0146 is `VOID` (`TASK_VOIDED` seq 3315, `2026-11-08T12:40:44Z`; reason `superseded by T-0159 coverage regeneration`); F-04 and OQ-04 below now record that. The replacement canary T-0189 failed its integration gate, D-62…D-69 are ratified (A9), and A10 remains blocked. Other status fields in this report describe the 2026-11-08 writing point.
 
 ---
 
@@ -200,7 +202,7 @@ The card's `agent_hint` states the corpus is absent, that it "exist[s] only as u
 
 **Why it survived.** `hint_base_commit` on T-0146 is `""`. `_stale_hint_reason()` returns `""` when the base is empty (`src/pmk/api.py`), so REC-13's stale-hint refusal never evaluated the hint, even though `"corpus"` and `"docs/rules"` are in `_HINT_STALE_TOKENS`.
 
-**Fix.** Hint pinning plus `IDENTITY_ANOMALY` landed in `6f92d31`. Existing cards cannot be amended (`pmk task` exposes only `create/admit/list/show/void`); T-0146 remains `READY`, and S8 refuses it because its oracle already passes on main. A replacement canary card was drafted as `pilot/cards/canary-replacement-v1.md`. The card's disposition is left to the operator (OQ-04); this report makes no recommendation on it.
+**Fix.** Hint pinning plus `IDENTITY_ANOMALY` landed in `6f92d31`. Existing cards cannot be amended (`pmk task` exposes only `create/admit/list/show/void`); at the writing point T-0146 was still `READY`, and S8 refused it because its oracle already passed on main. **Post-report reconciliation (2026-11-09):** T-0146 is `VOID` (`TASK_VOIDED` seq 3315, `2026-11-08T12:40:44Z`; reason `superseded by T-0159 coverage regeneration`), fence 125, and must not be reused. The replacement card design remains `pilot/cards/canary-replacement-v1.md`; the card instantiated as T-0189 failed its integration gate, so dispatch remains `PAUSED` and A10 is not authorized (D-69).
 
 ### F-05 — Workers and the Overseer speak bash to PowerShell (**Confirmed**)
 
@@ -380,7 +382,7 @@ Constitution obligations engaged: §1 Kernel-only writes (respected; only `pmk` 
 | OQ-01 | Which test failed at 2026-11-07T19:43Z | **Unknown**, unrecoverable | closed as unrecoverable; prevented by C-08 |
 | OQ-02 | Which model served each run | **Unknown** | needs R-04 instrumentation |
 | OQ-03 | Was the 08:43 divergence main-tree `src` or suite state under load? | **Unknown** | both closed by C-01; not separable |
-| OQ-04 | T-0146 disposition | open | operator decision; F-04 records the constraints and the options, without recommending one |
+| OQ-04 | T-0146 disposition | **closed** | T-0146 was voided at seq 3315 (`2026-11-08T12:40:44Z`; reason `superseded by T-0159 coverage regeneration`); it is `VOID`, fence 125, and must not be reused. The replacement canary T-0189 failed its integration gate; A10 remains blocked (D-69). |
 | OQ-05 | D-62…D-68 ratification | open | operator (A9) |
 | OQ-06 | D-69 canary | open | operator: create/admit the replacement card, run one supervised dispatch |
 | OQ-07 | A8 hooks not active | open | `git config core.hooksPath .githooks` |
@@ -2098,6 +2100,7 @@ State verified. This wake's finding: nothing actionable has changed since the 04
 | 1.0 | 2026-11-08 | Buffy (Codebuff) | First issue, covering findings F-01…F-09, corrective actions C-01…C-11, verification, OQ-01…OQ-11 and R-01…R-20. |
 | 1.1 | 2026-11-08 | Buffy (Codebuff) | Operator review pass: redacted the human email, added the verbatim transcript appendix, gave every recommendation equal priority, removed the T-0146 disposition recommendation, named the observed models as observations only, and recorded the duplicate pilot copy and verbatim-appendix intent. |
 | 1.2 | 2026-11-08 | Buffy (Codebuff) | Review round 11 corrections: F-02 relabelled **Derived** with the mechanism separately **Confirmed** and §7 reworded; §16.4 replaced with a working import check that needs no worktree; §11 records the coverage gaps (REC H1–H4, ledger actor, Overseer resume). |
+| 1.2.1 | 2026-11-09 | Buffy (Codebuff) | Reconciled T-0146 to the ledger: F-04 and OQ-04 record the `TASK_VOIDED` event (seq 3315); added the post-report reconciliation note. |
 
 **For Claude (Web) and other reviewers.** Every factual claim above is traceable through §15. The two claims most worth challenging are (a) F-02's mechanism, because the failing test is unrecoverable, and (b) F-01's completeness, because it is supported by one `.pth` file, one code reading and one import demonstration — not by a captured gate trace. Reproduce §16.3 before accepting §6. Do not treat the model question as settled in either direction; §7 argues only that the record cannot support attribution, which is why R-04 exists.
 

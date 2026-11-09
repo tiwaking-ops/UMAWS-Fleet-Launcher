@@ -1,11 +1,17 @@
 # Live canary runbook — T-0146 (operator-executed)
 
+> **SUPERSEDED FOR EXECUTION (2026-11-08):** T-0146 is already `VOID` (seq 3315), so the
+> T-0146 steps below must not be run. Use `pilot/drafts/d-69-canary-operator-packet-v1.md`
+> for the replacement card, the one-task dispatch, and the D-69 fill-in record. The old
+> replacement card's §2 hint is pinned to `51c657f`; its `paths 61/61` claim is stale at
+> later HEADs.
+
 **Purpose:** prove the repaired path with one real agent: claim → worktree → oracles → evidence bundle → merge → gate → DONE, and confirm the merge commit is authored by `umaws-pilot`.
 **Why T-0146:** its oracle is deterministic and now satisfiable on main. T-0145 is void (`e08fa8d` already contains its change).
 
-> **Use this instead:** `pilot/cards/canary-replacement-v1.md` — a drafted, dry-run-verified card
-> pinned to `51c657f`, with the exact `pmk task create`/`admit` commands and the expected event
-> sequence.
+> **Use this instead:** `pilot/drafts/d-69-canary-operator-packet-v1.md` — the corrected,
+> base-neutral operator packet. `pilot/cards/canary-replacement-v1.md` remains the design and
+> dry-run record at `51c657f`; its §2 hint is stale at later HEADs.
 >
 > **Blocker, measured 2026-11-08:** T-0146's oracle now *passes* on main
 > (`python -m cna.tools.coverage --check` → exit 0; `rule_files` = 69) and `agents.toml` sets

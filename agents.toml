@@ -259,7 +259,7 @@ model = "kilo/kilo-auto/free"
 models = [
   "kilo/nvidia/nemotron-3-ultra-550b-a55b:free",
   "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
-  "ollama-cloud/beam",
+# /**Mon Nov 09 09:34:47 NZDT 2026*/ ollama-cloud no longer provides free models   "ollama-cloud/beam",
   # Poolside models removed - shut down October 31, 2026
 ]
 
@@ -280,8 +280,8 @@ model = "openrouter/thinkingmachines/inkling:free"
 models = [
   "kilo/nvidia/nemotron-3-ultra-550b-a55b:free",
   "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
-  "ollama-cloud/beam",
-  # Poolside models removed - shut down October 31, 2026
+# /**Mon Nov 09 09:34:47 NZDT 2026*/ ollama-cloud no longer provides free models   "ollama-cloud/beam",
+   # Poolside models removed - shut down October 31, 2026
 ]
 
 [[profile]]
@@ -296,7 +296,7 @@ argv_new = ["opencode", "run", "-m", "{model}", "{prompt}"]
 argv_resume = ["opencode", "run", "-m", "{model}", "{prompt}", "--continue"]
 model = "openrouter/thinkingmachines/inkling:free"
 models = [
-  "ollama-cloud/beam",
+# /**Mon Nov 09 09:34:47 NZDT 2026*/ ollama-cloud no longer provides free models   "ollama-cloud/beam",
   "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
   "openrouter/nvidia/nemotron-3-ultra-550b-a55b",
   "kilo/kilo-auto/free",
@@ -316,7 +316,7 @@ argv_resume = ["opencode", "run", "-m", "{model}", "{prompt}", "--continue"]
 model = "orcarouter/auto"
 models = [
   "orcarouter/auto",
-  "ollama-cloud/beam",
+# /**Mon Nov 09 09:34:47 NZDT 2026*/ ollama-cloud no longer provides free models   "ollama-cloud/beam",
   # Poolside models removed - shut down October 31, 2026
 ]
 

@@ -1,5 +1,10 @@
 # Replacement card for the supervised canary (T-0146 superseded)
 
+> **Current execution note (2026-11-08):** T-0146 is already `VOID` (seq 3315). Use
+> `pilot/drafts/d-69-canary-operator-packet-v1.md` for the corrected, base-neutral
+> create/admit commands and the one-task dispatch. §2 below is pinned to `51c657f`
+> and says `paths 61/61`; do not use it verbatim at a later HEAD.
+
 **Status:** draft only. Nothing here has been created, admitted, leased or dispatched.
 **Base it is pinned to:** `51c657f` (2026-11-08, local `main`) — the repaired tree.
 **Why T-0146 cannot be used:** its work is already on main. `python -m cna.tools.coverage --check`
