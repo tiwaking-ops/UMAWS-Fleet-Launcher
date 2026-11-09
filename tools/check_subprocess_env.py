@@ -26,6 +26,7 @@ resolves against the current directory.
 
 The extra files are only checked for cwd safety: the unguarded-spawn check for
 a missing ``env=`` applies to ``src/`` and its allowlist, not to these files.
+A missing extra file is an input error (exit 2), reported without a traceback.
 """
 
 from __future__ import annotations
@@ -182,6 +183,12 @@ def main(argv: list[str] | None = None) -> int:
         help="optional extra Python files to scan for fleet cwd safety "
              "(not for missing env=)")
     args = parser.parse_args(list(sys.argv[1:] if argv is None else argv))
+    missing = [path for path in args.extra_fleet_files if not path.is_file()]
+    if missing:
+        for path in missing:
+            reason = "not found" if not path.exists() else "not a file"
+            print(f"error: extra fleet file {reason}: {path}", file=sys.stderr)
+        return 2
     allow = load_allowlist(ALLOWLIST)
     seen: set[tuple[str, str]] = set()
     findings: list[str] = []

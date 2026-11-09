@@ -110,3 +110,17 @@ def test_cwd_scanner_rejects_relative_and_unresolved_values(tmp_path):
     assert "slot.worktree" in expressions
     assert "<missing>" in expressions
     assert "None" in expressions
+
+
+def test_cli_reports_a_missing_extra_fleet_file_without_a_traceback(tmp_path):
+    """A bad extra-file argument is an input error, not an exception."""
+    missing = tmp_path / "missing_fleet.py"
+
+    proc = subprocess.run(
+        [sys.executable, str(CHECK), str(missing)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        cwd=str(ROOT))
+
+    assert proc.returncode == 2, proc.stdout + proc.stderr
+    assert "Traceback" not in proc.stderr
+    assert f"error: extra fleet file not found: {missing}" in proc.stderr
