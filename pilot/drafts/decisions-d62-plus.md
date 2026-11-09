@@ -1,9 +1,9 @@
-# DRAFT decision records D-62 … D-69
+# Decision records D-62 … D-69 (ratified 2026-11-09)
 
-> **DRAFT — not ratified. Do not cite as a decision.**
-> Drafted under P3.2 of `proposal-umaws-problems-and-issues-repair-v1` from evidence measured
-> on 2026-11-08. The operator ratifies these into `pilot/decisions.md` (approval A9); this file is
-> the review copy. D-69 stays blank until the live canary has actually run.
+> **RATIFIED 2026-11-09 under A9.** Canonical entries are appended to `pilot/decisions.md`; this file
+> remains the review copy. Drafted under P3.2 of `proposal-umaws-problems-and-issues-repair-v1` from
+> evidence measured on 2026-11-08. D-69 records the live canary result; the operator packet
+> `pilot/drafts/d-69-canary-operator-packet-v1.md` holds the commands and the fill-in record.
 
 Format: `D-<n> | <date> | <who> | <decision> | <alternatives> | <what it leaves untested>`
 
@@ -23,17 +23,32 @@ Format: `D-<n> | <date> | <who> | <decision> | <alternatives> | <what it leaves 
 
 **D-68** | 2026-11-08 | Buffy/Codebuff (classified) + operator (approved the classification) | **Working-tree drift is reconciled without deletion.** `pilot/decisions.md` was CRLF churn hiding four real records (D-58…D-61); it is normalised to LF and those records are committed. `agents.toml` carries the operator's 100 → 10 concurrency change and new `pi-orca` profiles. 59 scratch artifacts moved to `quarantine/2026-11-08/` with a manifest; `pytest_junit.xml` and `pi-test.txt` restored to committed bytes. `.pm/events/2026-11-07.jsonl` and `.pm/views/*` are deliberately **not** committed: they are live Kernel state. `pmk sentinel` is red at baseline (I6 on T-0118/0119/0127/0129/0130, I13 on `status.md`) and that is recorded, not repaired — fixing I6 would require rewriting the ledger. | Commit everything in one cleanup commit (mixes evidence with WIP); `git checkout` the drift (loses D-58…D-61 and the concurrency change); delete the scratch files (destroys evidence). | The eleven extra worktrees git knows and `pmk` does not are still present. Disposition is deferred; `pilot/repair-worktree-census-v1.md` is the basis for a separate decision.
 
-**D-69** | 2026-11-08 | _to be completed by the operator after the live canary_ | **Canary result and dispatch resumption: PENDING.** Preconditions: suite green, identity guard active, precheck enabled, pins `ok`. Procedure: `pilot/repair-canary-runbook-v1.md`. | Resume dispatch without a canary (the previous week's failure mode: the pipeline was declared fixed twice without a live run). | Everything the canary has not yet measured: real adapters under the pinned environment, provider behaviour, and the merge path with a real agent's output.
+**D-69** | 2026-11-09 | Buffy/Codebuff (operator-supervised canary) | **Canary result and dispatch resumption: FAIL.** T-0146 is VOID (`TASK_VOIDED` seq 3315, `2026-11-08T12:40:44Z`; reason: `superseded by T-0159 coverage regeneration`) and was not reused. A8 is applied (`core.hooksPath=.githooks`). Replacement card T-0189 was created at `bcf145c86e483df4d980e03fff8a743076a35571`, admitted, and run once under `kilo-auto`/`kilo` with `pmk dispatch run --seconds 900`; the Console was open for observation only. Result: task `REWORK` (fence 156); agent exit `0` (about 82 s); gate `pytest -q` exit `1` (about 253 s); bundle `EB-T-0189-156`; no merge commit (author `n/a`). Gate failure: `tests/test_rules_baseline.py::test_coverage_reports_case_statuses_and_evidence`; case `8.0` lists `tests/test_transport.py`, which is untracked in the main tree and absent from committed base `bcf145c`, so the main suite's green result is not reproducible in a clean worktree. The dispatch path itself behaved correctly through `CLAIMED → AGENT_STARTED → AGENT_EXITED (OK) → SUBMITTED → ORACLE_RESULT (gate fail) → VERIFIED (ORACLE_FAILED) → REWORK`; the merge/identity path was not reached. This is a base-tree/precondition defect, not a dispatch-repair regression. Deviations: one pre-existing inactive T-0182 lease (fence 151) violated the packet's zero-active-lease precondition; the full `pytest -q` preflight was not run; the dispatch loop was stopped after T-0189 reached REWORK with no READY cards remaining, before the 900 s window elapsed; a non-blocking `AGENT_ADVISORY` noted `RESULT.md` did not mention T-0189. Decision: remain `PAUSED`; A10 is not authorized. | Resume dispatch without a canary; reuse T-0146; retry with another profile/card without first making the committed base self-contained (would mask the same red gate). | The merge/identity path with a real agent's output, other adapters/providers, concurrent load, and a clean-base canary remain unmeasured. |
+
+### D-69 canary result
+
+- Date/time (UTC): 2026-11-09, 06:23:19Z–06:28:55Z
+- Card / base: T-0189 / `bcf145c86e483df4d980e03fff8a743076a35571`
+- Profile / adapter: `kilo-auto` / `kilo`
+- Agent exit / wall time: `0` / about 82 s
+- Gate exit / duration / `failed_tests`: `1` / about 253 s / `tests/test_rules_baseline.py::test_coverage_reports_case_statuses_and_evidence`
+- Bundle: `EB-T-0189-156` (`.pm/evidence/EB-T-0189-156/bundle.json`)
+- Merge sha / author: none / `n/a`
+- Final task state: `REWORK` (fence 156)
+- Deviations: pre-existing inactive T-0182 lease (fence 151); full `pytest -q` preflight not run; dispatch loop stopped after `REWORK` with no READY cards remaining; non-blocking `AGENT_ADVISORY` (`RESULT.md` omitted T-0189).
+- Decision: remain `PAUSED`; A10 is not authorized. The failure is a base-tree/precondition defect (dangling `tests/test_transport.py` reference), not a dispatch-repair regression.
 
 ---
 
 ## Ratification checklist for the operator
 
-- [ ] D-62 accepted (environment rule)
-- [ ] D-63 accepted (index baseline)
-- [ ] D-64 accepted (coverage semantics)
-- [ ] D-65 accepted (T-0145 void / T-0146 proof)
-- [ ] D-66 accepted (Q-077 recorded as thin)
-- [ ] D-67 accepted (provenance recorded, guard added)
-- [ ] D-68 accepted (drift reconciliation)
-- [ ] D-69 left open until the canary
+- [x] D-62 accepted (environment rule)
+- [x] D-63 accepted (index baseline)
+- [x] D-64 accepted (coverage semantics)
+- [x] D-65 accepted (T-0145 void / T-0146 proof)
+- [x] D-66 accepted (Q-077 recorded as thin)
+- [x] D-67 accepted (provenance recorded, guard added)
+- [x] D-68 accepted (drift reconciliation)
+- [x] D-69 result reviewed (FAIL; base-tree repair required before any retry)
+
+**D-69 is ratified as a FAIL result; ratification does not authorize A10.**
