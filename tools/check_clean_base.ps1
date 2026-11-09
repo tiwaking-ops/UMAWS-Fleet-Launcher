@@ -58,7 +58,10 @@ try {
         $env:PYTHONPATH = "$wt\src;$wt\tests"
         Push-Location $wt
         try {
-            $imports = & $Python -c 'import cna, pmk; print(cna.__file__); print(pmk.__file__)'
+            # cna is a namespace package without __init__.py, so cna.__file__
+            # is None even when the worktree copy wins.  Import a real module
+            # from each package and verify the file that actually loaded.
+            $imports = & $Python -c 'import cna.engine.loop, pmk; print(cna.engine.loop.__file__); print(pmk.__file__)'
             if ($LASTEXITCODE -ne 0) { throw 'import check failed' }
             $imports | ForEach-Object { Write-Host $_ }
             foreach ($line in $imports) {
