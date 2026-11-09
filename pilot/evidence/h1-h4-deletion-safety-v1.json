@@ -1,0 +1,69 @@
+{
+  "document": {
+    "title": "H1-H4 deletion-safety patch \u2014 clean-base verification",
+    "version": "1.0.0",
+    "captured_at": "2026-11-09T10:46:06Z",
+    "base_commit": "c1fac8f12c774ac9e8b36821766e461dc59a71e3",
+    "base_subject": "docs: record D-69 canary result and operator packet",
+    "author": "Buffy (Freebuff)"
+  },
+  "patch": {
+    "path": "pilot/evidence/h1-h4-deletion-safety-v1.patch",
+    "revision": "v1.1 (adds the missing worktree-name fixture rename)",
+    "bytes": 61151,
+    "sha256": "7cd0d0b7711df42feb4b12f7287ce071eeb531d69aafce5f09eef948ec6695c9"
+  },
+  "apply": {
+    "check": "ok",
+    "method": "git apply --check then git apply in a dedicated worktree at the base commit",
+    "branch": "h1-h4-deletion-safety-v1",
+    "worktree": "work/h1-h4-branch-1794218000",
+    "pythonpath": "the worktree's own src/, so the repo-root editable install cannot shadow the patched tree"
+  },
+  "scope": [
+    "src/fleet/harness.py",
+    "src/pmk/worktrees.py",
+    "tests/fleet/test_conductor_leases.py",
+    "tests/fleet/test_regressions.py",
+    "tests/pmk/test_worktree_lifecycle.py"
+  ],
+  "diffstat": [
+    "src/fleet/harness.py                 |  66 ++-",
+    "src/pmk/worktrees.py                 | 770 ++++++++++++++++++++++++++++++-----",
+    "tests/fleet/test_conductor_leases.py |   2 +-",
+    "tests/fleet/test_regressions.py      |  69 ++++",
+    "tests/pmk/test_worktree_lifecycle.py | 325 ++++++++++++++-------------"
+  ],
+  "clean_base_suites": [
+    {
+      "suite": "tests/pmk",
+      "command": "python -m pytest tests/pmk -q",
+      "exit": 0,
+      "tests": 230,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 128.441,
+      "started_at": "2026-11-09T23:34:02.664748+13:00",
+      "junit_xml": "tmp/h1-h4-branch-1794218000-pmk.xml"
+    },
+    {
+      "suite": "tests/fleet",
+      "command": "python -m pytest tests/fleet -q",
+      "exit": 0,
+      "tests": 242,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 244.07,
+      "started_at": "2026-11-09T23:41:17.336430+13:00",
+      "junit_xml": "tmp/h1-h4-branch-1794218000-fleet2.xml"
+    }
+  ],
+  "notes": [
+    "The two suites are collected separately because tests/pmk and tests/fleet both ship a top-level conftest.py, so a combined collection fails (OQ-06).",
+    "This is a focused clean-base record for the patch, not the PDD section 6 full gate. The full gate at 06d3e93 (1131 passed) and the red gate at 4e72901 are recorded separately on T-0189.",
+    "The patch excludes the unrelated worktree-cwd one-liner in harness.py and the REC-02 binary/CRLF restore-proof tests.",
+    "An earlier fleet run in this worktree was interrupted by the command timeout after one test failed; the complete rerun above finished green. The interrupted run's partial output is not evidence."
+  ]
+}

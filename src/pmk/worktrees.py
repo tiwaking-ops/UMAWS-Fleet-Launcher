@@ -24,12 +24,18 @@ Nothing here is on the coordination hot path: ``pmk status`` and
 from __future__ import annotations
 
 import hashlib
+import io
 import json
+import os
 import shutil
+import stat
 import tarfile
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from . import plat
 
 #: The per-lease worktree directory (``Repo.work_dir``).
 WORKTREE_SUBDIR = "work"
@@ -170,18 +176,151 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
-def _tar_untracked(worktree: Path, files: list[str], tar_path: Path) -> int:
-    """Write *files* (relative to *worktree*) into *tar_path*.  Returns count."""
-    written = 0
+class CaptureError(RuntimeError):
+    """A capture could not be proven complete; nothing may be deleted."""
+
+
+def _write_file(path: Path, data: bytes) -> None:
+    """Write *data* and flush it to disk before returning.
+
+    A capture that is deleted before it reaches the disk is not a capture.
+    """
+    with path.open("wb") as fh:
+        fh.write(data)
+        fh.flush()
+        os.fsync(fh.fileno())
+
+
+def _run_git(repo, path: Path, *args: str) -> bytes:
+    code, out, err = repo.git_bytes(*args, cwd=path)
+    if code != 0:
+        message = err.decode("utf-8", "replace").strip() or "git failed"
+        raise CaptureError(f"git {' '.join(args[:2])} failed: {message}")
+    return out
+
+
+def _list_paths(repo, path: Path, *, ignored: bool = False) -> list[str]:
+    """Untracked (or ignored) files relative to *path*.
+
+    The exit status is checked: an empty list from a failed ``ls-files``
+    would make a capture look complete while omitting every file in it.
+    """
+    args = ["ls-files", "--others"]
+    if ignored:
+        args.append("-i")
+    args += ["--exclude-standard", "-z", "--", "."]
+    return [p.decode("utf-8", "surrogateescape")
+            for p in _run_git(repo, path, *args).split(b"\0") if p]
+
+
+def _scan_tree(repo, path: Path) -> tuple[str, bytes, list[str], list[str]]:
+    """Base commit, tracked diff, untracked files and ignored files.
+
+    Ignored files are part of the capture: ``git status`` calls a tree
+    holding only ignored files clean, yet deleting it would still lose
+    them.
+    """
+    base = _run_git(repo, path, "rev-parse", "HEAD").decode(
+        "utf-8", "replace").strip()
+    diff = _run_git(repo, path, "diff", "HEAD", "--binary", "--", ".")
+    return (base, diff, _list_paths(repo, path),
+            _list_paths(repo, path, ignored=True))
+
+
+def _new_digest(diff: bytes):
+    """Start a digest of exactly what a capture stores."""
+    hasher = hashlib.sha256(b"pmk-tree-v1\0")
+    hasher.update(str(len(diff)).encode("ascii") + b"\0" + diff)
+    return hasher
+
+
+def _digest_add(hasher, tag: str, rel: str, digest: str, size: int) -> None:
+    hasher.update(tag.encode("ascii") + b"\0"
+                  + rel.encode("utf-8", "surrogateescape") + b"\0"
+                  + digest.encode("ascii") + b"\0"
+                  + str(size).encode("ascii") + b"\0")
+
+
+def _read_entry(worktree: Path, rel: str):
+    """Read one file once: ``(tar member, bytes or None, sha256, size)``."""
+    full = worktree / rel
+    st = full.lstat()
+    info = tarfile.TarInfo(rel)
+    if stat.S_ISLNK(st.st_mode):
+        target = os.readlink(full)
+        info.type = tarfile.SYMTYPE
+        info.linkname = target
+        info.mode = 0o777
+        digest = hashlib.sha256(
+            b"link\0" + target.encode("utf-8", "surrogateescape")).hexdigest()
+        return info, None, digest, 0
+    data = full.read_bytes()
+    info.size = len(data)
+    info.mtime = int(st.st_mtime)
+    info.mode = (st.st_mode & 0o777) or 0o644
+    return info, data, hashlib.sha256(data).hexdigest(), len(data)
+
+
+def _pack_files(worktree: Path, files: list[str], tar_path: Path,
+                hasher, tag: str) -> int:
+    """Write *files* to *tar_path*, folding the same bytes into *hasher*.
+
+    Each file is read exactly once, so the manifest can never describe a
+    version of a file the archive does not contain.  A file that cannot be
+    read raises: a capture that omits a listed file is not a capture.
+    """
+    packed = 0
     with tarfile.open(tar_path, "w") as tf:
-        for rel in files:
-            full = worktree / rel
+        for rel in sorted(files):
             try:
-                tf.add(full, arcname=rel)
-                written += 1
-            except (OSError, ValueError):
-                continue
-    return written
+                info, data, digest, size = _read_entry(worktree, rel)
+                tf.addfile(info, io.BytesIO(data) if data is not None else None)
+            except (OSError, ValueError, tarfile.TarError) as exc:
+                raise CaptureError(f"could not capture {rel!r}: {exc}") from exc
+            _digest_add(hasher, tag, rel, digest, size)
+            packed += 1
+        try:
+            tf.fileobj.flush()
+            os.fsync(tf.fileobj.fileno())
+        except (AttributeError, OSError) as exc:
+            raise CaptureError(
+                f"could not flush {tar_path.name}: {exc}") from exc
+    if packed != len(files):
+        raise CaptureError(
+            f"{tar_path.name}: packed {packed} of {len(files)} files")
+    return packed
+
+
+def _quiescence_digest(repo, path: Path) -> str:
+    """Digest the tree as it is on disk right now, the way a capture would.
+
+    Used after a capture and before a removal: if this differs from the
+    manifest's ``tree_digest``, something wrote to the tree in between and
+    the tree must be kept.
+    """
+    _base, diff, untracked, ignored = _scan_tree(repo, path)
+    hasher = _new_digest(diff)
+    for tag, files in (("u", untracked), ("i", ignored)):
+        for rel in sorted(files):
+            try:
+                _info, _data, digest, size = _read_entry(path, rel)
+            except (OSError, ValueError) as exc:
+                raise CaptureError(f"could not read {rel!r}: {exc}") from exc
+            _digest_add(hasher, tag, rel, digest, size)
+    return hasher.hexdigest()
+
+
+def _claim_dest(root: Path, stem: str, *, limit: int = 1000) -> Path:
+    """Create a fresh archive directory; never reuse an existing one."""
+    root.mkdir(parents=True, exist_ok=True)
+    for index in range(limit):
+        candidate = root / (stem if index == 0 else f"{stem}.{index + 1}")
+        try:
+            candidate.mkdir()
+        except FileExistsError:
+            continue
+        return candidate
+    raise CaptureError(f"no free archive destination for {stem!r}")
 
 
 def archive_tree(repo, state, path: Path, *, target_root: Path | None = None) -> dict:
@@ -191,73 +330,260 @@ def archive_tree(repo, state, path: Path, *, target_root: Path | None = None) ->
 
     * ``diff.patch``      -- ``git diff HEAD --binary`` (all tracked changes);
     * ``untracked.tar``   -- every untracked, non-ignored file;
+    * ``ignored.tar``     -- every ignored file, when the tree has any;
     * ``RESULT.md``       -- a copy of the agent's own result, when present;
-    * ``manifest.json``   -- task, fence, base commit, counts and sha256s.
+    * ``manifest.json``   -- task, fence, base commit, counts, sha256s and a
+      ``tree_digest`` of exactly the bytes the archive stores.
 
     This **only copies**; it never modifies or deletes the worktree.  The
-    manifest's sha256s make the capture independently verifiable.
+    capture is complete or it is reported as failed: every listed file is
+    read once and packed, and any failure removes the partial archive
+    directory.  A destination is never reused, so a second capture of the
+    same fence cannot hide the first.
     """
     path = Path(path)
     task_id, fence = parse_name(path.name)
     root = Path(target_root) if target_root else archive_root(repo)
-    dest = root / (f"{task_id}-{fence}" if fence is not None else path.name)
+    failed = {"name": path.name, "archived": False}
 
-    # Everything is read through git_bytes: repo.git() decodes stdout in
-    # text mode, which strips the CR from CRLF and would make a captured
-    # patch fail to apply to its CRLF base.
-    code, base_raw, _ = repo.git_bytes("rev-parse", "HEAD", cwd=path)
-    base = base_raw.decode("utf-8", "replace").strip() if code == 0 else ""
+    try:
+        base, diff, untracked, ignored = _scan_tree(repo, path)
+        hasher = _new_digest(diff)
+        dest = _claim_dest(root, (f"{task_id}-{fence}" if fence is not None
+                                  else path.name))
+    except (CaptureError, OSError) as exc:
+        return dict(failed, reason=str(exc))
 
-    code, diff, err = repo.git_bytes("diff", "HEAD", "--binary", "--", ".",
-                                     cwd=path)
-    if code != 0:
-        reason = err.decode("utf-8", "replace").strip() or "git diff failed"
-        return {"name": path.name, "archived": False, "reason": reason}
+    try:
+        # Byte-for-byte: never pass this through a text-mode write.
+        _write_file(dest / "diff.patch", diff)
+        untracked_packed = _pack_files(path, untracked,
+                                       dest / "untracked.tar", hasher, "u")
+        ignored_packed = 0
+        if ignored:
+            ignored_packed = _pack_files(path, ignored,
+                                         dest / "ignored.tar", hasher, "i")
 
-    code, others, _ = repo.git_bytes("ls-files", "--others",
-                                     "--exclude-standard", "-z", "--", ".",
-                                     cwd=path)
-    untracked = [p.decode("utf-8", "replace")
-                 for p in others.split(b"\0") if p]
+        result_src = path / ".pmwork" / "RESULT.md"
+        has_result = result_src.is_file()
+        if has_result:
+            _write_file(dest / "RESULT.md", result_src.read_bytes())
 
-    dest.mkdir(parents=True, exist_ok=True)
-    # Byte-for-byte: never pass this through a text-mode write.
-    (dest / "diff.patch").write_bytes(diff)
-    tar_path = dest / "untracked.tar"
-    written = _tar_untracked(path, untracked, tar_path)
+        task = state.tasks.get(task_id) if state is not None else None
+        manifest = {
+            "task": task_id,
+            "fence": fence,
+            "worktree": path.name,
+            "state": task.state if task is not None else "?",
+            "base_commit": base,
+            "tracked_changes": bool(diff.strip()),
+            "untracked_count": len(untracked),
+            "untracked_packed": untracked_packed,
+            "untracked_files": untracked[:500],
+            "ignored_count": len(ignored),
+            "ignored_packed": ignored_packed,
+            "ignored_files": ignored[:500],
+            "result_md": has_result,
+            "diff_bytes": len(diff),
+            "diff_sha256": hashlib.sha256(diff).hexdigest(),
+            "untracked_tar_bytes": (dest / "untracked.tar").stat().st_size,
+            "untracked_tar_sha256": _sha256_file(dest / "untracked.tar"),
+            "tree_digest": hasher.hexdigest(),
+            "capture_version": 2,
+            "archived_at": _now_iso(),
+        }
+        if ignored_packed:
+            manifest["ignored_tar_bytes"] = (dest / "ignored.tar").stat().st_size
+            manifest["ignored_tar_sha256"] = _sha256_file(dest / "ignored.tar")
+        # Also byte-faithful: no platform newline translation for the manifest.
+        _write_file(dest / "manifest.json",
+                    (json.dumps(manifest, indent=2) + "\n").encode("utf-8"))
+        # H2: the manifest described the tree as it was when packing began.
+        # Re-scan before calling the capture complete; a file that appeared
+        # during the capture must fail it, not be silently omitted.
+        try:
+            settled = _quiescence_digest(repo, path)
+        except CaptureError as exc:
+            raise CaptureError(
+                f"the worktree changed while it was being captured: {exc}"
+            ) from exc
+        if settled != manifest["tree_digest"]:
+            raise CaptureError(
+                "the worktree changed while it was being captured")
+    except (CaptureError, OSError, ValueError, tarfile.TarError) as exc:
+        # A partial archive must not be mistaken for a complete one.
+        shutil.rmtree(dest, ignore_errors=True)
+        return dict(failed, reason=str(exc))
 
-    result_src = path / ".pmwork" / "RESULT.md"
-    has_result = result_src.is_file()
-    if has_result:
-        shutil.copyfile(result_src, dest / "RESULT.md")
-
-    task = state.tasks.get(task_id) if state is not None else None
-    manifest = {
-        "task": task_id,
-        "fence": fence,
-        "worktree": path.name,
-        "state": task.state if task is not None else "?",
-        "base_commit": base,
-        "tracked_changes": bool(diff.strip()),
-        "untracked_count": len(untracked),
-        "untracked_packed": written,
-        "untracked_files": untracked[:500],
-        "result_md": has_result,
-        "diff_bytes": (dest / "diff.patch").stat().st_size,
-        "diff_sha256": _sha256_file(dest / "diff.patch"),
-        "untracked_tar_bytes": tar_path.stat().st_size,
-        "untracked_tar_sha256": _sha256_file(tar_path),
-        "archived_at": _now_iso(),
-    }
-    # Also byte-faithful: no platform newline translation for the manifest.
-    (dest / "manifest.json").write_bytes(
-        (json.dumps(manifest, indent=2) + "\n").encode("utf-8"))
     return {"name": path.name, "archived": True, "dest": str(dest),
-            "diff_bytes": manifest["diff_bytes"], "untracked_count": len(untracked)}
+            "diff_bytes": manifest["diff_bytes"],
+            "untracked_count": len(untracked),
+            "ignored_count": len(ignored),
+            "tree_digest": manifest["tree_digest"]}
+
+
+def _tar_entries(tar_path: Path) -> tuple[list[str], str]:
+    try:
+        with tarfile.open(tar_path, "r") as tf:
+            return [m.name for m in tf.getmembers() if not m.isdir()], ""
+    except (OSError, tarfile.TarError) as exc:
+        return [], f"{tar_path.name} is unreadable: {exc}"
+
+
+def _verify_tar(dest: Path, manifest: dict, kind: str, *,
+                required: bool) -> list[str]:
+    """Check one tar against the counts and hashes its manifest claims."""
+    count = manifest.get(f"{kind}_count")
+    packed = manifest.get(f"{kind}_packed")
+    if not isinstance(count, int) or not isinstance(packed, int):
+        return [f"manifest.json has no {kind}_count/{kind}_packed"]
+    problems: list[str] = []
+    if packed != count:
+        problems.append(f"{kind}_packed ({packed}) does not equal "
+                        f"{kind}_count ({count})")
+    tar_path = dest / f"{kind}.tar"
+    if not tar_path.is_file():
+        if required or count:
+            problems.append(f"{kind}.tar is missing")
+        return problems
+    if _sha256_file(tar_path) != manifest.get(f"{kind}_tar_sha256"):
+        problems.append(f"{kind}.tar sha256 does not match the manifest")
+    entries, error = _tar_entries(tar_path)
+    if error:
+        problems.append(error)
+    elif len(entries) != packed:
+        problems.append(f"{kind}.tar holds {len(entries)} entries but the "
+                        f"manifest says {packed}")
+    return problems
+
+
+def _archive_digest(dest: Path, manifest: dict) -> tuple[str, list[str]]:
+    """Recompute ``tree_digest`` from the archive's own bytes (H3).
+
+    ``verify_archive`` used to check only that each file matched the hash
+    in the manifest.  A manifest edited alongside a tampered archive could
+    therefore still pass.  This rebuilds the digest from ``diff.patch`` and
+    the tar members, so the archive has to reproduce the exact tree the
+    capture claimed to store.
+    """
+    problems: list[str] = []
+    try:
+        diff = (dest / "diff.patch").read_bytes()
+    except OSError as exc:
+        return "", [f"diff.patch is unreadable: {exc}"]
+    hasher = _new_digest(diff)
+    for kind, tag in (("untracked", "u"), ("ignored", "i")):
+        count = manifest.get(f"{kind}_count")
+        if not isinstance(count, int):
+            problems.append(f"manifest.json has no {kind}_count")
+            continue
+        tar_path = dest / f"{kind}.tar"
+        if count == 0 and not tar_path.is_file():
+            continue
+        try:
+            with tarfile.open(tar_path, "r") as tf:
+                members = sorted(
+                    (m for m in tf.getmembers() if not m.isdir()),
+                    key=lambda m: m.name)
+                if len(members) != count:
+                    problems.append(
+                        f"{kind}.tar holds {len(members)} entries but the "
+                        f"manifest says {count}")
+                for member in members:
+                    if member.issym():
+                        target = member.linkname
+                        digest = hashlib.sha256(
+                            b"link\0" + target.encode(
+                                "utf-8", "surrogateescape")).hexdigest()
+                        _digest_add(hasher, tag, member.name, digest, 0)
+                    elif member.isfile():
+                        handle = tf.extractfile(member)
+                        if handle is None:
+                            problems.append(
+                                f"{kind}.tar member {member.name!r} is "
+                                "unreadable")
+                            continue
+                        data = handle.read()
+                        _digest_add(hasher, tag, member.name,
+                                    hashlib.sha256(data).hexdigest(),
+                                    len(data))
+                    else:
+                        problems.append(
+                            f"{kind}.tar member {member.name!r} is neither "
+                            "a file nor a symlink")
+        except (OSError, tarfile.TarError) as exc:
+            problems.append(f"{kind}.tar is unreadable: {exc}")
+    return hasher.hexdigest(), problems
+
+
+def verify_restore(repo, dest: Path) -> tuple[bool, list[str]]:
+    """Prove the captured diff applies to its recorded base commit.
+
+    Archive self-verification proves the bytes are consistent; it does not
+    prove the stored patch can reconstruct the captured tracked changes.
+    Before a reclaim may delete the tree, create a throwaway worktree at the
+    manifest's ``base_commit`` and apply the patch there.  Any failure keeps
+    the source tree on disk.
+    """
+    dest = Path(dest)
+    manifest_path = dest / "manifest.json"
+    if not manifest_path.is_file():
+        return False, ["manifest.json is missing"]
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return False, [f"manifest.json is unreadable: {exc}"]
+
+    base = str(manifest.get("base_commit") or "").strip()
+    if (len(base) not in (40, 64)
+            or any(char not in "0123456789abcdefABCDEF" for char in base)):
+        return False, ["manifest.json has no valid base_commit"]
+    patch = dest / "diff.patch"
+    if not patch.is_file():
+        return False, ["diff.patch is missing"]
+
+    code, out, err = repo.git("rev-parse", "--verify", f"{base}^{{commit}}")
+    if code != 0:
+        detail = (err.strip() or out.strip() or "not found")[:500]
+        return False, [f"base commit {base} is unavailable: {detail}"]
+    resolved_base = out.strip()
+    if patch.stat().st_size == 0:
+        # No tracked changes: the base commit itself is the complete restore.
+        return True, []
+
+    try:
+        temp = Path(tempfile.mkdtemp(prefix=".pmk-restore-",
+                                     dir=str(repo.root)))
+        temp.rmdir()
+    except OSError as exc:
+        return False, [f"could not create a restore worktree: {exc}"]
+
+    try:
+        code, out, err = repo.git("worktree", "add", "--detach", str(temp),
+                                  resolved_base, timeout=120)
+        if code != 0:
+            detail = (err.strip() or out.strip() or "git worktree add failed")[:500]
+            return False, [f"could not create restore worktree: {detail}"]
+        code, out, err = repo.git("apply", str(patch.resolve()), cwd=temp,
+                                  timeout=120)
+        if code != 0:
+            detail = (err.strip() or out.strip() or "git apply failed")[:500]
+            return False, [f"diff.patch does not apply to base {base}: {detail}"]
+        return True, []
+    finally:
+        repo.git("worktree", "remove", "--force", str(temp), timeout=120)
+        shutil.rmtree(temp, ignore_errors=True)
 
 
 def verify_archive(dest: Path) -> tuple[bool, list[str]]:
-    """Re-read an archive and check its sha256s against ``manifest.json``."""
+    """Re-read an archive and prove it is complete, not just self-consistent.
+
+    Beyond hash agreement this checks the invariant a silent omission would
+    break: the number of files packed equals the number the capture listed,
+    and each tar really holds that many entries.  A capture that dropped a
+    file must never verify, because verification is what authorises the
+    deletion of the only copy.
+    """
     dest = Path(dest)
     problems: list[str] = []
     manifest_path = dest / "manifest.json"
@@ -268,35 +594,192 @@ def verify_archive(dest: Path) -> tuple[bool, list[str]]:
     except (OSError, ValueError) as exc:
         return False, [f"manifest.json is unreadable: {exc}"]
 
+    if not manifest.get("tree_digest"):
+        problems.append("manifest.json has no tree_digest")
+
     diff = dest / "diff.patch"
     if not diff.is_file():
         problems.append("diff.patch is missing")
     elif _sha256_file(diff) != manifest.get("diff_sha256"):
         problems.append("diff.patch sha256 does not match the manifest")
 
-    tar_path = dest / "untracked.tar"
-    if not tar_path.is_file():
-        problems.append("untracked.tar is missing")
-    else:
-        if _sha256_file(tar_path) != manifest.get("untracked_tar_sha256"):
-            problems.append("untracked.tar sha256 does not match the manifest")
-        try:
-            with tarfile.open(tar_path, "r") as tf:
-                tf.getmembers()
-        except (OSError, tarfile.TarError) as exc:
-            problems.append(f"untracked.tar is unreadable: {exc}")
+    problems.extend(_verify_tar(dest, manifest, "untracked", required=True))
+    problems.extend(_verify_tar(dest, manifest, "ignored", required=False))
+    if not problems:
+        digest, digest_problems = _archive_digest(dest, manifest)
+        problems.extend(digest_problems)
+        if not digest_problems and digest != manifest.get("tree_digest"):
+            problems.append("archive contents do not reproduce tree_digest")
     return (not problems), problems
 
 
+#: Suffix of the sidecar lock held for the duration of a reclaim.
+LOCK_SUFFIX = ".reclaim.lock"
+
+
+def _lock_path(path: Path) -> Path:
+    return path.parent / f".{path.name}{LOCK_SUFFIX}"
+
+
+def _lock_is_stale(lock: Path) -> bool:
+    """A lock is stale only when its holder is provably gone."""
+    try:
+        payload = json.loads(lock.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    pid = payload.get("pid")
+    if pid is None:
+        return False
+    return not plat.same_process(int(pid), payload.get("creation_time"))
+
+
+def _acquire_lock(path: Path) -> tuple[Path | None, str]:
+    """Take the per-worktree reclaim lock, or say why it cannot be taken."""
+    lock = _lock_path(path)
+    holder = {"pid": os.getpid(),
+              "creation_time": plat.process_info(os.getpid()).creation_time,
+              "at": _now_iso()}
+    payload = json.dumps(holder).encode("utf-8")
+    for _attempt in range(2):
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            if _lock_is_stale(lock):
+                try:
+                    lock.unlink()
+                except OSError:
+                    pass
+                continue
+            return None, f"another reclaim holds {lock.name}"
+        except OSError as exc:
+            return None, f"cannot create {lock.name}: {exc}"
+        try:
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(payload)
+                fh.flush()
+                os.fsync(fh.fileno())
+        except OSError as exc:
+            try:
+                lock.unlink()
+            except OSError:
+                pass
+            return None, f"cannot write {lock.name}: {exc}"
+        return lock, ""
+    return None, f"another reclaim holds {lock.name}"
+
+
+def _release_lock(lock: Path | None) -> None:
+    if lock is None:
+        return
+    try:
+        lock.unlink()
+    except OSError:
+        pass
+
+
+def recorded_processes(state, task_id: str, fence: int | None) -> list[dict]:
+    """Every process the log says was started for this task and fence.
+
+    A fix round starts a second process.  Reading only the newest
+    ``AGENT_STARTED`` would leave the older one writing into a tree the
+    reaper is about to delete.
+    """
+    if state is None:
+        return []
+    found: list[dict] = []
+    seen: set[tuple[int, object]] = set()
+    for event in state.events:
+        if event.type != "AGENT_STARTED" or event.subject != task_id:
+            continue
+        if fence is not None and event.fence != fence:
+            continue
+        payload = event.payload or {}
+        pid = payload.get("pid")
+        if pid is None:
+            # H4: a start record without a pid is not evidence that no
+            # process was started.  Keep it so the deletion barrier can
+            # refuse rather than silently treating it as absent.
+            found.append({"pid": None, "creation_time": None,
+                          "profile": payload.get("profile", ""),
+                          "adapter": payload.get("adapter", "")})
+            continue
+        identity = (int(pid), payload.get("creation_time"))
+        if identity in seen:
+            continue
+        seen.add(identity)
+        found.append({"pid": identity[0],
+                      "creation_time": identity[1],
+                      "profile": payload.get("profile", ""),
+                      "adapter": payload.get("adapter", "")})
+    return found
+
+
+def live_conflicts(processes: list[dict]) -> list[dict]:
+    """Processes that are alive now, with whether their identity matched."""
+    conflicts: list[dict] = []
+    for proc in processes:
+        pid = proc.get("pid")
+        if pid is None:
+            continue
+        info = plat.process_info(int(pid))
+        if not info.alive:
+            continue
+        recorded = proc.get("creation_time")
+        verified = (recorded is not None and info.creation_time is not None
+                    and int(recorded) == int(info.creation_time))
+        conflicts.append({"pid": int(pid), "verified": bool(verified),
+                          "profile": proc.get("profile", "")})
+    return conflicts
+
+
+def _unverifiable_processes(processes: list[dict]) -> list[dict]:
+    """H4: start records whose process cannot be checked at all."""
+    return [p for p in processes if p.get("pid") is None]
+
+
+def _deletion_refusal(repo, state, path: Path) -> str:
+    """H1: only a direct, unprotected lease worktree with no live lease."""
+    root = worktree_root(repo)
+    try:
+        root_resolved = root.resolve()
+        target_resolved = path.resolve()
+    except OSError as exc:
+        return f"cannot resolve the worktree path: {exc}"
+    if path.name in PROTECTED:
+        return f"{path.name} is protected; refusing to delete it"
+    if path.is_symlink() or target_resolved.parent != root_resolved:
+        return "not a direct child of the worktree root"
+    task_id, fence = parse_name(path.name)
+    if fence is None:
+        return "not a lease worktree name"
+    if state is None:
+        return "no Kernel state; cannot prove the lease is inactive"
+    lease = state.leases.get(task_id)
+    if lease is not None and lease.fence == fence:
+        return "an active lease still owns this worktree"
+    task = state.tasks.get(task_id)
+    if task is not None and task.state == "LEASED" and lease is None:
+        return "the task is still marked LEASED"
+    return ""
+
+
 def reclaim_after_capture(repo, state, path: Path, *,
-                          target_root: Path | None = None) -> dict:
-    """REC-01: capture a worktree, verify the capture, then remove it.
+                          target_root: Path | None = None,
+                          extra_processes: list[dict] | None = None) -> dict:
+    """REC-01: capture a worktree, verify it, prove quiescence, remove it.
 
     This is the **only** function that deletes a worktree.  It never
     deletes anything whose capture did not verify, so a reclaim cannot
     lose work that was not first stored under ``stranded/``.  A tree that
     does not exist, or whose capture or removal fails, is left in place
     and the result says why.
+
+    H4 adds two guards around the deletion:
+
+    * the sidecar lock serialises reclaims of one worktree, and
+    * no process recorded for the lease may be alive — and after the
+      capture the tree is digested again, so anything that wrote to it
+      while it was being captured keeps it on disk.
 
     Returns a result dict; ``reclaimed`` is true only when the worktree
     was actually removed.
@@ -307,26 +790,91 @@ def reclaim_after_capture(repo, state, path: Path, *,
         result["reason"] = "not on disk"
         return result
 
-    capture = archive_tree(repo, state, path, target_root=target_root)
-    if not capture.get("archived"):
-        result["reason"] = (f"capture failed: "
-                            f"{capture.get('reason', 'unknown')}")
+    # H1: never delete a protected path, a path outside work/, or a tree
+    # whose lease is still active.  This is checked before any archive or
+    # lock work, so a refusal leaves no side effects.
+    refusal = _deletion_refusal(repo, state, path)
+    if refusal:
+        result["reason"] = refusal
         return result
-    dest = Path(capture["dest"])
-    ok, problems = verify_archive(dest)
-    if not ok:
-        result["reason"] = "capture not verified: " + "; ".join(problems)
-        return result
-    result["archived"] = True
-    result["archive"] = str(dest)
 
-    code, out, err = repo.git("worktree", "remove", "--force", str(path))
-    if code != 0:
-        result["reason"] = ("git worktree remove failed: "
-                            f"{(err.strip() or out.strip())}")
+    task_id, fence = parse_name(path.name)
+    processes = (recorded_processes(state, task_id, fence)
+                 + list(extra_processes or []))
+    unverifiable = _unverifiable_processes(processes)
+    if unverifiable:
+        result["reason"] = ("a recorded process has no pid; cannot prove "
+                            "it is not writing to the tree")
+        result["processes"] = unverifiable
         return result
-    result["reclaimed"] = True
-    return result
+    busy = live_conflicts(processes)
+    if busy:
+        result["reason"] = ("a process may still be writing to the tree: "
+                            + ", ".join(str(p["pid"]) for p in busy))
+        result["processes"] = busy
+        return result
+
+    lock, reason = _acquire_lock(path)
+    if lock is None:
+        result["reason"] = reason
+        return result
+    try:
+        # A process can start between the check above and the lock.
+        busy = live_conflicts(processes)
+        if busy:
+            result["reason"] = ("a process may still be writing to the tree: "
+                                + ", ".join(str(p["pid"]) for p in busy))
+            result["processes"] = busy
+            return result
+
+        capture = archive_tree(repo, state, path, target_root=target_root)
+        if not capture.get("archived"):
+            result["reason"] = (f"capture failed: "
+                                f"{capture.get('reason', 'unknown')}")
+            return result
+        dest = Path(capture["dest"])
+        ok, problems = verify_archive(dest)
+        if not ok:
+            result["reason"] = "capture not verified: " + "; ".join(problems)
+            return result
+        result["archived"] = True
+        result["archive"] = str(dest)
+
+        # Restore proof: the archive must be able to reconstruct the
+        # captured tracked changes on its recorded base before deletion.
+        restored, restore_problems = verify_restore(repo, dest)
+        if not restored:
+            result["reason"] = ("restore proof failed: "
+                                + "; ".join(restore_problems))
+            return result
+        result["restore_verified"] = True
+
+        # The barrier: the tree must still be exactly what was captured.
+        try:
+            digest = _quiescence_digest(repo, path)
+        except CaptureError as exc:
+            result["reason"] = f"post-capture recheck failed: {exc}"
+            return result
+        if digest != capture.get("tree_digest"):
+            result["reason"] = ("the worktree changed while it was being "
+                                "captured; it was not removed")
+            return result
+        busy = live_conflicts(processes)
+        if busy:
+            result["reason"] = ("a process may still be writing to the tree: "
+                                + ", ".join(str(p["pid"]) for p in busy))
+            result["processes"] = busy
+            return result
+
+        code, out, err = repo.git("worktree", "remove", "--force", str(path))
+        if code != 0:
+            result["reason"] = ("git worktree remove failed: "
+                                f"{(err.strip() or out.strip())}")
+            return result
+        result["reclaimed"] = True
+        return result
+    finally:
+        _release_lock(lock)
 
 
 def prune(repo, state, *, dry_run: bool = True,
@@ -348,11 +896,16 @@ def prune(repo, state, *, dry_run: bool = True,
     capture is verified, and only then does the tree become eligible for
     removal.  While *dry_run* is true nothing is archived and nothing is
     removed — the plan simply reports which dirty trees would be captured.
+
+    Every actual removal goes through :func:`reclaim_after_capture`, so it
+    takes the per-worktree lock, refuses while a recorded process is alive,
+    and is re-checked against its capture before ``git worktree remove``.
+    A tree ``git status`` calls clean can still hold ignored files, so it
+    is captured too rather than deleted on the strength of that status.
     """
     recs = records(repo, state)
     candidates: list[dict] = []
     skipped: list[dict] = []
-    archived: list[dict] = []
 
     for r in recs:
         if r["fence"] is None:
@@ -378,32 +931,23 @@ def prune(repo, state, *, dry_run: bool = True,
                 # A dry run must not write anything.
                 candidates.append(r)
                 continue
-            capture = archive_tree(repo, state, Path(r["path"]))
-            if not capture.get("archived"):
-                skipped.append({"name": r["name"],
-                                "reason": "capture failed: "
-                                          f"{capture.get('reason', 'unknown')}"})
-                continue
-            ok, problems = verify_archive(Path(capture["dest"]))
-            if not ok:
-                skipped.append({"name": r["name"],
-                                "reason": "capture not verified: "
-                                          + "; ".join(problems)})
-                continue
-            archived.append({"name": r["name"], "dest": capture["dest"]})
         candidates.append(r)
 
     removed: list[str] = []
+    archived: list[dict] = []
     if not dry_run:
         for r in candidates:
-            code, out, err = repo.git("worktree", "remove", "--force",
-                                      r["path"])
-            if code == 0:
-                removed.append(r["name"])
-            else:
+            # H4: one function removes a worktree, so every removal takes
+            # the lock and the quiescence barrier.
+            outcome = reclaim_after_capture(repo, state, Path(r["path"]))
+            if not outcome.get("reclaimed"):
                 skipped.append({"name": r["name"],
-                                "reason": f"git worktree remove failed: "
-                                          f"{err.strip() or out.strip()}"})
+                                "reason": outcome.get("reason",
+                                                      "reclaim failed")})
+                continue
+            removed.append(r["name"])
+            archived.append({"name": r["name"],
+                             "dest": outcome.get("archive", "")})
 
     return {
         "dry_run": dry_run,

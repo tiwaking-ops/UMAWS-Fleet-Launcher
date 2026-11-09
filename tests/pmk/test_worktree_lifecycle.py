@@ -8,11 +8,16 @@ guard at claim time (REC-13).
 
 from __future__ import annotations
 
+import json
+import os
 import subprocess
+import sys
+import tarfile
+from pathlib import Path
 
 import pytest
 
-from pmk import worktrees
+from pmk import plat, worktrees
 from pmk.api import KernelError
 from pmk.sentinel import check
 from conftest import make_bundle, make_card
@@ -312,6 +317,53 @@ def test_verify_archive_detects_tampering(kernel, repo):
     assert any("diff.patch" in p for p in problems)
 
 
+def test_verify_archive_rejects_a_digest_that_does_not_match_contents(
+        kernel, repo):
+    """H3: a self-consistent manifest cannot hide a bad archive digest."""
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "new.py").write_text("print(1)\n", encoding="utf-8")
+    dest = Path(worktrees.archive_tree(repo, kernel.state(), tree)["dest"])
+
+    manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
+    manifest["tree_digest"] = "0" * 64
+    (dest / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    ok, problems = worktrees.verify_archive(dest)
+    assert not ok
+    assert any("tree_digest" in p for p in problems)
+
+
+def test_reclaim_refuses_when_the_capture_does_not_restore(
+        kernel, repo, monkeypatch):
+    """A capture that cannot be applied to its base is not restorable."""
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "README.md").write_text("# captured\n", encoding="utf-8")
+    capture = worktrees.archive_tree(repo, kernel.state(), tree)
+    dest = Path(capture["dest"])
+
+    # Move the recorded base somewhere the captured patch cannot apply.
+    (repo.root / "README.md").write_text("# different base\n",
+                                          encoding="utf-8")
+    assert repo.git("add", "README.md")[0] == 0
+    assert repo.git("commit", "-m", "different base")[0] == 0
+    manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
+    manifest["base_commit"] = repo.head_commit()
+    (dest / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    # Reuse the already-verified archive; otherwise reclaim would capture
+    # against the new HEAD instead of exercising its recorded base.
+    monkeypatch.setattr(worktrees, "archive_tree",
+                        lambda *args, **kwargs: capture)
+
+    result = worktrees.reclaim_after_capture(repo, kernel.state(), tree)
+
+    assert result["reclaimed"] is False
+    assert "restore" in result["reason"].lower()
+    assert result["archived"] is True
+    assert tree.is_dir()
+    assert dest.is_dir()
+
+
 def test_prune_archive_dry_run_writes_nothing(kernel, repo):
     tree = _make_worktree(repo, "T-0001-1")
     (tree / "README.md").write_text("# changed\n", encoding="utf-8")
@@ -365,6 +417,60 @@ def test_reclaim_of_a_clean_tree_still_archives_a_manifest(kernel, repo):
     assert not tree.exists()
 
 
+# ---------------------------------------------------------------------------
+# H1 -- deletion is limited to an unprotected, inactive lease worktree
+# ---------------------------------------------------------------------------
+
+def test_reclaim_refuses_an_active_lease(kernel, repo):
+    card = make_card(kernel)
+    lease = kernel.claim(card.id, holder="p")
+    tree = _make_worktree(repo, f"{card.id}-{lease.fence}")
+    (tree / "README.md").write_text("# stranded\n", encoding="utf-8")
+
+    result = worktrees.reclaim_after_capture(repo, kernel.state(), tree)
+
+    assert result["reclaimed"] is False
+    assert "active lease" in result["reason"]
+    assert tree.is_dir()
+    assert not (repo.root / "stranded").exists()
+
+
+def test_reclaim_refuses_protected_context_sync(kernel, repo):
+    tree = repo.work_dir / "context-sync"
+    tree.mkdir(parents=True)
+
+    result = worktrees.reclaim_after_capture(repo, kernel.state(), tree)
+
+    assert result["reclaimed"] is False
+    assert "protected" in result["reason"]
+    assert tree.is_dir()
+
+
+def test_reclaim_refuses_a_path_outside_the_worktree_root(kernel, repo):
+    tree = repo.root / "outside"
+    tree.mkdir()
+
+    result = worktrees.reclaim_after_capture(repo, kernel.state(), tree)
+
+    assert result["reclaimed"] is False
+    assert "direct child" in result["reason"]
+    assert tree.is_dir()
+    assert not (repo.root / "stranded").exists()
+
+
+def test_prune_does_not_delete_an_active_lease_even_when_allowed(kernel, repo):
+    card = make_card(kernel)
+    lease = kernel.claim(card.id, holder="p")
+    tree = _make_worktree(repo, f"{card.id}-{lease.fence}")
+
+    result = worktrees.prune(repo, kernel.state(), dry_run=False,
+                             keep_unmerged=False)
+
+    assert result["removed"] == []
+    assert tree.is_dir()
+    assert any("active lease" in s["reason"] for s in result["skipped"])
+
+
 def test_reclaim_keeps_the_tree_when_the_capture_does_not_verify(
         kernel, repo, monkeypatch):
     tree = _make_worktree(repo, "T-0001-1")
@@ -394,3 +500,220 @@ def test_order_prompt_names_the_handoff_file(tmp_path):
     from fleet.order import order_prompt
     text = order_prompt(tmp_path)
     assert "HANDOFF.md" in text
+
+
+# ---------------------------------------------------------------------------
+# H2 -- a capture is complete, or it fails and the tree stays
+# ---------------------------------------------------------------------------
+
+def _phantom_untracked(monkeypatch, missing: str = "ghost.py") -> None:
+    """Make ``ls-files`` list a file that vanishes before it is packed."""
+    real = worktrees._list_paths
+
+    def listing(repo_, tree, *, ignored=False):
+        paths = real(repo_, tree, ignored=ignored)
+        return paths if ignored else paths + [missing]
+
+    monkeypatch.setattr(worktrees, "_list_paths", listing)
+
+
+def test_capture_fails_closed_when_a_listed_file_cannot_be_read(
+        kernel, repo, monkeypatch):
+    """H2: a file that disappears between listing and packing fails it."""
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "README.md").write_text("# changed\n", encoding="utf-8")
+    (tree / "new.py").write_text("print(1)\n", encoding="utf-8")
+    _phantom_untracked(monkeypatch)
+
+    result = worktrees.archive_tree(repo, kernel.state(), tree)
+
+    assert result["archived"] is False
+    assert "ghost.py" in result["reason"]
+    # The partial archive was discarded; it must not look like a capture.
+    assert not (repo.root / "stranded" / "T-0001-1").exists()
+    assert tree.is_dir()
+
+
+def test_archive_fails_when_a_file_appears_during_capture(
+        kernel, repo, monkeypatch):
+    """H2: the post-capture re-scan must reject a late file."""
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "new.py").write_text("print(1)\n", encoding="utf-8")
+    real_pack = worktrees._pack_files
+
+    def pack_then_add(worktree, files, tar_path, hasher, tag):
+        packed = real_pack(worktree, files, tar_path, hasher, tag)
+        if tag == "u" and not (worktree / "late.txt").exists():
+            (worktree / "late.txt").write_text("late\n", encoding="utf-8")
+        return packed
+
+    monkeypatch.setattr(worktrees, "_pack_files", pack_then_add)
+
+    result = worktrees.archive_tree(repo, kernel.state(), tree)
+
+    assert result["archived"] is False
+    assert "changed" in result["reason"]
+    assert not (repo.root / "stranded" / "T-0001-1").exists()
+
+
+def test_reclaim_keeps_the_tree_when_the_capture_omits_a_file(
+        kernel, repo, monkeypatch):
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "README.md").write_text("# stranded\n", encoding="utf-8")
+    (tree / "new.py").write_text("print(1)\n", encoding="utf-8")
+    _phantom_untracked(monkeypatch)
+
+    result = worktrees.reclaim_after_capture(repo, kernel.state(), tree)
+
+    assert result["reclaimed"] is False
+    assert result["archived"] is False
+    assert "ghost.py" in result["reason"]
+    assert tree.is_dir()                          # the only copy survives
+
+
+def test_a_second_capture_never_overwrites_the_first(kernel, repo):
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "README.md").write_text("# first\n", encoding="utf-8")
+    first = Path(worktrees.archive_tree(repo, kernel.state(), tree)["dest"])
+    first_manifest = (first / "manifest.json").read_bytes()
+
+    (tree / "README.md").write_text("# second\n", encoding="utf-8")
+    second = Path(worktrees.archive_tree(repo, kernel.state(), tree)["dest"])
+
+    assert second != first
+    assert (first / "manifest.json").read_bytes() == first_manifest
+    assert "first" in (first / "diff.patch").read_text(encoding="utf-8")
+    assert worktrees.verify_archive(first)[0]
+    assert worktrees.verify_archive(second)[0]
+
+
+def test_ignored_files_are_part_of_the_capture(kernel, repo):
+    """A tree git calls clean can still hold a file only it has."""
+    (repo.root / ".gitignore").write_text("*.log\n", encoding="utf-8")
+    subprocess.run(["git", "add", ".gitignore"], cwd=repo.root, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-m", "ignore logs"], cwd=repo.root,
+                   check=True, capture_output=True)
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "debug.log").write_bytes(b"only copy\n")
+
+    result = worktrees.archive_tree(repo, kernel.state(), tree)
+    dest = Path(result["dest"])
+    manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
+
+    assert manifest["ignored_count"] == 1
+    with tarfile.open(dest / "ignored.tar") as tf:
+        assert "debug.log" in tf.getnames()
+        assert tf.extractfile("debug.log").read() == b"only copy\n"
+    assert worktrees.verify_archive(dest)[0]
+
+    again = worktrees.reclaim_after_capture(repo, kernel.state(), tree)
+    assert again["reclaimed"] is True
+    assert not tree.exists()
+
+
+def test_verify_archive_rejects_a_manifest_whose_counts_disagree(kernel, repo):
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "new.py").write_text("print(1)\n", encoding="utf-8")
+    dest = Path(worktrees.archive_tree(repo, kernel.state(), tree)["dest"])
+
+    manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
+    manifest["untracked_packed"] = 0
+    (dest / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    ok, problems = worktrees.verify_archive(dest)
+    assert not ok
+    assert any("untracked_packed" in p for p in problems)
+
+
+# ---------------------------------------------------------------------------
+# H4 -- no reclamation while a writer may still exist
+# ---------------------------------------------------------------------------
+
+def test_reclaim_refuses_while_a_recorded_process_is_alive(
+        kernel, repo, tmp_path):
+    card = make_card(kernel)
+    lease = kernel.claim(card.id, holder="p")
+    tree = _make_worktree(repo, f"{card.id}-{lease.fence}")
+    (tree / "README.md").write_text("# stranded\n", encoding="utf-8")
+    sleeper = plat.spawn([sys.executable, "-c",
+                          "import time; time.sleep(60)"],
+                         cwd=tmp_path, log_path=tmp_path / "sleeper.log",
+                         env=dict(os.environ))
+    try:
+        kernel.record_event(
+            "AGENT_STARTED", subject=card.id, fence=lease.fence,
+            payload={"pid": sleeper.pid,
+                     "creation_time": sleeper.creation_time,
+                     "adapter": "fake", "profile": "fake-a"})
+        # H1 must reject a live lease before H4 can inspect the writer;
+        # release the lease so this test reaches the process barrier.
+        kernel.revoke(card.id, lease.fence, reason="test writer barrier")
+
+        result = worktrees.reclaim_after_capture(repo, kernel.state(), tree)
+
+        assert result["reclaimed"] is False
+        assert "writing" in result["reason"]
+        assert result["processes"][0]["pid"] == sleeper.pid
+        assert tree.is_dir()
+        assert not (repo.root / "stranded").exists()
+    finally:
+        if sleeper.proc.poll() is None:
+            sleeper.proc.kill()
+
+
+def test_reclaim_refuses_when_the_tree_changes_during_capture(
+        kernel, repo, monkeypatch):
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "README.md").write_text("# captured\n", encoding="utf-8")
+    real_verify = worktrees.verify_archive
+
+    def verify_then_write(dest):
+        ok, problems = real_verify(dest)
+        (tree / "late.txt").write_text("written during the capture\n",
+                                       encoding="utf-8")
+        return ok, problems
+
+    monkeypatch.setattr(worktrees, "verify_archive", verify_then_write)
+
+    result = worktrees.reclaim_after_capture(repo, kernel.state(), tree)
+
+    assert result["archived"] is True             # the capture is kept
+    assert result["reclaimed"] is False
+    assert "changed" in result["reason"]
+    assert tree.is_dir()
+    assert (tree / "late.txt").is_file()          # the late write survives
+
+
+def test_reclaim_refuses_when_another_reclaim_holds_the_lock(kernel, repo):
+    tree = _make_worktree(repo, "T-0001-1")
+    lock = worktrees._lock_path(tree)
+    lock.write_text(json.dumps({
+        "pid": os.getpid(),
+        "creation_time": plat.process_info(os.getpid()).creation_time,
+    }), encoding="utf-8")
+    try:
+        result = worktrees.reclaim_after_capture(repo, kernel.state(), tree)
+
+        assert result["reclaimed"] is False
+        assert "reclaim" in result["reason"]
+        assert tree.is_dir()
+        assert not (repo.root / "stranded").exists()
+    finally:
+        lock.unlink()
+
+
+def test_reclaim_refuses_a_start_record_without_a_pid(kernel, repo):
+    """H4: no pid means quiescence cannot be proven, so the tree stays."""
+    tree = _make_worktree(repo, "T-0001-1")
+    (tree / "README.md").write_text("# stranded\n", encoding="utf-8")
+    kernel.record_event(
+        "AGENT_STARTED", subject="T-0001", fence=1,
+        payload={"pid": None, "adapter": "fake", "profile": "fake-a"})
+
+    result = worktrees.reclaim_after_capture(repo, kernel.state(), tree)
+
+    assert result["reclaimed"] is False
+    assert "no pid" in result["reason"]
+    assert tree.is_dir()
+    assert not (repo.root / "stranded").exists()

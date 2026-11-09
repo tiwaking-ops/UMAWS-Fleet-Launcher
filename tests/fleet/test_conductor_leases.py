@@ -303,7 +303,7 @@ def test_a_failed_revoke_is_recorded_and_the_next_lease_is_still_handled(
 def _orphan_with_worktree(kernel, name: str, *, dirty: bool = True):
     import subprocess
     task = make_task(kernel, scope={"write": [f"src/{name}.py"], "read": []})
-    tree = kernel.repo.work_dir / f"{task.id}-reclaim"
+    tree = kernel.repo.work_dir / f"{task.id}-1"
     tree.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "worktree", "add", "--detach", str(tree), "HEAD"],
                    cwd=kernel.repo.root, capture_output=True)

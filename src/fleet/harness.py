@@ -338,6 +338,47 @@ class Harness:
                                           after.get("paths", []), write_scope)
 
     # ------------------------------------------------------------------
+    # Process records
+    # ------------------------------------------------------------------
+    def _record_started(self, task_id: str, lease, profile: Profile,
+                        adapter, slot, worktree, *,
+                        extra: dict | None = None) -> str:
+        """Record one spawn as ``AGENT_STARTED``.
+
+        ``pmk.worktrees.recorded_processes`` reads **only** this event, and
+        the reaper refuses to delete a worktree while a recorded process is
+        still alive.  So every process that writes in a worktree - the
+        first, a fix round and a restart on another profile - must leave
+        one, with its pid, creation time and worktree.
+
+        Returns ``""`` when the record was written, else the failure text.
+        A spawn whose record cannot be written is killed before returning:
+        a live writer the log cannot see is exactly what lets the reaper
+        delete a worktree underneath it.
+        """
+        payload = {
+            "profile": profile.id,
+            "adapter": getattr(adapter, "name", "") or profile.adapter,
+            "pid": slot.pid,
+            "creation_time": slot.creation_time,
+            "worktree": str(worktree),
+            "log": slot.log_path,
+        }
+        if extra:
+            payload.update(extra)
+        try:
+            self.kernel.record_event(
+                "AGENT_STARTED", subject=task_id, fence=lease.fence,
+                payload=payload)
+        except Exception as exc:                # noqa: BLE001
+            try:
+                spawn_mod.kill_slot(slot)
+            except Exception:                   # noqa: BLE001
+                pass
+            return f"{type(exc).__name__}: {exc}"
+        return ""
+
+    # ------------------------------------------------------------------
     # Phase 1: start
     # ------------------------------------------------------------------
     def start(self, task, profile: Profile) -> tuple[LeaseRun | None, LeaseResult | None]:
@@ -431,13 +472,15 @@ class Harness:
         self.fleet_state.save()
 
         now = time.time()
-        self.kernel.record_event(
-            "AGENT_STARTED", subject=task.id, fence=lease.fence,
-            payload={"profile": profile.id, "adapter": profile.adapter,
-                     "pid": slot.pid, "creation_time": slot.creation_time,
-                     "worktree": str(worktree), "log": slot.log_path,
-                     "degraded": slot.degraded,
-                     "main_tree_status": main_status_summary})
+        record_error = self._record_started(
+            task.id, lease, profile, adapter, slot, worktree,
+            extra={"degraded": slot.degraded,
+                   "main_tree_status": main_status_summary})
+        if record_error:
+            result.outcome = "failed"
+            result.error = f"start record: {record_error}"
+            self._give_up(lease, result, "could not record the started process")
+            return None, result
 
         run = LeaseRun(task=task, profile=profile, lease=lease, adapter=adapter,
                        slot=slot, worktree=worktree, started_at=now,
@@ -668,6 +711,15 @@ class Harness:
                 fence=run.lease.fence, index=run.fix_rounds,
                 env=self._env(run.profile, run.worktree))
         except (OSError, ValueError):
+            return None
+
+        # H4: a fix round is a new writer.  Record it before it can do any
+        # work: the reaper reads AGENT_STARTED to decide whether this
+        # worktree may be reclaimed.  A process whose record could not be
+        # written has already been killed by the helper.
+        if self._record_started(
+                run.task.id, run.lease, run.profile, run.adapter, new_slot,
+                run.worktree, extra={"round": run.fix_rounds}):
             return None
 
         if resume:
