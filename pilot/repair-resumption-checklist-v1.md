@@ -1,6 +1,6 @@
 # Dispatch resumption checklist — repair v1
 
-Status as of 2026-11-09. Tick only what is verified; an unticked box is a blocker, not an oversight.
+Status as of 2026-11-10. Tick only what is verified; an unticked box is a blocker, not an oversight.
 
 | # | Item | Evidence | Status |
 |---|---|---|---|
@@ -16,16 +16,18 @@ Status as of 2026-11-09. Tick only what is verified; an unticked box is a blocke
 | 10 | Already-satisfied pre-lease guard | `tests/fleet/test_precheck.py`; `agents.toml [fleet] precheck_satisfied = true` | **done** |
 | 11 | Decision records drafted and ratified | `pilot/decisions.md` D-62…D-69; `pilot/drafts/decisions-d62-plus.md` (A9, 2026-11-09) | **done** |
 | 12 | Decision gap report | `docs/reports/decision-gaps-2026-11-08.md` | **done** |
-| 13 | Suite green | Clean-worktree gate exit 0 at `712ca1a` (`tmp/clean-base-1794224200.log`) and again at `09cca85` (`tmp/clean-base-1794225200.log`); `cna.engine.loop`/`pmk` resolve inside the gate worktree | **done** |
+| 13 | Suite green | Clean-worktree gate exit 0 at `712ca1a` and `09cca85`; the current self-contained base `53871a7` runs the full `python -m pytest -q` to exit 0 in a detached worktree (`tmp/clean-head-full2.log`); `cna.engine.loop`/`pmk` resolve inside the gate worktree | **done** |
 | 14 | Sentinel at the recorded baseline | 5 × I6 + 1 × I13, unchanged from before the repair | **done (red, recorded)** |
-| 15 | Live canary reaches DONE | No canary run: T-0189 is READY with attempts 1/1 and only the operator can void it, so the Phase 11 preflight (exactly one READY card) cannot pass (D-72) | **blocked — operator action required** |
-| 16 | Dispatch resumed | A10 remains the operator's decision; the repaired base has no PASS canary yet; project remains `PAUSED` | **blocked** |
+| 15 | Live canary reaches DONE | **PASS — T-0190, T-0191 and T-0196.** Each ran under `kilo-auto`/`kilo`, exited 0, passed the gate `pytest -q`, and integrated: T-0190 fence 157 → merge `0edc0dc` (`EB-T-0190-157`), T-0191 fence 158 → `c7fcdf3` (`EB-T-0191-158`), T-0196 fence 159 → `951d1ee` (`EB-T-0196-159`). T-0189 remains the historical gate failure recorded by D-69 | **done** |
+| 16 | Dispatch resumed | A10 remains the operator's decision; no `pmk project resume` is recorded and the project remains `PAUSED` | **blocked — operator decision (A10)** |
+
+**Current state (2026-11-10, HEAD `53871a7`).** `pmk status`: project `PAUSED`; 212 cards — 155 VOID, 43 DONE, 12 READY, 1 VERIFYING, 1 LEASED; 2 active leases; 0 open queue items; chain 3630 events. Task state: T-0208, T-0209 and T-0212 `DONE`; T-0210 `VERIFYING` (fence 162); T-0211 `LEASED` (fence 163); 12 READY cards.
 
 ## Order for resuming
 
 1. ~~`git config core.hooksPath .githooks` (A8).~~ **done 2026-11-09.**
-2. ~~Run the canary (item 15). Record D-69.~~ **done; T-0189 FAILED at the gate.**
+2. ~~Run the canary (item 15). Record D-69.~~ **T-0189 failed at the gate; later canaries T-0190, T-0191 and T-0196 all reached DONE.**
 3. ~~Ratify D-62…D-69 (A9).~~ **done 2026-11-09; D-69 is ratified as FAIL.**
-4. **Do not resume dispatch.** Repair the committed base (resolve the dangling `tests/test_transport.py` reference), then run a fresh canary; A10 only after a PASS.
+4. **Do not resume dispatch.** The committed base was repaired and made self-contained at `53871a7` (full clean-worktree `pytest -q` exit 0), and the fresh canaries passed. A10 remains the operator's decision; no resume is recorded.
 5. Keep the extra worktrees until a separate, evidence-based decision; `pilot/repair-worktree-census-v1.md` is the basis.
-6. Repair landed at `09cca85` with a green clean-base gate; the canary is blocked on T-0189's operator-only disposition (D-72).
+6. Current state: HEAD `53871a7`; T-0208/T-0209/T-0212 DONE, T-0210 VERIFYING, T-0211 LEASED; project `PAUSED` with 2 active leases. T-0189's operator-only disposition (D-72) is historical and no longer blocks the canary.

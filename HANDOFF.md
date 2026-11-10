@@ -3,11 +3,11 @@
 ## Project State: PAUSED
 
 **Root:** `C:\temp\projects\testproject1` (UMAWS repo root)  
-**Last update:** 2026-11-09
-**I1 chain:** Verifies (3436 events)
+**Last update:** 2026-11-10
+**I1 chain:** Verifies (3630 events)
 **Kernel:** pmk v0.1.0
 
-> **Current evidence:** the 2026-11-01/02 sections below are historical. See **Latest evidence (2026-11-09)** at the end for the current state, the canary status and the A8 blocker.
+> **Current evidence:** the 2026-11-01/02 sections below are historical. See **Latest evidence (2026-11-10)** at the end for the current state, the later canary passes (T-0190/T-0191/T-0196) and the A8 activation.
 
 ---
 
@@ -45,7 +45,7 @@
 
 ---
 
-## Active Leases (3 running)
+## Active Leases (historical, 2026-11-01)
 
 | Task | Profile | Fence | PID | Title |
 |------|---------|-------|-----|-------|
@@ -71,7 +71,7 @@
 
 ---
 
-## Task Count Summary
+## Task Count Summary (2026-11-01)
 
 ```
 VOID: 125
@@ -176,22 +176,22 @@ for task_id, lease in state.leases.items():
 
 ---
 
-## Latest evidence (2026-11-09)
+## Latest evidence (2026-11-10)
 
-Measured at `HEAD 7910de5531f2be30948feefb9656106ae8ec5f9e`. No task was leased and no dispatch was started in this check.
+Measured at `HEAD 53871a7`. Two tasks are active (T-0210 VERIFYING at fence 162, T-0211 LEASED at fence 163); no new dispatch was started in this check.
 
 | Item | Evidence |
 |---|---|
-| Project state | `PAUSED`; 185 cards: **143 VOID**, **32 DONE**, **10 PROPOSED**; 0 active leases; 0 open queue items; 103 incidents; 22 worktrees; `stopped: false` |
-| Chain | `I1 chain verifies (3436 events)` |
+| Project state | `PAUSED`; 212 cards: **155 VOID**, **43 DONE**, **12 READY**, **1 VERIFYING**, **1 LEASED**; 2 active leases; 0 open queue items; 104 incidents; 35 worktrees; `stopped: false` |
+| Chain | `I1 chain verifies (3630 events)` |
 | T-0146 | **VOID**, fence 125, block reason `superseded by T-0159 coverage regeneration`; `TASK_VOIDED` seq 3315 at `2026-11-08T12:40:44Z`, actor `operator` / `human` |
-| Ready queue | `pmk task list --state READY` returns no cards |
+| Ready queue | 12 cards: T-0192–T-0195, T-0199, T-0200, T-0202–T-0207; T-0201 is VOID |
 | Sentinel | `pmk sentinel` returns `ok: true` with no findings (I1, I3, I4, I5, I6, I7, I8', I13, I14, I15, I16, I17). The red baseline in D-68 is historical, not current |
-| Identity guard | `git config --get core.hooksPath` returns nothing (exit 1): **A8 is outstanding**; run `git config core.hooksPath .githooks` before any canary |
-| Canary | No live dispatch has been run. Replacement packet: `pilot/drafts/d-69-canary-operator-packet-v1.md`; D-69 remains **PENDING** |
-| Canary preflight | On the current base the oracle exits **1** because `docs/reports/dispatch-repair-verification-v1.md` is absent (required by R-11); `git apply --check pilot/evidence/canary-replacement-v1.patch` exits **0** |
+| Identity guard | **A8 applied 2026-11-09:** `git config core.hooksPath` returns `.githooks` (D-69) |
+| Canary | **PASS — T-0190, T-0191 and T-0196.** T-0191 (fence 158): `SUBMITTED` seq 3534 → `INTEGRATED` seq 3537 at `c7fcdf3`, bundle `EB-T-0191-158`; T-0196 (fence 159): `SUBMITTED` seq 3554 → `INTEGRATED` seq 3558 at `951d1ee`, bundle `EB-T-0196-159`. Both ran under `kilo-auto`/`kilo`, exited 0, and passed the gate `pytest -q` (exit 0). T-0190 (fence 157, merge `0edc0dc`, bundle `EB-T-0190-157`) was the first pass; T-0189 (fence 156, D-69) remains the historical gate failure. `pmk status` still reports **PAUSED**; no A10 resume is recorded |
+| Canary gate history | The T-0189 gate failed at `tests/test_rules_baseline.py::test_coverage_reports_case_statuses_and_evidence`: case `8.0` referenced `tests/test_transport.py`, absent from base `bcf145c`. `tests/test_transport.py` is tracked at current HEAD (added by `9b3b70d`), and the self-contained base `53871a7` passes the full clean-worktree `pytest -q` (exit 0; `tmp/clean-head-full2.log`). T-0191 and T-0196 also passed their `pytest -q` gates |
 | Report copies | `docs/reports/dispatch-failure-root-cause-and-remediation-v1.md` and `pilot/dispatch-failure-root-cause-and-remediation-v1.md` are byte-identical after correction: seq 3212 is **23:10:45**; seq 3225 is **2026-11-08 08:21** and its actor is recorded as **unknown** |
 
 **Report reconciliation (2026-11-09).** The dispatch-report copies now record T-0146 as `VOID` in F-04 and OQ-04 (`TASK_VOIDED` seq 3315, `2026-11-08T12:40:44Z`; reason `superseded by T-0159 coverage regeneration`). The historical `READY` state is retained as writing-point narrative; T-0146 must not be reused. Their OQ-08 sentinel-red baseline is historical; the current sentinel is green.
 
-**Current blocker and next action.** A8 is not applied. Run `git config core.hooksPath .githooks`, then follow the packet to create and admit one replacement card and run one supervised dispatch. Do **not** run `pmk project resume` for the canary; the project stays `PAUSED` and the Console's Conductor still drains the merge queue. D-69 is filled only after a real run; a PASS is required before A10 resumption.
+**Current state and next action.** A8 is applied (`core.hooksPath=.githooks`); T-0191 and T-0196 passed their gates and integrated at `c7fcdf3` and `951d1ee`, following T-0190 at `0edc0dc`. D-69's T-0189 failure is historical. At HEAD `53871a7`, `pmk status` reports `PAUSED`: 212 cards (155 VOID, 43 DONE, 12 READY, 1 VERIFYING, 1 LEASED), 2 active leases, and a verified chain of 3630 events. T-0208, T-0209 and T-0212 are DONE and integrated; T-0210 is VERIFYING at fence 162 (re-verified at seq 3629); T-0211 is LEASED at fence 163; 12 cards are READY. Next: integrate T-0210, complete T-0211, and drain the READY queue; resuming dispatch remains the operator's A10 decision.
