@@ -4,6 +4,7 @@
 - **Date:** 2026-11-09
 - **Purpose:** define the minimum official-data intake needed to unblock T-0176's real §60.22 scenario setup
 - **Target:** T-0176, “Implement the scenario loader and structured setup data (§§59–60)”
+- **Gate decision:** [P1c.2 data-gate checklist](p1c2-data-gate-checklist.md) — the phase-level gate this annex feeds; a resource is not `HAVE` until its gate passes
 - **Authority:** `docs/PDD.md`; `docs/sources/proposal-cfna-game-v1.md` §§3.2, 7; `docs/data-gaps.md`; `docs/plans/cna-p1b-p4-implementation-plan.md` P1c.2; `src/cna/data/schema.py`
 - **Boundary:** this is a resource-specific annex, not the general intake procedure. T-0184 is expected to own `docs/data-intake.md`; this checklist should be folded into that procedure rather than replacing it.
 
@@ -151,7 +152,7 @@ R-06 supplies the identities and printed ratings; R-04 supplies the OA structure
 
 ## 6. Unblock decision for T-0176
 
-T-0176 may be treated as ready for its real §60.22 setup only when all of the following are true:
+T-0176 may be treated as ready for its real §60.22 setup only when all of the following are true and the [P1c.2 data-gate checklist](p1c2-data-gate-checklist.md) reports `PASS`:
 
 1. **R-04:** the minimum setup set in §2.1 is verified, schema-valid and covered by the scenario-reference report.
 2. **R-05:** all five sheets and every §60.22 hex/feature reference are verified and topologically valid.
