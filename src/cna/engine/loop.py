@@ -33,7 +33,7 @@ Two deliberate limits, so a caller is not misled:
   offered a Close Assault move.  It resolves through
   :mod:`cna.rules.sec11_combat`; entering the enemy hex itself is still
   forbidden by 8.13, so the attacker's position does not change.
-* **Only phase G moves land units and phase J offers rail moves.**
+* **Only phase G moves land units and phase J offers rail stacks.**
   Truck Convoy (H), repair (K) and patrol (L) still end their phase.
 * **Combat is Close Assault only.**  The Barrage, Retreat Before Assault,
   Anti-Armor and force-assignment steps of the 11.0 Combat Segment are not
@@ -52,15 +52,24 @@ import copy
 import random
 from dataclasses import dataclass, field
 from fractions import Fraction
+from itertools import combinations
 from typing import Any, Callable, Iterable, Mapping
 
 from cna.rules.sec05_sequence import Phase, phases_for_turn
 from cna.rules.sec08_movement import (CONTINUE_DISTANCE, MoveContext,
                                       MovingUnit, MovementError,
                                       may_continue_moving, move_unit)
-from cna.rules.sec08_transport import (COMMONWEALTH, RAIL_PHASE, RailMove,
-                                       RailNetwork, RailUsage, TransportError,
-                                       plan_rail_move)
+from cna.rules.sec08_transport import (COMMONWEALTH, RAIL_PHASE,
+                                       RAIL_STACK_LIMIT, TRIPOLI,
+                                       TRIPOLI_TUNISIA_BOXES, TUNIS,
+                                       OffMapChart, OffMapStageResult,
+                                       OffMapTransit, OffMapUnit, RailMove,
+                                       RailNetwork, RailUsage,
+                                       TransportError, advance_off_map,
+                                       arrival_box_locked,
+                                       is_off_map_position,
+                                       off_map_entry_allowed,
+                                       plan_off_map_move, plan_rail_move)
 from cna.rules.sec09_stacking import (HexContext, StackingResult,
                                       StackingUnit, check_end_of_movement,
                                       check_road_passage)
@@ -71,6 +80,12 @@ from cna.rules.sec11_combat import (AssaultRoll, CombatError, CombatUnit,
                                     assault_raw_strength, may_close_assault,
                                     resolve_close_assault)
 from cna.rules.sec21_breakdown import WEATHER_SHIFTS, evaluate_breakdown
+from cna.rules.sec32_abstract import (AbstractSupplyError, SupplyUnit,
+                                      ammo_cost, captured_supply_points,
+                                      fuel_for_stage, movement_fuel_cost,
+                                      motorization_can_transport,
+                                      road_track_stacking_ignored,
+                                      supply_unit_captured)
 from cna.state.views import view
 
 from .actions import Action
@@ -78,8 +93,9 @@ from .decision import Decision, apply, legal_actions
 
 SIDES = ("axis", "commonwealth")
 
-RULE = ("5.2, 8.11-8.24, 8.71-8.78, 9.31-9.33, 10.21-10.29, "
-        "11.0-15.96, 21.24-21.26")
+RULE = ("5.2, 8.11-8.24, 8.71-8.78, 8.81-8.89, 9.31-9.33, "
+        "10.21-10.29, 11.0-15.96, 21.24-21.26, 32.9, 32.13, "
+        "32.21-32.24, 32.54")
 
 
 class StageError(ValueError):
@@ -121,7 +137,15 @@ class StageScenario:
     an :class:`~cna.rules.sec11_combat.AssaultRoll` out.  Without it an
     assault is recorded as pending, never resolved with invented values.
     ``player_a``/``player_b`` map rule 5.2's A/B players onto the two sides,
-    because initiative decides which side is A.
+    because initiative decides which side is A.  ``off_map_chart`` is the
+    caller-supplied 8.89 distance chart; when it is present, phase G also
+    offers 8.81-8.84 off-map transit steps for land units in
+    ``off_map_boxes``.  ``abstract_supply`` enables the LAND_ABSTRACT §32
+    layer: 32.9 Road/Track stacking is ignored, linked records in
+    ``state['supplies']`` pay 32.23-32.24 fuel and 32.21-32.22 Ammo, and a
+    combat unit entering an enemy Supply Unit's hex captures it (32.13).
+    A unit is linked to a Supply Unit by its ``supply_id`` field; without
+    one, legacy unlinked movement remains unchanged.
     """
 
     neighbours: Callable[[str], Iterable[str]]
@@ -136,6 +160,9 @@ class StageScenario:
     weather: str = "normal"
     sandstorm_majority: bool = False
     rail: RailNetwork | None = None
+    off_map_chart: OffMapChart | None = None
+    off_map_boxes: tuple[str, ...] = TRIPOLI_TUNISIA_BOXES
+    abstract_supply: bool = False
     breakdown_table: Callable[[int, int], int] | None = None
     assault_table: Callable[[str, int, int], AssaultRoll] | None = None
 
@@ -156,8 +183,25 @@ class StageScenario:
             raise StageError(f"unknown weather: {self.weather!r}")
         if not isinstance(self.sandstorm_majority, bool):
             raise StageError("sandstorm_majority must be a bool")
+        if not isinstance(self.abstract_supply, bool):
+            raise StageError("abstract_supply must be a bool")
         if self.rail is not None and not isinstance(self.rail, RailNetwork):
             raise StageError("rail must be a RailNetwork or None")
+        if self.off_map_chart is not None and not isinstance(
+                self.off_map_chart, OffMapChart):
+            raise StageError("off_map_chart must be an OffMapChart or None")
+        if isinstance(self.off_map_boxes, str) or self.off_map_boxes is None:
+            raise StageError("off_map_boxes must be a sequence of box names")
+        boxes = tuple(self.off_map_boxes)
+        if not boxes:
+            raise StageError("off_map_boxes must not be empty")
+        for box in boxes:
+            if not isinstance(box, str) or not box.strip():
+                raise StageError(
+                    "off_map_boxes must contain non-empty strings")
+        if len(set(boxes)) != len(boxes):
+            raise StageError("off_map_boxes must not contain duplicates")
+        object.__setattr__(self, "off_map_boxes", boxes)
         object.__setattr__(self, "hex_limits", dict(self.hex_limits))
 
     def player_for(self, actor: str) -> str | None:
@@ -217,6 +261,103 @@ class MoveOption:
 
 
 @dataclass(frozen=True)
+class RailStackMove:
+    """Several individually legal rail moves carried as one 8.72 stack.
+
+    The phase-J action is a stack, not a list of independent moves, so the
+    aggregate Stacking Point total is checked here (8.75).  A stack shares
+    one line, direction, origin and destination; only its units may differ.
+    """
+
+    moves: tuple[RailMove, ...]
+
+    def __post_init__(self) -> None:
+        moves = tuple(self.moves)
+        if not moves:
+            raise StageError("a rail stack needs at least one unit")
+        if not all(isinstance(move, RailMove) for move in moves):
+            raise StageError("a rail stack may only contain RailMove values")
+        first = moves[0]
+        for move in moves[1:]:
+            if (move.line, move.direction, move.origin, move.destination) != (
+                    first.line, first.direction, first.origin,
+                    first.destination):
+                raise StageError("a rail stack must share one line and route")
+        unit_ids = tuple(move.unit_id for move in moves)
+        if len(set(unit_ids)) != len(unit_ids):
+            raise StageError("a rail stack may not repeat a unit")
+        total = sum((move.stacking_points for move in moves), Fraction(0))
+        if total > RAIL_STACK_LIMIT:
+            raise StageError(
+                "8.75: Rail Movement may carry at most two Stacking Points")
+        object.__setattr__(self, "moves", moves)
+
+    @property
+    def unit_ids(self) -> tuple[str, ...]:
+        return tuple(move.unit_id for move in self.moves)
+
+    @property
+    def line(self) -> str:
+        return self.moves[0].line
+
+    @property
+    def direction(self) -> str:
+        return self.moves[0].direction
+
+    @property
+    def origin(self) -> str:
+        return self.moves[0].origin
+
+    @property
+    def destination(self) -> str:
+        return self.moves[0].destination
+
+    @property
+    def stacking_points(self) -> Fraction:
+        return sum((move.stacking_points for move in self.moves), Fraction(0))
+
+    @property
+    def usage(self) -> RailUsage:
+        return self.moves[0].usage
+
+    def to_obj(self) -> dict[str, Any]:
+        return {
+            "units": list(self.unit_ids),
+            "line": self.line,
+            "direction": self.direction,
+            "origin": self.origin,
+            "destination": self.destination,
+            "stacking_points": str(self.stacking_points),
+            "usage": self.usage.to_obj(),
+            "rule": "8.72, 8.74, 8.75",
+        }
+
+
+@dataclass(frozen=True)
+class OffMapMove:
+    """One 8.81-8.84 off-map transit step for one land unit."""
+
+    unit_id: str
+    origin: str
+    destination: str
+    kind: str
+    result: OffMapStageResult
+
+    def to_obj(self) -> dict[str, Any]:
+        return {
+            "unit": self.unit_id,
+            "origin": self.origin,
+            "destination": self.destination,
+            "kind": self.kind,
+            "transit": self.result.transit.to_obj(),
+            "cp_spent": self.result.cp_spent,
+            "fuel_required": self.result.fuel_required,
+            "breakdown": self.result.breakdown_check,
+            "rule": "8.83-8.84",
+        }
+
+
+@dataclass(frozen=True)
 class StageResult:
     """What one call to :func:`play_operations_stage` did."""
 
@@ -267,6 +408,205 @@ def _position(record: Mapping[str, Any], unit_id: str) -> str:
     return position
 
 
+# ---------------------------------------------------------------------------
+# §32 abstract supply integration
+# ---------------------------------------------------------------------------
+
+def _stage_key(state: Mapping[str, Any]) -> str:
+    """The Game-Turn/Operations-Stage key used by 32.23's first-move rule."""
+    return (f"T{_whole(state.get('turn', 1), name='turn')}"
+            f"S{_whole(state.get('stage', 1), name='stage')}")
+
+
+def _supply_records(state: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    """Read the abstract Supply Unit ledger without mutating the state."""
+    raw = state.get("supplies")
+    if raw is None:
+        return {}
+    if not isinstance(raw, Mapping):
+        raise StageError("state['supplies'] must be a mapping")
+    records: dict[str, dict[str, Any]] = {}
+    for supply_id, record in raw.items():
+        if not isinstance(record, Mapping):
+            raise StageError(f"supply {supply_id!r} must be a mapping")
+        records[str(supply_id)] = dict(record)
+    return records
+
+
+def _supply_unit(supply_id: str, record: Mapping[str, Any]) -> SupplyUnit:
+    """Build the §32 view of one Supply Dump counter."""
+    try:
+        return SupplyUnit(
+            side=str(record.get("side", "")),
+            ammo=record.get("ammo", 40),
+            fuel=record.get("fuel", 60),
+            dummy=record.get("dummy", False),
+        )
+    except AbstractSupplyError as exc:
+        raise StageError(f"supply {supply_id!r} is invalid: {exc}") from exc
+
+
+def _supply_link(record: Mapping[str, Any]) -> str | None:
+    """The caller-supplied Supply Unit that supports this unit, if any."""
+    raw = record.get("supply_id")
+    if raw is None:
+        return None
+    if not isinstance(raw, str) or not raw.strip():
+        raise StageError("supply_id must be a non-empty string or None")
+    return raw
+
+
+def _supply_can_pay(state: Mapping[str, Any], record: Mapping[str, Any], *,
+                    ammo: int = 0, fuel: int = 0) -> bool:
+    """Can the linked Supply Unit pay this cost, if the unit is linked?"""
+    if ammo < 0 or fuel < 0:
+        raise StageError("supply costs must not be negative")
+    supply_id = _supply_link(record)
+    if supply_id is None:
+        return True
+    records = _supply_records(state)
+    if supply_id not in records:
+        return False
+    unit = _supply_unit(supply_id, records[supply_id])
+    if unit.side != record.get("side"):
+        return False
+    return unit.ammo >= ammo and unit.fuel >= fuel
+
+
+def _spend_supply(state: Mapping[str, Any], supply_id: str, *,
+                  ammo: int = 0, fuel: int = 0) -> dict[str, Any]:
+    """Spend from one linked Supply Unit and remove it when empty (32.15)."""
+    if not ammo and not fuel:
+        return dict(state)
+    records = _supply_records(state)
+    if supply_id not in records:
+        raise StageError(f"unknown Supply Unit: {supply_id!r}")
+    unit = _supply_unit(supply_id, records[supply_id])
+    try:
+        reduced = unit.spend(ammo=ammo, fuel=fuel)
+    except AbstractSupplyError as exc:
+        raise StageError(
+            f"Supply Unit {supply_id!r} cannot pay {ammo} Ammo / {fuel} Fuel: "
+            f"{exc}") from exc
+    if reduced.empty:
+        records.pop(supply_id)
+    else:
+        record = dict(records[supply_id])
+        record["ammo"] = reduced.ammo
+        record["fuel"] = reduced.fuel
+        records[supply_id] = record
+    return {**state, "supplies": records}
+
+
+def _movement_fuel_base(record: Mapping[str, Any]) -> int:
+    """32.24: the Fuel Points one land move category requires."""
+    unit_class = str(record.get("unit_class", "")).lower()
+    size = str(record.get("size_level", "battalion")).lower()
+    kwargs: dict[str, int] = {}
+    if unit_class in ("tank", "afv"):
+        if size == "company":
+            kwargs["tank_companies"] = 1
+        else:
+            kwargs["tank_battalions"] = 1
+    elif unit_class in ("gun", "artillery"):
+        kwargs["gun_battalions"] = 1
+    elif unit_class in ("recce", "motorcycle_recce"):
+        kwargs["recce_battalions"] = 1
+    elif bool(record.get("motorized")) and unit_class == "infantry":
+        kwargs["motorization_transports"] = 1
+    if not kwargs:
+        return 0
+    try:
+        return movement_fuel_cost(**kwargs)
+    except AbstractSupplyError as exc:
+        raise StageError(f"invalid movement fuel category: {exc}") from exc
+
+
+def _move_fuel_cost(record: Mapping[str, Any], *, total: Fraction,
+                    first: bool) -> int:
+    """32.23-32.24: first move, plus the cost when CPA is crossed."""
+    base = _movement_fuel_base(record)
+    if not base:
+        return 0
+    before = _fraction(record.get("spent", 0))
+    cpa_raw = record.get("transport_cpa")
+    if cpa_raw is None:
+        cpa_raw = record.get("base_cpa", 0)
+    cpa = _whole(cpa_raw, name="base_cpa")
+    crosses = before <= cpa < before + total
+    if first and crosses:
+        return fuel_for_stage(first_move_fuel=base, exceeds_cpa=True)
+    if first:
+        return fuel_for_stage(first_move_fuel=base)
+    if crosses:
+        return base
+    return 0
+
+
+def _assault_ammo(record: Mapping[str, Any]) -> int:
+    """32.21-32.22: Ammo for one phasing Close Assault Bn-Eq."""
+    raw = record.get("battalion_equivalents")
+    if raw is None:
+        return 0
+    try:
+        count = _whole(raw, name="battalion_equivalents")
+        return ammo_cost(battalion_equivalents=count, combat="assault",
+                         phasing=True)
+    except AbstractSupplyError as exc:
+        raise StageError(f"invalid battalion_equivalents: {exc}") from exc
+
+
+def _transport_allowed(record: Mapping[str, Any]) -> bool:
+    """32.53-32.54: a carried unit must be leg infantry or a Gun."""
+    if record.get("transport_cpa") is None:
+        return True
+    try:
+        cpa = _whole(record.get("base_cpa", 0), name="base_cpa")
+        unit_type = str(record.get("unit_class", ""))
+        if unit_type == "artillery":
+            unit_type = "gun"
+        return motorization_can_transport(unit_type=unit_type, cpa=cpa)
+    except (AbstractSupplyError, StageError):
+        return False
+
+
+def _capture_supplies(state: Mapping[str, Any], hex_id: str, side: str,
+                      unit_id: str) -> dict[str, Any]:
+    """32.13: an enemy combat unit entering a Supply Unit's hex captures it."""
+    records = _supply_records(state)
+    captured: list[dict[str, Any]] = []
+    for supply_id in sorted(records):
+        record = records[supply_id]
+        if record.get("side") == side or record.get("position") != hex_id:
+            continue
+        unit = _supply_unit(supply_id, record)
+        if not supply_unit_captured(enemy_combat_enters=True):
+            continue
+        ammo, fuel = captured_supply_points(unit)
+        captured.append({"id": supply_id, "side": unit.side,
+                         "ammo": ammo, "fuel": fuel,
+                         "dummy": unit.dummy})
+        records.pop(supply_id)
+    if not captured:
+        return dict(state)
+    raw = state.get("supply_captures", ())
+    if isinstance(raw, str) or not isinstance(raw, (list, tuple)):
+        raise StageError("state['supply_captures'] must be a sequence")
+    log = [dict(entry) for entry in raw]
+    log.append({"by": unit_id, "side": side, "hex": hex_id,
+                "supplies": captured})
+    return {**state, "supplies": records, "supply_captures": log}
+
+
+def _in_off_map(record: Mapping[str, Any]) -> bool:
+    """Is this record in a Tripoli/Tunisia box or an In Transit box?"""
+    if bool(record.get("off_map_box", False)):
+        return True
+    position = record.get("position")
+    return (isinstance(position, str) and bool(position.strip())
+            and is_off_map_position(position))
+
+
 def moving_unit(unit_id: str, record: Mapping[str, Any]) -> MovingUnit:
     """Build the §8 view of one unit from its state record."""
     return MovingUnit(
@@ -299,8 +639,51 @@ def moving_unit(unit_id: str, record: Mapping[str, Any]) -> MovingUnit:
                              name="breakdown_bar"),
         toe_points=(None if record.get("toe_points") is None
                     else _fraction(record["toe_points"])),
-        off_map_box=bool(record.get("off_map_box", False)),
+        off_map_box=_in_off_map(record),
     )
+
+
+def _off_map_unit(record: Mapping[str, Any]) -> OffMapUnit | None:
+    """Build the 8.82-8.88 view of a land unit, or ``None`` if invalid."""
+    try:
+        return OffMapUnit(
+            side=str(record.get("side", "")),
+            unit_type="land",
+            motorized=bool(record.get("motorized", False)),
+            stacking_points=_fraction(record.get("stacking_points", 1)),
+            reinforcement_or_replacement=bool(
+                record.get("reinforcement_or_replacement", False)),
+            arrived_this_stage=bool(record.get("arrived_this_stage", False)),
+        )
+    except TransportError:
+        return None
+
+
+def _off_map_transit(record: Mapping[str, Any],
+                     unit_id: str) -> OffMapTransit | None:
+    """Read a unit's persisted transit, rejecting a malformed one."""
+    raw = record.get("off_map_transit")
+    if raw is None:
+        return None
+    if not isinstance(raw, Mapping):
+        raise StageError(
+            f"unit {unit_id!r} off_map_transit must be a mapping")
+    origin = raw.get("origin")
+    destination = raw.get("destination")
+    if not isinstance(origin, str) or not isinstance(destination, str):
+        raise StageError(
+            f"unit {unit_id!r} off_map_transit needs box names")
+    try:
+        return OffMapTransit(
+            origin=origin,
+            destination=destination,
+            stages=_whole(raw.get("stages"), name="off_map_transit.stages"),
+            elapsed=_whole(raw.get("elapsed", 0),
+                           name="off_map_transit.elapsed"),
+        )
+    except TransportError as exc:
+        raise StageError(
+            f"unit {unit_id!r} has an invalid off_map_transit: {exc}") from exc
 
 
 def stacking_unit(unit_id: str, record: Mapping[str, Any]) -> StackingUnit:
@@ -450,24 +833,35 @@ def legal_moves(state: Mapping[str, Any], side: str,
     records = _records(state)
     context = _move_context(state, side, scenario)
     assaulted = _assaulted_hexes(state)
+    ignore_road_track = (scenario.abstract_supply
+                         and road_track_stacking_ignored())
     options: list[MoveOption] = []
     for unit_id in sorted(records):
         record = records[unit_id]
         if record.get("side") != side or record.get("combat_pending"):
             continue
+        if _in_off_map(record):
+            continue
         finished = bool(phase_key and record.get("moved") == phase_key)
         if record.get("assaulted") == (phase_key or "combat"):
             finished = True
         origin = _position(record, unit_id)
+        if not _transport_allowed(record):
+            continue
         try:
             unit = moving_unit(unit_id, record)
         except MovementError:
             continue
+        first_fuel = record.get("fuel_paid_stage") != _stage_key(state)
+        ammo_required = _assault_ammo(record)
         for destination in sorted(set(scenario.neighbours(origin))):
             if destination in context.enemy_occupied:
                 if finished or not _assault_ready(unit_id, record):
                     continue
                 if _assault_key(phase_key, destination) in assaulted:
+                    continue
+                if ammo_required and not _supply_can_pay(
+                        state, record, ammo=ammo_required):
                     continue
                 options.append(MoveOption(
                     unit_id=unit_id, destination=destination,
@@ -479,6 +873,11 @@ def legal_moves(state: Mapping[str, Any], side: str,
             try:
                 result = move_unit(unit, origin, [destination], context)
             except MovementError:
+                continue
+            fuel_required = _move_fuel_cost(record, total=result.total,
+                                            first=first_fuel)
+            if fuel_required and not _supply_can_pay(
+                    state, record, fuel=fuel_required):
                 continue
             existing = tuple(
                 stacking_unit(other_id, other)
@@ -494,6 +893,7 @@ def legal_moves(state: Mapping[str, Any], side: str,
             if not stacking.allowed:
                 continue
             if (scenario.road_track is not None
+                    and not ignore_road_track
                     and scenario.road_track(origin, destination)
                     and check_road_passage(existing, candidate,
                                            hex_context) is not None):
@@ -533,6 +933,25 @@ def apply_move(state: Mapping[str, Any], side: str, unit_id: str,
     updated["spent"] = str(
         _fraction(record.get("spent", 0)) + option.move.total)
     updated["voluntary_spent"] = str(option.move.voluntary_spent)
+    stage_key = _stage_key(state)
+    first_fuel = record.get("fuel_paid_stage") != stage_key
+    fuel_required = _move_fuel_cost(record, total=option.move.total,
+                                    first=first_fuel)
+    supply_state = state
+    if fuel_required:
+        supply_id = _supply_link(record)
+        if supply_id is not None:
+            if not _supply_can_pay(state, record, fuel=fuel_required):
+                raise StageError(
+                    f"{unit_id} cannot draw {fuel_required} Fuel from "
+                    f"Supply Unit {supply_id!r}")
+            supply_state = _spend_supply(state, supply_id,
+                                         fuel=fuel_required)
+            updated["fuel_paid_stage"] = stage_key
+            updated["fuel_required"] = fuel_required
+            updated["fuel_spent"] = (
+                _whole(record.get("fuel_spent", 0), name="fuel_spent")
+                + fuel_required)
     check = option.move.breakdown
     if check is not None:
         updated["breakdown_points"] = str(check.points)
@@ -566,13 +985,157 @@ def apply_move(state: Mapping[str, Any], side: str, unit_id: str,
                                    if distance is None else distance)):
             updated.pop("moved", None)
     records[unit_id] = updated
-    return {
-        **state,
+    result = {
+        **supply_state,
         "units": records,
         "actions_in_segment": _whole(
             state.get("actions_in_segment", 0),
             name="actions_in_segment") + 1,
     }
+    if updated.get("kind", "combat") in COMBAT_KINDS:
+        result = _capture_supplies(result, destination, side, unit_id)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# off-map Tripoli/Tunisia transit (8.81-8.89)
+# ---------------------------------------------------------------------------
+
+def legal_off_map_moves(state: Mapping[str, Any], side: str,
+                        scenario: StageScenario, *,
+                        phase_key: str = "") -> tuple[OffMapMove, ...]:
+    """Every legal 8.81-8.84 off-map transit step for *side*.
+
+    A land unit in a box may start a charted transit; a unit already in
+    transit may continue one step or turn back (8.84).  A step spends the
+    unit's whole CPA (8.83) and never checks Breakdown.  The 8.89 chart is
+    caller-supplied; without one no off-map option is offered.
+    """
+    if side not in SIDES:
+        raise StageError(f"unknown side: {side!r}")
+    if scenario.off_map_chart is None:
+        return ()
+    records = _records(state)
+    options: list[OffMapMove] = []
+    for unit_id in sorted(records):
+        record = records[unit_id]
+        if record.get("side") != side or record.get("combat_pending"):
+            continue
+        if phase_key and record.get("moved") == phase_key:
+            continue
+        if not _in_off_map(record):
+            continue
+        unit = _off_map_unit(record)
+        if unit is None or not off_map_entry_allowed(unit):
+            continue
+        cpa = _whole(record.get("base_cpa", 0), name="base_cpa")
+        if cpa < 1:
+            continue
+        transit = _off_map_transit(record, unit_id)
+        origin = (transit.position if transit is not None
+                  else _position(record, unit_id))
+        if not is_off_map_position(origin):
+            continue
+        if (origin in (TRIPOLI, TUNIS) and arrival_box_locked(
+                origin,
+                arrived_this_stage=bool(record.get("arrived_this_stage",
+                                                 False)),
+                reinforcement_or_replacement=bool(
+                    record.get("reinforcement_or_replacement", False)))):
+            continue
+        if transit is not None and not transit.arrived:
+            result = advance_off_map(transit, cp_spent=cpa, cpa=cpa,
+                                     motorized=unit.motorized)
+            options.append(OffMapMove(unit_id, origin, transit.destination,
+                                      "continue", result))
+            if transit.elapsed > 0:
+                turned = transit.reverse()
+                turned_result = advance_off_map(
+                    turned, cp_spent=cpa, cpa=cpa, motorized=unit.motorized)
+                options.append(OffMapMove(unit_id, origin,
+                                          turned.destination, "reverse",
+                                          turned_result))
+            continue
+        for destination in scenario.off_map_boxes:
+            if destination == origin:
+                continue
+            try:
+                planned = plan_off_map_move(
+                    origin, destination, cpa=cpa,
+                    chart=scenario.off_map_chart, unit=unit)
+                result = advance_off_map(planned, cp_spent=cpa, cpa=cpa,
+                                         motorized=unit.motorized)
+            except TransportError:
+                continue
+            options.append(OffMapMove(unit_id, origin, destination, "start",
+                                      result))
+    return tuple(options)
+
+
+def apply_off_map_move(state: Mapping[str, Any], side: str, unit_id: str,
+                       destination: str, scenario: StageScenario, *,
+                       phase_key: str = "") -> dict[str, Any]:
+    """Advance one unit exactly one 8.81-8.84 off-map step."""
+    move = next((candidate for candidate in legal_off_map_moves(
+        state, side, scenario, phase_key=phase_key)
+        if candidate.unit_id == unit_id
+        and candidate.destination == destination), None)
+    if move is None:
+        raise StageError(
+            f"{unit_id} may not move off-map to {destination} in this state")
+    if move.result.breakdown_check:       # pragma: no cover - 8.83 invariant
+        raise StageError("8.83: off-map movement must not check Breakdown")
+    records = _records(state)
+    record = records[unit_id]
+    updated = dict(record)
+    transit = move.result.transit
+    updated["position"] = transit.position
+    updated["moved"] = phase_key
+    updated["moves"] = _whole(record.get("moves", 0), name="moves") + 1
+    updated["spent"] = str(move.result.cp_spent)
+    updated["voluntary_spent"] = "0"
+    stage_key = _stage_key(state)
+    first_fuel = record.get("fuel_paid_stage") != stage_key
+    fuel_required = _move_fuel_cost(record,
+                                    total=Fraction(move.result.cp_spent),
+                                    first=first_fuel)
+    supply_state = state
+    if fuel_required:
+        supply_id = _supply_link(record)
+        if supply_id is not None:
+            if not _supply_can_pay(state, record, fuel=fuel_required):
+                raise StageError(
+                    f"{unit_id} cannot draw {fuel_required} Fuel from "
+                    f"Supply Unit {supply_id!r}")
+            supply_state = _spend_supply(state, supply_id,
+                                         fuel=fuel_required)
+            updated["fuel_paid_stage"] = stage_key
+            updated["fuel_required"] = fuel_required
+            updated["fuel_spent"] = (
+                _whole(record.get("fuel_spent", 0), name="fuel_spent")
+                + fuel_required)
+    updated["off_map_box"] = True
+    updated["off_map_transit"] = transit.to_obj()
+    updated["off_map_move"] = move.kind
+    updated["fuel_required"] = move.result.fuel_required
+    if transit.arrived:
+        updated["arrived_this_stage"] = True
+        updated["arrived_box"] = transit.destination
+    else:
+        updated.pop("arrived_this_stage", None)
+        updated.pop("arrived_box", None)
+    records[unit_id] = updated
+    result = {
+        **supply_state,
+        "units": records,
+        "actions_in_segment": _whole(
+            state.get("actions_in_segment", 0),
+            name="actions_in_segment") + 1,
+    }
+    if (transit.arrived
+            and updated.get("kind", "combat") in COMBAT_KINDS):
+        result = _capture_supplies(result, transit.destination, side, unit_id)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -706,6 +1269,12 @@ def apply_assault(state: Mapping[str, Any], side: str, unit_id: str,
     if (attacker.toe_strength <= 0 or attacker.offensive_close_assault <= 0
             or not may_close_assault(attacker, offensive=True)):
         raise StageError(f"{unit_id} may not Close Assault")
+    ammo_required = _assault_ammo(record)
+    if ammo_required and not _supply_can_pay(
+            state, record, ammo=ammo_required):
+        raise StageError(
+            f"{unit_id} cannot draw {ammo_required} Ammo from its linked "
+            "Supply Unit")
 
     updated = {other_id: dict(other) for other_id, other in records.items()}
     pending = {"side": side, "attacker": unit_id, "target": target_hex,
@@ -724,6 +1293,11 @@ def apply_assault(state: Mapping[str, Any], side: str, unit_id: str,
                 name="actions_in_segment") + 1,
         }
 
+    supply_state = state
+    supply_id = _supply_link(record)
+    if ammo_required and supply_id is not None:
+        supply_state = _spend_supply(state, supply_id,
+                                     ammo=ammo_required)
     if rng is None:
         rng = random.Random(_whole(state.get("seed", 0), name="seed"))
     try:
@@ -758,6 +1332,12 @@ def apply_assault(state: Mapping[str, Any], side: str, unit_id: str,
     attacker_record = updated[unit_id]
     attacker_record["assaulted"] = phase_key or "combat"
     attacker_record["moved"] = phase_key
+    if ammo_required:
+        attacker_record["ammo_required"] = ammo_required
+        if supply_id is not None:
+            attacker_record["ammo_spent"] = (
+                _whole(record.get("ammo_spent", 0), name="ammo_spent")
+                + ammo_required)
     attacker_record.pop("combat_pending", None)
     attacker_record.pop("combat_target", None)
 
@@ -774,7 +1354,7 @@ def apply_assault(state: Mapping[str, Any], side: str, unit_id: str,
         "outcome": outcome.to_obj(), "rule": "15",
     })
     result = {
-        **state,
+        **supply_state,
         "units": updated,
         "combat_log": log,
         "assaulted_hexes": list(assaulted),
@@ -900,7 +1480,11 @@ def _rail_usage(state: Mapping[str, Any]) -> RailUsage:
 def legal_rail_moves(state: Mapping[str, Any], side: str,
                      scenario: StageScenario, *,
                      phase_key: str = "") -> tuple[RailMove, ...]:
-    """Every legal 8.71-8.78 rail move in the current state."""
+    """Every legal single-unit 8.71-8.78 rail move in the current state.
+
+    These are the building blocks for :func:`legal_rail_stacks`; the phase-J
+    decision offers the grouped stacks, not these individual moves.
+    """
     if side not in SIDES:
         raise StageError(f"unknown side: {side!r}")
     if scenario.rail is None or side != COMMONWEALTH:
@@ -932,7 +1516,7 @@ def legal_rail_moves(state: Mapping[str, Any], side: str,
             continue
         if bool(record.get("contact", False)) or bool(record.get("engaged", False)):
             continue
-        if bool(record.get("off_map_box", False)):
+        if _in_off_map(record):
             continue
         origin = _position(record, unit_id)
         stacking = _fraction(record.get("stacking_points", 1))
@@ -969,26 +1553,111 @@ def legal_rail_moves(state: Mapping[str, Any], side: str,
     return tuple(options)
 
 
-def apply_rail_move(state: Mapping[str, Any], side: str, unit_id: str,
-                    destination: str, scenario: StageScenario, *,
-                    phase_key: str = "") -> dict[str, Any]:
-    """Take one rail move without spending CP and return a new state."""
-    move = next((candidate for candidate in legal_rail_moves(
+def _rail_stack_candidates(
+        moves: tuple[RailMove, ...]) -> tuple[tuple[RailMove, ...], ...]:
+    """Every non-empty subset of *moves* that fits the 8.75 limit."""
+    if not moves:
+        return ()
+    smallest = min(move.stacking_points for move in moves)
+    max_size = len(moves) if smallest <= 0 else int(
+        RAIL_STACK_LIMIT / smallest)
+    candidates: list[tuple[RailMove, ...]] = []
+    for size in range(1, max_size + 1):
+        for subset in combinations(moves, size):
+            total = sum((move.stacking_points for move in subset),
+                        Fraction(0))
+            if total <= RAIL_STACK_LIMIT:
+                candidates.append(subset)
+    return tuple(candidates)
+
+
+def legal_rail_stacks(state: Mapping[str, Any], side: str,
+                      scenario: StageScenario, *,
+                      phase_key: str = "") -> tuple[RailStackMove, ...]:
+    """Every legal 8.72 rail stack, grouped for one phase-J action.
+
+    A stack is one line/direction/origin/destination with one aggregate
+    8.75 limit.  Only inclusion-maximal legal subsets are offered: a pair of
+    one-point units is one action, while a force over two points is split
+    into legal stacks rather than carrying the excess.
+    """
+    if side not in SIDES:
+        raise StageError(f"unknown side: {side!r}")
+    individual = legal_rail_moves(state, side, scenario,
+                                  phase_key=phase_key)
+    grouped: dict[tuple[str, str, str, str], list[RailMove]] = {}
+    for move in individual:
+        key = (move.line, move.direction, move.origin, move.destination)
+        grouped.setdefault(key, []).append(move)
+
+    records = _records(state)
+    stacks: list[RailStackMove] = []
+    for key in sorted(grouped):
+        moves = tuple(sorted(grouped[key], key=lambda move: move.unit_id))
+        allowed: list[tuple[RailMove, ...]] = []
+        for subset in _rail_stack_candidates(moves):
+            destination = subset[0].destination
+            existing = tuple(
+                stacking_unit(other_id, other)
+                for other_id, other in sorted(records.items())
+                if _position(other, other_id) == destination
+            )
+            moving = tuple(stacking_unit(move.unit_id, records[move.unit_id])
+                           for move in subset)
+            check = check_end_of_movement(
+                (*existing, *moving),
+                HexContext(hex_id=destination,
+                           limit=scenario.limit(destination)))
+            if check.allowed:          # 8.75/8.77 stacking at the stop
+                allowed.append(subset)
+
+        allowed_ids = [frozenset(move.unit_id for move in subset)
+                       for subset in allowed]
+        for subset, unit_ids in zip(allowed, allowed_ids):
+            if any(unit_ids < other for other in allowed_ids):
+                continue
+            stacks.append(RailStackMove(subset))
+    return tuple(sorted(stacks, key=lambda stack: (
+        stack.line, stack.direction, stack.origin, stack.destination,
+        -len(stack.unit_ids), stack.unit_ids)))
+
+
+def apply_rail_stack_move(state: Mapping[str, Any], side: str,
+                          unit_ids: Iterable[str], destination: str,
+                          scenario: StageScenario, *,
+                          phase_key: str = "") -> dict[str, Any]:
+    """Take one grouped 8.72 rail stack without spending CP."""
+    if isinstance(unit_ids, str):
+        raise StageError("unit_ids must be a sequence of unit ids")
+    ids = tuple(unit_ids)
+    if not ids:
+        raise StageError("unit_ids must contain at least one unit")
+    if not all(isinstance(unit_id, str) and unit_id.strip()
+               for unit_id in ids):
+        raise StageError("unit_ids must contain non-empty strings")
+    if len(set(ids)) != len(ids):
+        raise StageError("unit_ids must contain distinct unit ids")
+    ids = tuple(sorted(ids))
+    move = next((candidate for candidate in legal_rail_stacks(
         state, side, scenario, phase_key=phase_key)
-        if candidate.unit_id == unit_id
+        if candidate.unit_ids == ids
         and candidate.destination == destination), None)
     if move is None:
         raise StageError(
-            f"{unit_id} may not use rail to {destination} in this state")
+            f"{', '.join(ids)} may not use rail to {destination} in this state")
     records = _records(state)
-    updated = dict(records[unit_id])
-    updated["position"] = destination
-    updated["moved"] = phase_key
-    updated["moves"] = _whole(updated.get("moves", 0), name="moves") + 1
-    updated["spent"] = str(_fraction(updated.get("spent", 0)))
-    updated["rail_line"] = move.line
-    updated["rail_direction"] = move.direction
-    records[unit_id] = updated
+    missing = [unit_id for unit_id in ids if unit_id not in records]
+    if missing:
+        raise StageError(f"unknown unit(s): {', '.join(missing)}")
+    for unit_id in ids:
+        updated = dict(records[unit_id])
+        updated["position"] = destination
+        updated["moved"] = phase_key
+        updated["moves"] = _whole(updated.get("moves", 0), name="moves") + 1
+        updated["spent"] = str(_fraction(updated.get("spent", 0)))
+        updated["rail_line"] = move.line
+        updated["rail_direction"] = move.direction
+        records[unit_id] = updated
     usage = _rail_usage(state).use(move.line, move.direction)
     return {
         **state,
@@ -998,6 +1667,22 @@ def apply_rail_move(state: Mapping[str, Any], side: str, unit_id: str,
             state.get("actions_in_segment", 0),
             name="actions_in_segment") + 1,
     }
+
+
+def apply_rail_move(state: Mapping[str, Any], side: str,
+                    unit_id: str | Iterable[str], destination: str,
+                    scenario: StageScenario, *,
+                    phase_key: str = "") -> dict[str, Any]:
+    """Take a rail move for one unit or a grouped stack, without spending CP.
+
+    The phase-J decision uses :func:`apply_rail_stack_move` directly; this
+    entry point keeps the single-unit form and also accepts a unit-id
+    sequence for callers that already resolved a stack.
+    """
+    ids = ((unit_id,) if isinstance(unit_id, str)
+           else tuple(unit_id))
+    return apply_rail_stack_move(state, side, ids, destination,
+                                 scenario, phase_key=phase_key)
 
 
 # ---------------------------------------------------------------------------
@@ -1047,17 +1732,40 @@ def _move_effect(scenario: StageScenario, side: str, phase_key: str,
     return effect
 
 
+def _rail_payload_unit_ids(action: Action) -> tuple[str, ...] | None:
+    """Read a rail action's stack, accepting the legacy single-unit shape."""
+    raw = action.payload.get("unit_ids")
+    if raw is None:
+        unit_id = action.payload.get("unit_id")
+        if not isinstance(unit_id, str) or not unit_id.strip():
+            return None
+        return (unit_id,)
+    if isinstance(raw, str) or not isinstance(raw, (list, tuple)):
+        return None
+    ids = tuple(raw)
+    if (not ids
+            or not all(isinstance(unit_id, str) and unit_id.strip()
+                       for unit_id in ids)
+            or len(set(ids)) != len(ids)):
+        return None
+    return tuple(sorted(ids))
+
+
 def _rail_guard(scenario: StageScenario, side: str,
                 phase_key: str) -> Callable[[Mapping[str, Any], Action], bool]:
     def guard(state: Mapping[str, Any], action: Action) -> bool:
-        unit_id = action.payload.get("unit_id")
+        ids = _rail_payload_unit_ids(action)
         destination = action.payload.get("destination")
-        if not isinstance(unit_id, str) or not isinstance(destination, str):
+        if ids is None or not isinstance(destination, str):
             return False
+        line = action.payload.get("line")
+        direction = action.payload.get("direction")
         return any(
-            move.unit_id == unit_id and move.destination == destination
-            for move in legal_rail_moves(state, side, scenario,
-                                         phase_key=phase_key)
+            move.unit_ids == ids and move.destination == destination
+            and (line is None or move.line == line)
+            and (direction is None or move.direction == direction)
+            for move in legal_rail_stacks(state, side, scenario,
+                                          phase_key=phase_key)
         )
     return guard
 
@@ -1067,10 +1775,41 @@ def _rail_effect(scenario: StageScenario, side: str,
                                              Mapping[str, Any]]:
     def effect(state: Mapping[str, Any],
                action: Action) -> Mapping[str, Any]:
-        return apply_rail_move(state, side,
-                               str(action.payload["unit_id"]),
-                               str(action.payload["destination"]),
-                               scenario, phase_key=phase_key)
+        ids = _rail_payload_unit_ids(action)
+        if ids is None:
+            raise StageError("rail action needs unit_ids")
+        return apply_rail_stack_move(state, side, ids,
+                                     str(action.payload["destination"]),
+                                     scenario, phase_key=phase_key)
+    return effect
+
+
+def _off_map_guard(scenario: StageScenario, side: str,
+                   phase_key: str) -> Callable[[Mapping[str, Any], Action],
+                                              bool]:
+    def guard(state: Mapping[str, Any], action: Action) -> bool:
+        unit_id = action.payload.get("unit_id")
+        destination = action.payload.get("destination")
+        if not isinstance(unit_id, str) or not isinstance(destination, str):
+            return False
+        return any(
+            option.unit_id == unit_id
+            and option.destination == destination
+            for option in legal_off_map_moves(state, side, scenario,
+                                              phase_key=phase_key)
+        )
+    return guard
+
+
+def _off_map_effect(scenario: StageScenario, side: str,
+                    phase_key: str) -> Callable[[Mapping[str, Any], Action],
+                                               Mapping[str, Any]]:
+    def effect(state: Mapping[str, Any],
+               action: Action) -> Mapping[str, Any]:
+        return apply_off_map_move(state, side,
+                                  str(action.payload["unit_id"]),
+                                  str(action.payload["destination"]),
+                                  scenario, phase_key=phase_key)
     return effect
 
 
@@ -1100,7 +1839,10 @@ def build_decision(state: Mapping[str, Any], phase: Phase, side: str,
         raise StageError("step must not be negative")
     moves = (legal_moves(state, side, scenario, phase_key=key)
              if phase.id.split(".")[-1] == "G" else ())
-    rail_moves = (legal_rail_moves(state, side, scenario, phase_key=key)
+    off_map_moves = (
+        legal_off_map_moves(state, side, scenario, phase_key=key)
+        if phase.id.split(".")[-1] == "G" else ())
+    rail_moves = (legal_rail_stacks(state, side, scenario, phase_key=key)
                   if phase.id.split(".")[-1] == "J" else ())
     actions = [
         Action(
@@ -1119,12 +1861,33 @@ def build_decision(state: Mapping[str, Any], phase: Phase, side: str,
     ]
     actions.extend(
         Action(
-            f"rail:{move.unit_id}:{move.destination}",
-            label=f"Rail {move.unit_id} to {move.destination}",
-            guard=_rail_guard(scenario, side, key),
-            effect=_rail_effect(scenario, side, key),
+            f"offmap:{move.unit_id}:{move.destination}",
+            label=(f"Turn {move.unit_id} back to {move.destination}"
+                   if move.kind == "reverse" else
+                   f"Move {move.unit_id} off-map to {move.destination}"),
+            guard=_off_map_guard(scenario, side, key),
+            effect=_off_map_effect(scenario, side, key),
             payload={"unit_id": move.unit_id,
                      "destination": move.destination},
+        )
+        for move in off_map_moves
+    )
+    actions.extend(
+        Action(
+            "rail:" + "+".join(move.unit_ids) + ":" + move.destination,
+            label=(f"Rail {', '.join(move.unit_ids)} to {move.destination}")
+            if len(move.unit_ids) > 1 else
+            f"Rail {move.unit_ids[0]} to {move.destination}",
+            guard=_rail_guard(scenario, side, key),
+            effect=_rail_effect(scenario, side, key),
+            payload={
+                "unit_ids": list(move.unit_ids),
+                "destination": move.destination,
+                "line": move.line,
+                "direction": move.direction,
+                **({"unit_id": move.unit_ids[0]}
+                   if len(move.unit_ids) == 1 else {}),
+            },
         )
         for move in rail_moves
     )
@@ -1153,8 +1916,9 @@ def play_operations_stage(
 
     Every rule 5.2 phase of the stage is visited in order.  In a
     Movement/Combat phase the acting side is offered its legal one-hex
-    moves; in the Commonwealth Rail Movement phase it is offered its legal
-    rail moves.  Either phase may then end; every other phase offers only
+    moves and, when an 8.89 chart is supplied, its legal off-map transit
+    steps; in the Commonwealth Rail Movement phase it is offered its legal
+    rail stacks.  Either phase may then end; every other phase offers only
     its end.  The loop records each choice through the engine, so history
     and resolutions are part of the returned state.
     """
@@ -1169,6 +1933,12 @@ def play_operations_stage(
     working = copy.deepcopy(dict(state))
     working["stage"] = stage
     working["rail_used"] = []          # 8.74 resets each Operations Stage
+    # 8.86's arrival lock lasts only for the stage of arrival.
+    units = working.get("units")
+    if isinstance(units, Mapping):
+        for record in units.values():
+            if isinstance(record, dict):
+                record.pop("arrived_this_stage", None)
     actions = moves = combats = 0
     events: list[dict[str, Any]] = []
 
