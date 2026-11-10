@@ -1,8 +1,10 @@
 """The Land Game sequence of play.
 
-RULE: 5.2 (Land Game Game-Turn sequence outline)
+RULE: 5.1-5.2 (Land Game Game-Turn and sequence outline)
 
-The sequence is data, not a chain of nested loops.  A Game-Turn has:
+A Game-Turn represents approximately one week and contains three
+Operations Stages (5.1).  The ordered phases below are the 5.2 sequence;
+the sequence is data, not a chain of nested loops.  A Game-Turn has:
 
 * Stage I, Initiative Determination;
 * Stage II, Naval Convoy (schedule, then tactical shipping);
@@ -23,6 +25,9 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 RULE = "5.2"
+GAME_TURN_RULE = "5.1"
+GAME_TURN_DAYS = 7
+OPERATIONS_STAGES = 3
 
 
 class SequenceError(ValueError):
@@ -93,6 +98,13 @@ TOTAL_PHASES = len(TURN_PHASES)
 _INDEX = {phase.id: index for index, phase in enumerate(TURN_PHASES)}
 if len(_INDEX) != TOTAL_PHASES:  # pragma: no cover - import-time guard
     raise RuntimeError("rule 5.2 contains duplicate phase ids")
+
+_OPERATIONS_STAGE_NUMBERS = tuple(sorted({
+    phase.operations_stage for phase in TURN_PHASES
+    if phase.operations_stage is not None
+}))
+if _OPERATIONS_STAGE_NUMBERS != tuple(range(1, OPERATIONS_STAGES + 1)):
+    raise RuntimeError("rule 5.1 must provide three Operations Stages")
 
 
 def phases_for_turn() -> tuple[Phase, ...]:

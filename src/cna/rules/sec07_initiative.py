@@ -96,6 +96,64 @@ def determine_initiative(rng: Rng, axis_rating: int,
 
 
 @dataclass(frozen=True)
+class ScenarioInitiative:
+    """Rule 7.15: a scenario may fix the first Game-Turn's Initiative.
+
+    This result deliberately has no die rolls.  It records that the winner
+    came from the scenario, not from a normal 7.14 determination, so a
+    caller cannot mistake a predetermined winner for a rolled result.
+    """
+
+    winner: str
+    turn: int = 1
+    source: str = "scenario"
+
+    def __post_init__(self) -> None:
+        if self.winner not in SIDES:
+            raise InitiativeError(f"unknown winner: {self.winner!r}")
+        if (isinstance(self.turn, bool) or not isinstance(self.turn, int)
+                or self.turn < 1):
+            raise InitiativeError("turn must be a positive integer")
+        if self.source != "scenario":
+            raise InitiativeError("scenario initiative source must be 'scenario'")
+
+    def to_obj(self) -> dict[str, Any]:
+        return {
+            "winner": self.winner,
+            "turn": self.turn,
+            "source": self.source,
+            "rule": "7.15",
+        }
+
+
+def first_turn_initiative(winner: str) -> ScenarioInitiative:
+    """Return the scenario's predetermined first-turn Initiative (7.15)."""
+    if winner not in SIDES:
+        raise InitiativeError(f"unknown winner: {winner!r}")
+    return ScenarioInitiative(winner=winner)
+
+
+def initiative_for_turn(rng: Rng, axis_rating: int,
+                        commonwealth_rating: int, *, turn: int = 1,
+                        first_turn_winner: str | None = None,
+                        max_rounds: int = 100
+                        ) -> InitiativeResult | ScenarioInitiative:
+    """Determine Initiative for *turn*, honouring a scenario's 7.15 winner.
+
+    Only the first Game-Turn may be fixed by the scenario.  Later turns
+    roll normally, even if the caller keeps passing the scenario value.
+    """
+    if isinstance(turn, bool) or not isinstance(turn, int) or turn < 1:
+        raise InitiativeError("turn must be a positive integer")
+    if first_turn_winner is not None and first_turn_winner not in SIDES:
+        raise InitiativeError(f"unknown first-turn winner: {first_turn_winner!r}")
+    if turn == 1 and first_turn_winner is not None:
+        return first_turn_initiative(first_turn_winner)
+    return determine_initiative(rng, axis_rating, commonwealth_rating,
+                                max_rounds=max_rounds)
+
+
+@dataclass(frozen=True)
 class PlayerOrder:
     """The rule 7.16 names for one Operations Stage."""
 
