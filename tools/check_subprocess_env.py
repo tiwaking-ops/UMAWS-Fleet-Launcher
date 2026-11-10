@@ -26,7 +26,8 @@ resolves against the current directory.
 
 The extra files are only checked for cwd safety: the unguarded-spawn check for
 a missing ``env=`` applies to ``src/`` and its allowlist, not to these files.
-A missing extra file is an input error (exit 2), reported without a traceback.
+A missing or unreadable extra file is an input error (exit 2), reported
+without a traceback.
 """
 
 from __future__ import annotations
@@ -188,6 +189,19 @@ def main(argv: list[str] | None = None) -> int:
         for path in missing:
             reason = "not found" if not path.exists() else "not a file"
             print(f"error: extra fleet file {reason}: {path}", file=sys.stderr)
+        return 2
+    unreadable: list[tuple[Path, Exception]] = []
+    for path in args.extra_fleet_files:
+        try:
+            path.read_text(encoding="utf-8-sig")
+        except (OSError, UnicodeError) as exc:
+            unreadable.append((path, exc))
+    if unreadable:
+        for path, exc in unreadable:
+            print(
+                f"error: extra fleet file unreadable: {path}: "
+                f"{type(exc).__name__}: {exc}",
+                file=sys.stderr)
         return 2
     allow = load_allowlist(ALLOWLIST)
     seen: set[tuple[str, str]] = set()
