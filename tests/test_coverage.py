@@ -4,6 +4,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
@@ -123,12 +125,50 @@ def test_case_inventory_reports_reviewed_statuses(tmp_path):
 
     assert cases["5.2"]["status"] == "partial"
     assert cases["7.14"]["status"] == "implemented"
-    assert cases["32.0"]["status"] == "partial"
+    assert cases["32.0"]["status"] == "not_applicable"
     assert report["counts"]["cases"] == len(report["cases"])
     assert report["counts"]["cases"] >= 3
     assert report["counts"]["cases_implemented"] == 1
-    assert report["counts"]["cases_partial"] == 2
+    assert report["counts"]["cases_partial"] == 1
+    assert report["counts"]["cases_not_applicable"] == 3
     assert report["counts"]["cases_deferred"] == 0
+
+
+def test_every_parsed_section_heading_has_reviewed_status_and_reason():
+    inventory = cov.case_inventory(ROOT / "docs" / "rules")
+    headings = [entry["case"] for entry in inventory
+                if entry["case"].endswith(".0")]
+    assert headings
+    for case_id in headings:
+        review = cov.CASE_STATUS.get(case_id)
+        assert review is not None, case_id
+        assert review["status"] in cov.CASE_STATUSES, case_id
+        assert review["reason"].strip(), case_id
+
+
+def test_unreviewed_section_heading_is_a_coverage_error(tmp_path):
+    rules = tmp_path / "rules"
+    sections = rules / "sections"
+    sections.mkdir(parents=True)
+    (sections / "section-66.adoc").write_text(
+        "== Unreviewed Section\n", encoding="utf-8")
+
+    with pytest.raises(cov.RulesCoverageError, match=r"66\.0"):
+        cov.build_coverage(rules, [])
+
+
+def test_p1b_data_dependent_implemented_cases_are_partial():
+    assert len(cov.P1B_DATA_GAP_REASONS) == 171
+    for case_id, reason in cov.P1B_DATA_GAP_REASONS.items():
+        entry = cov.CASE_STATUS[case_id]
+        assert entry["status"] == "partial", case_id
+        assert entry["reason"] == reason, case_id
+        assert any(code in reason for code in ("R-04", "R-05", "R-06")), case_id
+
+    assert cov.CASE_STATUS["8.13"]["status"] == "implemented"
+    assert cov.CASE_STATUS["8.21"]["status"] == "implemented"
+    assert cov.CASE_STATUS["8.23"]["status"] == "implemented"
+    assert cov.CASE_STATUS["7.14"]["status"] == "implemented"
 
 
 def test_section_6_structural_headings_are_not_applicable():
@@ -140,3 +180,18 @@ def test_section_6_structural_headings_are_not_applicable():
         assert entry["tests"] == []
     assert cov.CASE_STATUS["6.3"]["status"] == "partial"
     assert cov.CASE_STATUS["6.25"]["status"] == "partial"
+
+
+def test_other_structural_headings_are_not_applicable():
+    assert len(cov.STRUCTURAL_HEADING_REASONS) == 41
+    for case_id, reason in cov.STRUCTURAL_HEADING_REASONS.items():
+        entry = cov.CASE_STATUS[case_id]
+        assert entry["status"] == "not_applicable", case_id
+        assert entry["reason"] == reason, case_id
+        assert entry["source"] == "", case_id
+        assert entry["tests"] == [], case_id
+
+    # Leaf rules with their own numbered text stay operative.
+    for case_id in ("5.2", "6.3", "8.11", "8.71", "9.4", "10.11",
+                    "21.11", "29.1", "29.31", "32.9"):
+        assert cov.CASE_STATUS.get(case_id, {}).get("status") != "not_applicable", case_id
