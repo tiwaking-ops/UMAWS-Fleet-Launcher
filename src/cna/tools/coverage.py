@@ -31,6 +31,9 @@ Design notes
   is reported as matching nothing rather than failing the run.
 * Text in the corpus is data.  Nothing here executes, imports or follows
   instructions found in the rules files.
+* Every parsed section heading (``N.0``) must have an explicit reviewed
+  status and a non-empty reason; a new section file cannot silently inherit
+  the ``unimplemented`` default.
 
 Usage::
 
@@ -138,7 +141,7 @@ CASE_STATUS: dict[str, dict[str, Any]] = {
     "8.47": {"status": "implemented", "source": "src/cna/rules/sec08_movement.py", "tests": ["tests/test_movement.py"], "reason": ""},
     "8.7": {"status": "partial", "source": "src/cna/rules/sec08_transport.py", "tests": ["tests/test_transport.py"], "reason": "rail procedure implemented; the printed rail map is caller-supplied (R-05)"},
     "8.71": {"status": "implemented", "source": "src/cna/rules/sec08_transport.py", "tests": ["tests/test_transport.py"], "reason": ""},
-    "8.72": {"status": "partial", "source": "src/cna/rules/sec08_transport.py", "tests": ["tests/test_transport.py"], "reason": "unit rail movement and the per-direction budget are implemented; a separate supply cargo ledger is not"},
+    "8.72": {"status": "implemented", "source": "src/cna/rules/sec08_transport.py", "tests": ["tests/test_transport.py"], "reason": ""},
     "8.73": {"status": "implemented", "source": "src/cna/rules/sec08_transport.py", "tests": ["tests/test_transport.py"], "reason": ""},
     "8.74": {"status": "implemented", "source": "src/cna/rules/sec08_transport.py", "tests": ["tests/test_transport.py"], "reason": ""},
     "8.75": {"status": "implemented", "source": "src/cna/rules/sec08_transport.py", "tests": ["tests/test_transport.py"], "reason": ""},
@@ -153,7 +156,7 @@ CASE_STATUS: dict[str, dict[str, Any]] = {
     "8.85": {"status": "implemented", "source": "src/cna/rules/sec08_transport.py", "tests": ["tests/test_transport.py"], "reason": ""},
     "8.86": {"status": "implemented", "source": "src/cna/rules/sec08_transport.py", "tests": ["tests/test_transport.py"], "reason": ""},
     "8.87": {"status": "implemented", "source": "src/cna/rules/sec08_transport.py", "tests": ["tests/test_transport.py"], "reason": ""},
-    "8.88": {"status": "partial", "source": "src/cna/rules/sec08_transport.py", "tests": ["tests/test_transport.py"], "reason": "the supply-dump properties and loading/unloading movement lock are implemented; no truck/supply ledger is integrated"},
+    "8.88": {"status": "implemented", "source": "src/cna/rules/sec08_transport.py", "tests": ["tests/test_transport.py"], "reason": ""},
     "8.89": {"status": "partial", "source": "src/cna/rules/sec08_transport.py", "tests": ["tests/test_transport.py"], "reason": "chart interface is implemented; official Off-Map Land Unit Movement Distance Chart values are absent (R-04)"},
     "8.51": {"status": "implemented", "source": "src/cna/rules/sec08_movement.py", "tests": ["tests/test_movement.py"], "reason": ""},
     "8.52": {"status": "implemented", "source": "src/cna/rules/sec08_movement.py", "tests": ["tests/test_movement.py"], "reason": ""},
@@ -267,7 +270,12 @@ CASE_STATUS: dict[str, dict[str, Any]] = {
     },
     "3.0": {
         "status": "implemented", "source": "src/cna/core/dice.py",
-        "tests": ["tests/test_dice.py"], "reason": "",
+        "tests": ["tests/test_dice.py"],
+        "reason": "glossary heading; terminology is documented while the child definition cases remain unimplemented",
+    },
+    "5.1": {
+        "status": "implemented", "source": "src/cna/rules/sec05_sequence.py",
+        "tests": ["tests/test_p1b1_foundation.py"], "reason": "",
     },
     "5.2": {
         "status": "partial", "source": "src/cna/rules/sec05_sequence.py",
@@ -290,6 +298,10 @@ CASE_STATUS: dict[str, dict[str, Any]] = {
     "7.14": {
         "status": "implemented", "source": "src/cna/rules/sec07_initiative.py",
         "tests": ["tests/test_initiative_weather.py"], "reason": "",
+    },
+    "7.15": {
+        "status": "implemented", "source": "src/cna/rules/sec07_initiative.py",
+        "tests": ["tests/test_p1b1_foundation.py"], "reason": "",
     },
     "7.16": {
         "status": "implemented", "source": "src/cna/rules/sec07_initiative.py",
@@ -503,6 +515,187 @@ CASE_STATUS: dict[str, dict[str, Any]] = {
 }
 
 
+#: P1b cases that are implemented behind a data interface but cannot claim
+#: completion while the official R-04/R-05/R-06 resource is absent.  The
+#: engine path and its tests exist; the status is partial because the
+#: missing chart, map or counter data prevents a real-scenario claim.
+P1B_DATA_GAP_GROUPS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (('8.17', '8.18', '8.91', '8.92'),
+     'unit CPA, truck and motorization values are caller-supplied; the official counter data are absent (R-06)'),
+    (('8.24', '8.61', '8.62', '8.63', '8.64', '8.65', '8.66', '8.67', '8.68'),
+     'Contact/Engaged and Break Off procedures are implemented; the verified ZOC map, Assault CRT and counter unit data are absent (R-04/R-05/R-06)'),
+    (('8.31', '8.32', '8.33', '8.34', '8.35', '8.41', '8.42', '8.43', '8.44', '8.45', '8.46', '8.47'),
+     'terrain movement is implemented with caller-supplied values; the official Terrain Effects Chart costs and verified hex/terrain map are absent (R-04/R-05)'),
+    (('8.51', '8.52', '8.53', '8.54', '8.55'),
+     'reaction is implemented with caller-supplied state; verified ZOC/map data and official counter size/CPA data are absent (R-05/R-06)'),
+    (('8.71', '8.72', '8.73', '8.74', '8.75', '8.76', '8.77', '8.78'),
+     'rail movement is implemented; the verified rail-line, destroyed-rail and hex map are absent (R-05)'),
+    (('8.81', '8.82', '8.83', '8.85', '8.86', '8.87', '8.88'),
+     'Tripoli/Tunisia box procedure is implemented; the printed box/hex map, Air Distance Chart and reinforcement/supply tables are absent (R-04/R-05/R-06)'),
+    (('9.11', '9.12', '9.13', '9.14', '9.15', '9.16', '9.21', '9.24', '9.25', '9.26', '9.27', '9.28', '9.29', '9.31', '9.32', '9.33', '9.35'),
+     'stacking rule is implemented with caller-supplied values; official counter stacking/organization data and the TEC terrain-capacity table are absent (R-06/R-04)'),
+    (('10.11', '10.12', '10.13', '10.14', '10.15', '10.26', '10.29'),
+     'ZOC unit rule is implemented; official counter types, cohesion and stacking values are absent (R-06)'),
+    (('10.16', '10.21', '10.22', '10.23', '10.24', '10.25', '10.27', '10.28', '10.31', '10.32'),
+     'ZOC procedure is implemented with caller-supplied state; the verified hex grid, terrain and map-edge data are absent (R-05)'),
+    (('10.33', '10.34', '10.35', '10.36'),
+     'Holding Off barrage is implemented; the official CRT/barrage tables and verified ZOC map are absent (R-04/R-05)'),
+    (('21.11', '21.13', '21.15', '21.21', '21.22', '21.23', '21.24', '21.25', '21.26', '21.27', '21.28', '21.29', '21.31', '21.32', '21.33', '21.35', '21.36', '21.37', '21.41', '21.52', '21.53', '21.54', '21.55', '21.62', '21.63', '21.64', '21.65', '21.66', '21.67'),
+     'breakdown procedure is implemented with caller-supplied values; the official Breakdown Table/BAR, TEC terrain points and vehicle counter data are absent (R-04/R-05/R-06)'),
+    (('29.2', '29.31', '29.32', '29.33', '29.35', '29.42', '29.43', '29.44', '29.45', '29.46', '29.52', '29.53', '29.54', '29.55', '29.56', '29.57', '29.58'),
+     'weather effect is implemented with a synthetic table; the official Weather Table/Four Weather Location Table and verified map-section data are absent (R-04/R-05)'),
+    (('32.11', '32.12', '32.13', '32.14', '32.15', '32.16', '32.17', '32.18'),
+     'supply-unit rule is implemented; official supply-unit counter values and scenario supply tables are absent (R-04/R-06)'),
+    (('32.21', '32.22', '32.23', '32.24', '32.25'),
+     'ammunition/fuel expenditure is implemented; the official Ammo and Fuel cost tables are absent (R-04)'),
+    (('32.31', '32.32', '32.33', '32.34', '32.35', '32.36', '32.37'),
+     'supply transport is implemented; official motorization/truck capacity and coastal-shipping tables are absent (R-04/R-06)'),
+    (('32.41', '32.42', '32.43'),
+     'supply availability is implemented; the official Axis/Commonwealth availability tables are absent (R-04)'),
+    (('32.51', '32.52', '32.53', '32.54', '32.55', '32.56', '32.58'),
+     'motorization point rule is implemented; official motorization-loss and truck/counter data are absent (R-04/R-06)'),
+    (('32.61', '32.62', '32.63'),
+     'naval convoy rule is implemented; the official convoy/bombing tables and supply counter data are absent (R-04/R-06)'),
+    (('32.71', '32.72', '32.73', '32.75'),
+     'fleet bombardment is implemented; the official bombardment results table and air-unit data are absent (R-04/R-06)'),
+    (('32.81', '32.82', '32.83', '32.84'),
+     'anti-air modification is implemented; official counter IDs and aircraft/AA unit records are absent (R-06)'),
+    (('32.9',),
+     'road/track stacking is implemented; the official TEC stacking values and verified road/track map are absent (R-04/R-05)'),
+)
+
+P1B_DATA_GAP_REASONS: dict[str, str] = {}
+for _cases, _reason in P1B_DATA_GAP_GROUPS:
+    P1B_DATA_GAP_REASONS.update({case: _reason for case in _cases})
+
+for _case, _reason in P1B_DATA_GAP_REASONS.items():
+    CASE_STATUS[_case] = {
+        **CASE_STATUS[_case], "status": "partial", "reason": _reason,
+    }
+
+
+#: Structural headings are navigation, not rule cases.  Their numbered
+#: children carry the operative rules, so the headings are explicitly
+#: not applicable rather than unimplemented or partial.
+STRUCTURAL_HEADING_REASONS: dict[str, str] = {
+    "5.0": "section heading; the operative sequence is case 5.2",
+    "7.0": "section heading and overview; child cases 7.11-7.16 carry the operative initiative rules",
+    "7.1": "structural heading; child cases 7.11-7.16 carry the operative initiative rules",
+    "8.0": "section heading and overview; child cases 8.11-8.99 carry the operative movement rules",
+    "8.1": "structural heading; child cases 8.11-8.19 carry the operative movement rules",
+    "8.2": "structural heading; child cases 8.21-8.25 carry the operative continual-movement rules",
+    "8.3": "structural heading; child cases 8.31-8.37 carry the operative terrain rules",
+    "8.4": "structural heading; child cases 8.41-8.47 carry the operative special-terrain rules",
+    "8.5": "structural heading; child cases 8.51-8.56 carry the operative reaction rules",
+    "8.6": "structural heading; child cases 8.61-8.68 carry the operative breaking-off rules",
+    "8.7": "structural heading; child cases 8.71-8.78 carry the operative rail-movement rules",
+    "8.8": "structural heading; child cases 8.81-8.89 carry the operative Tripoli/Tunisia rules",
+    "8.9": "structural heading; child cases 8.91-8.99 carry the operative motorized-unit rules",
+    "9.0": "section heading and overview; child cases 9.11-9.35 carry the operative stacking rules",
+    "9.1": "structural heading; child cases 9.11-9.16 carry the operative stacking-point rules",
+    "9.2": "structural heading; child cases 9.21-9.29 carry the operative unit-equivalence rules",
+    "9.3": "structural heading; child cases 9.31-9.35 carry the operative stacking-effects rules",
+    "10.0": "section heading and overview; child cases 10.11-10.36 carry the operative ZOC rules",
+    "10.1": "structural heading; child cases 10.11-10.16 carry the operative ZOC-unit rules",
+    "10.2": "structural heading; child cases 10.21-10.29 carry the operative ZOC-effect rules",
+    "10.3": "structural heading; child cases 10.31-10.36 carry the operative holding-off rules",
+    "21.0": "section heading and overview; child cases 21.11-21.67 carry the operative breakdown and repair rules",
+    "21.1": "structural heading; child cases 21.11-21.15 carry the operative breakdown-eligibility rules",
+    "21.2": "structural heading; child cases 21.21-21.29 carry the operative breakdown-occurrence rules",
+    "21.3": "structural heading; child cases 21.31-21.38 carry the operative breakdown-determination rules",
+    "21.4": "structural heading; child cases 21.41-21.45 carry the operative broken-down-vehicle rules",
+    "21.5": "structural heading; child cases 21.51-21.55 carry the operative capture rules",
+    "21.6": "structural heading; child cases 21.61-21.67 carry the operative towing rules",
+    "29.0": "section heading and overview; child cases 29.1-29.7 carry the operative weather rules",
+    "29.3": "structural heading; child cases 29.31-29.35 carry the operative hot-weather rules",
+    "29.4": "structural heading; child cases 29.41-29.47 carry the operative sandstorm rules",
+    "29.5": "structural heading; child cases 29.51-29.58 carry the operative rainstorm rules",
+    "32.0": "section heading and overview; child cases 32.11-32.84 and 32.9 carry the operative abstract supply/air rules",
+    "32.1": "structural heading; child cases 32.11-32.18 carry the operative supply-unit rules",
+    "32.2": "structural heading; child cases 32.21-32.25 carry the operative supply-expenditure rules",
+    "32.3": "structural heading; child cases 32.31-32.37 carry the operative supply-movement rules",
+    "32.4": "structural heading; child cases 32.41-32.47 carry the operative supply-availability rules",
+    "32.5": "structural heading; child cases 32.51-32.59 carry the operative motorization-point rules",
+    "32.6": "structural heading; child cases 32.61-32.66 carry the operative naval-convoy rules",
+    "32.7": "structural heading; child cases 32.71-32.75 carry the operative bombardment rules",
+    "32.8": "structural heading; child cases 32.81-32.84 carry the operative anti-air rules",
+}
+
+for _case, _reason in STRUCTURAL_HEADING_REASONS.items():
+    CASE_STATUS[_case] = {
+        "status": "not_applicable",
+        "source": "",
+        "tests": [],
+        "reason": _reason,
+    }
+
+
+#: Major section headings that previously fell through to the implicit
+#: ``unimplemented`` default.  They are explicit backlog entries: the heading
+#: is a navigation node whose child cases are not implemented.  Keeping them
+#: here means a new section file fails the coverage build until it is reviewed.
+SECTION_HEADING_REASONS: dict[str, str] = {
+    "1.0": "section heading; the introduction is narrative and has no implemented rule case",
+    "4.0": "section heading; the game-equipment inventory has no implemented case",
+    "11.0": "section heading; child combat-system cases remain unimplemented",
+    "12.0": "section heading; child barrage cases remain unimplemented",
+    "13.0": "section heading; child retreat-before-assault cases remain unimplemented",
+    "14.0": "section heading; child anti-armor cases remain unimplemented",
+    "15.0": "section heading; child close-assault cases remain unimplemented",
+    "16.0": "section heading; child patrol and reconnaissance cases remain unimplemented",
+    "17.0": "section heading; child morale cases remain unimplemented",
+    "18.0": "section heading; child reserve-status cases remain unimplemented",
+    "19.0": "section heading; child organization cases remain unimplemented",
+    "20.0": "section heading; child reinforcement and replacement cases remain unimplemented",
+    "22.0": "section heading; child repair cases remain unimplemented",
+    "23.0": "section heading; child engineer cases remain unimplemented",
+    "24.0": "section heading; child construction cases remain unimplemented",
+    "25.0": "section heading; child fortification cases remain unimplemented",
+    "26.0": "section heading; child minefield cases remain unimplemented",
+    "27.0": "section heading; child raider and commando cases remain unimplemented",
+    "28.0": "section heading; child POW cases remain unimplemented",
+    "30.0": "section heading; child Mediterranean Fleet cases remain unimplemented",
+    "31.0": "section heading; the Rommel rules have no implemented case",
+    "34.0": "section heading; child aircraft cases remain unimplemented",
+    "35.0": "section heading; child ground-support cases remain unimplemented",
+    "36.0": "section heading; child air-facility cases remain unimplemented",
+    "37.0": "section heading; child flight cases remain unimplemented",
+    "38.0": "section heading; child maintenance cases remain unimplemented",
+    "39.0": "section heading; child mission cases remain unimplemented",
+    "40.0": "section heading; child fighter-combat cases remain unimplemented",
+    "41.0": "section heading; child bombing cases remain unimplemented",
+    "42.0": "section heading; child non-combat-mission cases remain unimplemented",
+    "43.0": "section heading; child Axis and Aegean air-base cases remain unimplemented",
+    "44.0": "section heading; child Malta cases remain unimplemented",
+    "45.0": "section heading; child air-to-air cases remain unimplemented",
+    "46.0": "section heading; child anti-aircraft cases remain unimplemented",
+    "49.0": "section heading; child fuel cases remain unimplemented",
+    "50.0": "section heading; child ammunition cases remain unimplemented",
+    "51.0": "section heading; child stores cases remain unimplemented",
+    "52.0": "section heading; child water cases remain unimplemented",
+    "53.0": "section heading; child transport cases remain unimplemented",
+    "54.0": "section heading; child supply-coordination cases remain unimplemented",
+    "55.0": "section heading; child port and supply cases remain unimplemented",
+    "56.0": "section heading; child Axis naval cases remain unimplemented",
+    "57.0": "section heading; the Commonwealth supply-base rules have no implemented case",
+    "59.0": "section heading; child scenario-introduction cases remain unimplemented",
+    "60.0": "section heading; child Italian scenario cases remain unimplemented",
+    "61.0": "section heading; child Desert Fox scenario cases remain unimplemented",
+    "62.0": "section heading; child Crusader scenario cases remain unimplemented",
+    "63.0": "section heading; child El Alamein scenario cases remain unimplemented",
+    "64.0": "section heading; child North Africa campaign cases remain unimplemented",
+    "65.0": "section heading; the conclusion has no executable rule case",
+}
+
+for _case, _reason in SECTION_HEADING_REASONS.items():
+    CASE_STATUS[_case] = {
+        "status": "unimplemented",
+        "source": "",
+        "tests": [],
+        "reason": _reason,
+    }
+
+
 class RulesCoverageError(RuntimeError):
     """Raised for operator errors: a missing rules dir, an unreadable output."""
 
@@ -698,6 +891,24 @@ def case_inventory(directory: Path) -> list[dict[str, Any]]:
     return [cases[key] for key in sorted(cases, key=_case_sort_key)]
 
 
+def _validate_section_headings(cases: Sequence[dict[str, Any]]) -> None:
+    """Require every parsed ``N.0`` heading to have a reviewed status/reason."""
+    missing: list[str] = []
+    for entry in cases:
+        case_id = entry["case"]
+        if not case_id.endswith(".0"):
+            continue
+        review = CASE_STATUS.get(case_id, {})
+        if (review.get("status") not in CASE_STATUSES
+                or not str(review.get("reason", "")).strip()):
+            missing.append(case_id)
+    if missing:
+        raise RulesCoverageError(
+            "section heading(s) lack an explicit reviewed status and reason: "
+            + ", ".join(missing)
+        )
+
+
 def iter_source_paths(
     roots: Iterable[str | os.PathLike[str] | Path],
     *,
@@ -782,9 +993,11 @@ def build_coverage(
         )
 
     uncovered = [p for p in scanned if p not in covered]
+    inventory = case_inventory(directory)
+    _validate_section_headings(inventory)
     cases: list[dict[str, Any]] = []
     case_counts = {status: 0 for status in CASE_STATUSES}
-    for entry in case_inventory(directory):
+    for entry in inventory:
         spec = CASE_STATUS.get(entry["case"], {})
         status = spec.get("status", "unimplemented")
         if status not in CASE_STATUSES:
