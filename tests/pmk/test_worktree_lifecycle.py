@@ -1004,8 +1004,10 @@ def test_scratch_prune_reclaims_a_merge_tree(kernel, repo, tmp_path):
                    cwd=repo.root, capture_output=True, check=True)
     (merge / "README.md").write_text("# merged\n", encoding="utf-8")
 
+    assert worktrees.belongs_to_repo(repo, merge) is True
     result = worktrees.prune_scratch(repo, kernel.state(), dry_run=False,
-                                     temp_root=tmp_path, include_work=False)
+                                     temp_root=tmp_path, include_work=False,
+                                     min_merge_age_days=0.0)
 
     assert [r["name"] for r in result["removed"]] == ["pmk-merge-abc"]
     assert not parent.exists()                  # the parent goes once empty
@@ -1014,37 +1016,66 @@ def test_scratch_prune_reclaims_a_merge_tree(kernel, repo, tmp_path):
     assert ok, problems
 
 
-def test_scratch_prune_captures_an_orphan_merge_directory_raw(kernel, repo,
-                                                              tmp_path):
-    # A merge directory whose repository is gone is not a git worktree, so
-    # it is captured as raw bytes rather than as a git diff.
-    parent = tmp_path / "pmk-merge-orphan"
+def test_scratch_prune_refuses_a_merge_tree_that_is_not_ours(kernel, repo,
+                                                             tmp_path):
+    # %TEMP%/pmk-merge-* is global: another project's merge scratch lives
+    # there too.  It must be reported and left alone, never captured.
+    other = tmp_path / "other-repo"
+    other.mkdir()
+    for args in (["init"], ["config", "user.email", "o@e.com"],
+                 ["config", "user.name", "O"]):
+        subprocess.run(["git", *args], cwd=other, capture_output=True)
+    (other / "README.md").write_text("# other\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=other, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=other,
+                   capture_output=True)
+
+    parent = tmp_path / "pmk-merge-theirs"
+    parent.mkdir()
     merge = parent / "merge"
-    merge.mkdir(parents=True)
-    (merge / "leftover.txt").write_bytes(b"bytes that exist nowhere else\n")
+    subprocess.run(["git", "worktree", "add", "--detach", str(merge), "HEAD"],
+                   cwd=other, capture_output=True, check=True)
+    (merge / "theirs.txt").write_text("not ours\n", encoding="utf-8")
+
+    assert worktrees.belongs_to_repo(repo, merge) is False
+    result = worktrees.prune_scratch(repo, kernel.state(), dry_run=False,
+                                     temp_root=tmp_path, include_work=False,
+                                     min_merge_age_days=0.0)
+
+    assert result["removed"] == []
+    assert result["skipped"][0]["name"] == "pmk-merge-theirs"
+    assert "not a worktree of this repository" in result["skipped"][0]["reason"]
+    assert merge.is_dir()
+    assert not (repo.root / "stranded").exists()
+
+
+def test_scratch_prune_refuses_a_merge_tree_that_is_too_recent(kernel, repo,
+                                                               tmp_path):
+    # Ours, but just created: a merge may be in flight, so leave it alone.
+    parent = tmp_path / "pmk-merge-fresh"
+    parent.mkdir()
+    merge = parent / "merge"
+    subprocess.run(["git", "worktree", "add", "--detach", str(merge), "HEAD"],
+                   cwd=repo.root, capture_output=True, check=True)
 
     result = worktrees.prune_scratch(repo, kernel.state(), dry_run=False,
                                      temp_root=tmp_path, include_work=False)
 
-    assert [r["name"] for r in result["removed"]] == ["pmk-merge-orphan"]
-    assert not parent.exists()
-    dest = repo.root / "stranded" / "pmk-merge-orphan"
-    ok, problems = worktrees.verify_archive(dest)
-    assert ok, problems
-    with tarfile.open(dest / "untracked.tar") as tf:
-        assert tf.extractfile("leftover.txt").read() == \
-            b"bytes that exist nowhere else\n"
-    manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["raw"] is True
+    assert result["removed"] == []
+    assert result["skipped"][0]["name"] == "pmk-merge-fresh"
+    assert "in flight" in result["skipped"][0]["reason"]
+    assert parent.is_dir()
 
 
-def test_scratch_prune_removes_an_empty_merge_directory(kernel, repo, tmp_path):
+def test_scratch_prune_skips_a_merge_directory_with_no_worktree(kernel, repo,
+                                                                tmp_path):
     parent = tmp_path / "pmk-merge-empty"
     parent.mkdir()
     result = worktrees.prune_scratch(repo, kernel.state(), dry_run=False,
                                      temp_root=tmp_path, include_work=False)
-    assert [r["name"] for r in result["removed"]] == ["pmk-merge-empty"]
-    assert not parent.exists()
+    assert result["removed"] == []
+    assert result["skipped"][0]["name"] == "pmk-merge-empty"
+    assert parent.is_dir()
 
 
 def test_cli_scratch_prune_dry_run_then_apply(kernel, repo, capsys):
