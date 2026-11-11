@@ -31,6 +31,7 @@ from pmk.events import Actor
 from pmk.policy import enforce_fleet_config, load_agents
 from fleet.conductor import Conductor
 from fleet.dispatcher import Dispatcher
+from fleet.owner import DispatchOwner, clear_stale_owner, resume_dispatch
 from fleet.overseer import OverseerRunner
 from fleet.project import project_status
 from fleet.state import FleetState
@@ -73,6 +74,12 @@ class Console:
         self.fleet_state.dispatch_paused = True
         self.fleet_state.pause_reason = ("paused by default; press Run to start"
                                          " - operator to confirm (proposal)")
+        # Persist the safety pause now.  Before this was only process-local,
+        # so ``pmk fleet status`` could report the pre-Console value while the
+        # page reported paused.  The lock is taken later, on Run, so an open
+        # but idle Console does not block an explicit CLI owner.
+        self.fleet_state.save()
+        self.dispatch_owner: DispatchOwner | None = None
         self.fixture_root = self.repo.root / "tests" / "fleet" / "fixtures"
         self.dispatcher = Dispatcher(self.kernel, self.fleet_state,
                                     fixture_root=self.fixture_root)
@@ -100,9 +107,30 @@ class Console:
         self._stop.set()
         self.dispatcher.stop()
         self.conductor.stop()
+        self.release_dispatch_owner()
+
+    # -- dispatch ownership ------------------------------------------------
+    def claim_dispatch_owner(self) -> DispatchOwner:
+        """Take the shared dispatch lock, or refuse if another owner has it."""
+        if self.dispatch_owner is None:
+            owner = DispatchOwner.for_kernel(
+                self.kernel, "console", state_path=self.fleet_state.path)
+            self.dispatch_owner = owner.acquire()
+        return self.dispatch_owner
+
+    def release_dispatch_owner(self) -> None:
+        if self.dispatch_owner is not None:
+            self.dispatch_owner.release()
+            self.dispatch_owner = None
 
     def _dispatch_loop(self) -> None:
         while not self._stop.is_set():
+            # A Console that has not been explicitly Run owns no dispatch
+            # rights.  This also keeps a stale loop from dispatching after a
+            # stop/resume cycle that did not re-take the lock.
+            if self.dispatch_owner is None:
+                self._stop.wait(1.0)
+                continue
             try:
                 self.dispatcher.tick()
             except Exception as exc:                # noqa: BLE001
@@ -184,6 +212,14 @@ def api_project_action(action: str):
         return set_state(kernel, RUNNING if current == PAUSED else current,
                          reason="resumed from the Console")
     if action == "run":
+        # Run is the explicit operator action that takes the dispatch line
+        # and clears the persisted safety pause.  If another process already
+        # owns the line, fail without changing the pause state.
+        try:
+            c.claim_dispatch_owner()
+        except KernelError as exc:
+            raise HTTPException(status_code=409, detail=exc.to_dict()) from exc
+        resume_dispatch(c.kernel, c.fleet_state, reason="run from the Console")
         c.dispatcher.tick()
         c.conductor.tick()
         return project_status(kernel)
@@ -203,6 +239,16 @@ def api_project_close_check():
 def api_fleet():
     c = get_console()
     return {"status": c.dispatcher.status(), "slots": c.dispatcher.slots()}
+
+
+@app.post("/api/fleet/owner/clear")
+def api_clear_dispatch_owner():
+    c = get_console()
+    try:
+        return clear_stale_owner(c.kernel, c.fleet_state.path)
+    except KernelError as exc:
+        code = 409 if exc.reason == "dispatch_owner_busy" else 500
+        raise HTTPException(status_code=code, detail=exc.to_dict()) from exc
 
 
 @app.post("/api/fleet/{action}")
@@ -329,6 +375,7 @@ def api_stop_all():
     c.repo.stop_file.write_text(f"stopped at {c.kernel.clock.now_iso()}\n",
                                 encoding="utf-8")
     c.dispatcher.stop()
+    c.release_dispatch_owner()
     return {"stopped": True, "note": "running processes are left to finish"}
 
 
@@ -341,12 +388,21 @@ def api_kill_all():
                                 encoding="utf-8")
     killed = c.dispatcher.kill_all()
     c.dispatcher.stop()
+    c.release_dispatch_owner()
     return {"killed": killed}
 
 
 @app.post("/api/resume")
 def api_resume():
     c = get_console()
+    # Resume lifts STOP.  If dispatch is unpaused, this is also the point at
+    # which the Console takes (or retakes) the shared dispatch lock.
+    if not c.fleet_state.dispatch_paused:
+        try:
+            c.claim_dispatch_owner()
+        except KernelError as exc:
+            raise HTTPException(status_code=409,
+                                detail=exc.to_dict()) from exc
     if c.repo.stop_file.exists():
         c.repo.stop_file.unlink()
     c._stop.clear()

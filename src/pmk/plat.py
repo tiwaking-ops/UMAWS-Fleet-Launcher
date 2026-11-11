@@ -362,6 +362,26 @@ def same_process(pid: int | None, creation_time: int | None) -> bool:
     return int(creation_time) == int(info.creation_time)
 
 
+def _liveness(pid: int | None, seconds: float = 2.0) -> bool:
+    """Is *pid* running?  Polls briefly before answering "no".
+
+    Under load a single probe can fail transiently: ``OpenProcess`` is
+    reported as "gone" whenever the handle cannot be opened.  A caller
+    deciding whether it may revoke a lease and delete a worktree must not be
+    told "gone" on the strength of one failed read, so retry before
+    concluding either way.
+    """
+    if pid is None:
+        return False
+    deadline = time.monotonic() + seconds
+    while True:
+        if process_info(pid).alive:
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.1)
+
+
 # ---------------------------------------------------------------------------
 # Process spawn and kill
 # ---------------------------------------------------------------------------
@@ -443,9 +463,24 @@ def kill_tree(pid: int, *, creation_time: int | None = None,
     Refuses to kill a process that is not provably the one the caller spawned
     (fleet amendment rule 17).  On Windows the tree is killed with
     ``taskkill /T`` so that children of the CLI die with it.
+
+    ``(True, …)`` means the identified process is not running when this
+    returns — including when it had already exited, or a non-zero
+    ``taskkill`` raced with its own death.  ``(False, …)`` means a process
+    is still running that this call was not allowed or not able to stop.
     """
+    if creation_time is None:
+        # No identity to prove: never kill, and never claim the process is
+        # gone on the strength of an unverifiable pid (rule 17).
+        return False, "no creation time to prove the identity; refused to kill"
     if not same_process(pid, creation_time):
-        return False, "pid/creation-time mismatch or process not alive; refused to kill"
+        # The identity does not match, so the process is never killed
+        # (fleet amendment rule 17).  If it is not running either, the
+        # caller's goal is already met and that is a success, not a failure.
+        if _liveness(pid):
+            return False, ("pid/creation-time mismatch or process not alive; "
+                           "refused to kill")
+        return True, "the process is already gone"
     if IS_WINDOWS:  # pragma: no cover - platform conditional
         cmd = ["taskkill", "/PID", str(pid), "/T"]
         if force:
@@ -453,14 +488,25 @@ def kill_tree(pid: int, *, creation_time: int | None = None,
         try:
             out = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         except (OSError, subprocess.SubprocessError) as exc:
+            if not _liveness(pid):
+                return True, "the process is gone"
             return False, f"taskkill failed: {exc}"
         detail = (out.stdout or "") + (out.stderr or "")
-        return out.returncode == 0, detail.strip()
+        if out.returncode == 0:
+            return True, detail.strip()
+        # A non-zero taskkill can still mean the process is gone: it may have
+        # exited while the kill was being arranged, which is common under
+        # load.  Report failure only when the process is still running.
+        if not _liveness(pid):
+            return True, "the process is gone"
+        return False, detail.strip() or "taskkill failed"
     import signal  # pragma: no cover - platform conditional
     try:  # pragma: no cover - platform conditional
         os.killpg(os.getpgid(pid), signal.SIGKILL if force else signal.SIGTERM)
         return True, "SIGKILL to process group"
     except Exception as exc:  # noqa: BLE001 - reported, never raised
+        if not _liveness(pid):
+            return True, "the process is gone"
         return False, str(exc)
 
 

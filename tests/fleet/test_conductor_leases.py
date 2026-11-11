@@ -312,8 +312,13 @@ def _orphan_with_worktree(kernel, name: str, *, dirty: bool = True):
                    cwd=kernel.repo.root, capture_output=True)
     if dirty:
         (tree / "README.md").write_text("# stranded\n", encoding="utf-8")
+    # H1 lease admission (T-0192) refuses a worktree grant outside RUNNING
+    # unless it carries a live pid and an expiry.
+    import os
     lease = kernel.claim(task.id, holder="fake-a", agent="fake",
-                         role="implement", worktree=str(tree))
+                         role="implement", worktree=str(tree),
+                         pid=os.getpid(),
+                         expires_at="2999-01-01T00:00:00Z")
     return task, tree, lease
 
 
@@ -514,3 +519,79 @@ def test_delayed_restart_records_the_new_process(
     assert started
     assert started[-1].payload["pid"] == fake_slot.pid
     assert started[-1].payload["creation_time"] == fake_slot.creation_time
+
+
+def test_restart_on_failed_agent_started_write_kills_the_new_process(
+        fake_kernel, tmp_path, monkeypatch):
+    """A restart whose record cannot be written must not be adopted."""
+    task, tree, lease = _orphan_with_worktree(fake_kernel, "a")
+    dispatcher = _conductor(fake_kernel).dispatcher
+    run = _restart_run(dispatcher, task, tree, lease)
+    old_slot = run.slot
+    sleeper = _sleeper(tmp_path)
+    monkeypatch.setattr(spawn_mod, "spawn_slot",
+                        lambda *args, **kwargs: sleeper)
+    real_record_event = fake_kernel.record_event
+
+    def fail_agent_started(event_type, **kwargs):
+        if event_type == "AGENT_STARTED":
+            raise OSError("event log is read-only")
+        return real_record_event(event_type, **kwargs)
+
+    monkeypatch.setattr(fake_kernel, "record_event", fail_agent_started)
+    report = SimpleNamespace(notes=[])
+    try:
+        dispatcher._restart_on(run, run.profile, report)
+
+        deadline = time.time() + 10
+        while sleeper.proc.poll() is None and time.time() < deadline:
+            time.sleep(0.05)
+        assert sleeper.proc.poll() is not None, (
+            "the restarted process outlived the failed AGENT_STARTED write")
+        assert run.slot is old_slot
+        assert task.id not in dispatcher.runs
+        assert any("restart failed" in note for note in report.notes)
+        assert not [e for e in _events(fake_kernel, "AGENT_STARTED")
+                    if e.subject == task.id]
+        assert not _events(fake_kernel, "AGENT_RESTARTED")
+        assert not _events(fake_kernel, "AGENT_RESUMED")
+    finally:
+        if sleeper.proc.poll() is None:
+            sleeper.proc.kill()
+
+
+def test_delayed_restart_failed_agent_started_write_kills_the_new_process(
+        fake_kernel, tmp_path, monkeypatch):
+    """An L0 retry whose record cannot be written must not be adopted."""
+    task, tree, lease = _orphan_with_worktree(fake_kernel, "a")
+    dispatcher = _conductor(fake_kernel).dispatcher
+    run = _restart_run(dispatcher, task, tree, lease)
+    old_slot = run.slot
+    sleeper = _sleeper(tmp_path)
+    monkeypatch.setattr(spawn_mod, "spawn_slot",
+                        lambda *args, **kwargs: sleeper)
+    real_record_event = fake_kernel.record_event
+
+    def fail_agent_started(event_type, **kwargs):
+        if event_type == "AGENT_STARTED":
+            raise OSError("event log is read-only")
+        return real_record_event(event_type, **kwargs)
+
+    monkeypatch.setattr(fake_kernel, "record_event", fail_agent_started)
+    try:
+        dispatcher._restart_later(run, 0.0, SimpleNamespace(notes=[]))
+
+        deadline = time.time() + 10
+        while sleeper.proc.poll() is None and time.time() < deadline:
+            time.sleep(0.05)
+        assert sleeper.proc.poll() is not None, (
+            "the retried process outlived the failed AGENT_STARTED write")
+        assert run.slot is old_slot
+        assert task.id not in dispatcher.runs
+        assert not [e for e in _events(fake_kernel, "AGENT_STARTED")
+                    if e.subject == task.id]
+        assert not _events(fake_kernel, "AGENT_RESTARTED")
+        assert not _events(fake_kernel, "AGENT_RESUMED")
+    finally:
+        if sleeper.proc.poll() is None:
+            sleeper.proc.kill()

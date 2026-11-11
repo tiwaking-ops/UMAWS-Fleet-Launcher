@@ -9,11 +9,43 @@ somebody else's.
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
 from fleet.merge import (PIPELINE_EMAIL, PIPELINE_NAME, commit_worktree,
                          identity_anomaly)
+
+
+def _sh() -> str:
+    """The POSIX shell the hook needs, resolved without relying on PATH.
+
+    ``sh`` is not on PATH on a stock Windows install, so a bare ``["sh", …]``
+    made this test a property of the caller's environment rather than of the
+    hook (gate fragility 1).  Git ships a shell; find that one.
+    """
+    found = shutil.which("sh")
+    if found:
+        return found
+    git = shutil.which("git")
+    roots = []
+    if git:
+        roots.append(Path(git).resolve().parent.parent)
+    exec_path = subprocess.run(["git", "--exec-path"], capture_output=True,
+                               text=True)
+    if exec_path.returncode == 0 and exec_path.stdout.strip():
+        # …/Git/mingw64/libexec/git-core -> …/Git
+        roots.append(Path(exec_path.stdout.strip()).parents[2])
+    roots.extend([Path(r"C:\Program Files\Git"),
+                  Path(r"C:\Program Files (x86)\Git")])
+    for root in roots:
+        for relative in ("usr/bin/sh.exe", "bin/sh.exe", "usr/bin/sh"):
+            candidate = root / relative
+            if candidate.is_file():
+                return str(candidate)
+    raise RuntimeError(
+        "no POSIX shell (sh) found; Git for Windows ships one at "
+        "usr/bin/sh.exe.  Install Git or put sh on PATH.")
 
 
 def _git(root: Path, *args: str) -> None:
@@ -62,7 +94,7 @@ def test_pre_commit_hook_logs_without_blocking(kernel):
     hook = Path(__file__).resolve().parents[2] / ".githooks" / "pre-commit"
     env = {"UMAWS_PIPELINE": "1", "PATH": os.environ["PATH"]}
 
-    proc = subprocess.run(["sh", str(hook)], cwd=str(root), env=env,
+    proc = subprocess.run([_sh(), str(hook)], cwd=str(root), env=env,
                           capture_output=True, text=True)
 
     assert proc.returncode == 0

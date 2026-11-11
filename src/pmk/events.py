@@ -42,6 +42,8 @@ KNOWN_EVENT_TYPES = frozenset({
     "TASK_CREATED", "TASK_ADMITTED", "TASK_VOIDED", "TASK_REWORKED",
     "TASK_READY", "TASK_BLOCKED", "TASK_DONE",
     "CLAIMED", "RENEWED", "REVOKED", "SUBMITTED", "VERIFIED",
+    # A refused grant (H1).  The refusal is recorded, never silently corrected.
+    "LEASE_REFUSED",
     "INTEGRATING", "INTEGRATED", "QUARANTINED", "PREMISE_REFUTED",
     "SUPERSEDED_BY", "WORKTREE_RECLAIM", "WORKTREE_RECLAIMED",
     "ORACLE_RESULT", "SCOPE_VIOLATION",
@@ -57,6 +59,7 @@ KNOWN_EVENT_TYPES = frozenset({
     "PROFILE_COOLING", "PROFILE_RECOVERED", "PROFILE_DISABLED", "PROFILE_ENABLED",
     "DISPATCH_PAUSED", "DISPATCH_RESUMED",
     "OVERSEER_WOKEN", "MANUAL_LAUNCH", "RECONCILED",
+    "CANARY_STARTED", "CANARY_FINISHED",
     # Provenance: which model actually served a lease (D-43).  A fact about
     # the request, not a guess about the model string, so it can outrank a
     # declared family when D-L12 decides who may verify.

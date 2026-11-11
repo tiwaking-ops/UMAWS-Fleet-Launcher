@@ -257,6 +257,14 @@ class Harness:
         except OSError:
             return ""
 
+    @staticmethod
+    def _read_handoff(worktree: str | Path) -> str:
+        """An existing handoff note, so a reused tree's order carries it."""
+        try:
+            return order_mod.handoff_path(worktree).read_text(encoding="utf-8")
+        except OSError:
+            return ""
+
     def _adapter(self, profile: Profile):
         from .adapters import get_adapter
         return get_adapter(profile.adapter, self.fixture_root)
@@ -448,6 +456,7 @@ class Harness:
 
         order_text = order_mod.render_order(
             task, lease, constitution=self._constitution(),
+            handoff=self._read_handoff(worktree),
             attempt=lease.attempt, fence=lease.fence, worktree=str(worktree))
         order_mod.write_order(worktree, order_text)
 

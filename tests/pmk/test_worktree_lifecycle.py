@@ -689,6 +689,60 @@ def test_ignored_files_are_part_of_the_capture(kernel, repo):
     assert not tree.exists()
 
 
+def test_symlink_and_ignored_file_survive_capture_and_reclaim(kernel, repo):
+    """A symlink and an ignored file must round-trip through the archive.
+
+    The symlink is stored by its link target, not by the bytes it resolves
+    to; the ignored file is stored by its exact bytes.  Reclaim may delete
+    the tree only because the capture verified, so both are read back after
+    the tree is gone.
+    """
+    (repo.root / ".gitignore").write_text("*.log\n", encoding="utf-8")
+    subprocess.run(["git", "add", ".gitignore"], cwd=repo.root, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-m", "ignore logs"], cwd=repo.root,
+                   check=True, capture_output=True)
+    tree = _make_worktree(repo, "T-0001-1")
+
+    ignored_bytes = b"only copy\x00\xff\r\n"
+    (tree / "debug.log").write_bytes(ignored_bytes)
+    link = tree / "trace-link"
+    try:
+        os.symlink("debug.log", link)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"cannot create a symlink on this host: {exc}")
+    link_target = os.readlink(link)
+
+    result = worktrees.reclaim_after_capture(repo, kernel.state(), tree)
+
+    assert result["reclaimed"] is True, result
+    assert result["archived"] is True
+    assert result["restore_verified"] is True
+    assert not tree.exists()
+
+    dest = Path(result["archive"])
+    manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["untracked_count"] == 1
+    assert manifest["ignored_count"] == 1
+    assert manifest["untracked_files"] == ["trace-link"]
+    assert manifest["ignored_files"] == ["debug.log"]
+
+    # The tree is gone; these archives are now the only copy.  Compare the
+    # exact stored bytes, not just the entry names.
+    with tarfile.open(dest / "untracked.tar") as tf:
+        member = tf.getmember("trace-link")
+        assert member.issym()
+        assert member.linkname == link_target
+        assert tf.extractfile(member) is None
+    with tarfile.open(dest / "ignored.tar") as tf:
+        member = tf.getmember("debug.log")
+        assert member.isfile()
+        assert tf.extractfile(member).read() == ignored_bytes
+
+    ok, problems = worktrees.verify_archive(dest)
+    assert ok, problems
+
+
 def test_verify_archive_rejects_a_manifest_whose_counts_disagree(kernel, repo):
     tree = _make_worktree(repo, "T-0001-1")
     (tree / "new.py").write_text("print(1)\n", encoding="utf-8")

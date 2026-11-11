@@ -176,7 +176,26 @@ for task_id, lease in state.leases.items():
 
 ---
 
-## Latest evidence (2026-11-10)
+## Latest evidence (2026-11-11)
+
+Measured at `HEAD 5267cdb`; 0 behind / 133 ahead of `origin/main`. Full detail: `docs/reports/fleet-launcher-repair-verification-2026-11-11-v1.md` and its dated **Addendum** (H1 landed, gate fragilities fixed).
+
+| Item | Evidence |
+|---|---|
+| Project state | `PAUSED`; 212 cards: **155 VOID**, **43 DONE**, **12 READY**, **1 VERIFYING**, **1 LEASED**; **2 active leases**; 0 open queue items; 104 incidents; 35 pmk worktrees (55 git entries; 7 dirty); `stopped: false` |
+| Chain | `I1 chain verifies (3634 events)` |
+| **H1 — lease admission** | **LANDED and proven.** `src/pmk/api.py` `claim()` refuses a worktree-bearing grant that resolves to the repo root (`invalid_worktree`) or carries no `pid`/`expires_at` outside `RUNNING` (`lease_incomplete`), recording `LEASE_REFUSED` first. New `tests/pmk/test_lease_admission.py`; T-0192 oracle `pytest -q tests/pmk/test_lease_admission.py tests/pmk/test_tasks.py` = **35 passed**. Production dispatch is unaffected — `harness.py:441` claims without a worktree |
+| **Gate fragilities** | **Both fixed.** `test_identity_guard.py` resolves `sh` from Git instead of `PATH` (4 passed with `Git\usr\bin` removed). `plat.kill_tree` no longer reports failure when the target is already gone; added `_liveness()` polling. Under 4-hog load: **2/12 failures before → 12/12 pass after** |
+| Gate | `python -m pytest -q` **exit 0**, 1 skipped, 1292 collected; `tests/pmk + tests/fleet` **517 passed / 1 skipped**. ⚠️ Dirty-tree only: the changes are **uncommitted**, so no clean-base proof is possible until they are committed |
+| Still open | **H3** (`Dispatcher.reconcile` has no production caller), **H4** (`served_models: []` still possible), **H7** (no `%TEMP%/pmk-merge-*` awareness), the human-authority gate, the uncommitted wave, CP-3 and CP-4 |
+| **T-0192 vs the tree** | The card still reads **READY** (0/2) although its work is done and green. Dispatch is `PAUSED` and resumption is excluded, so it cannot reach `DONE`. Do not read `READY` as "H1 not done". Its declared write scope excludes two fleet test helpers it needs, so `diff_scope_check` would refuse the merge — void + recreate, or land directly |
+| Uncommitted set | **Three provenances:** the single-owner wave (`owner.py`, `canary.py`, console/harness, tests) = **Unknown session(s)** (opencode-family implicated, unproven); `agents.toml` `max_concurrent` 2→1 = **operator**; H1 + fragility fixes = **DeepSeek V4.1 Flash Free / opencode**. There is no single "group A" |
+| Invalid leases | **Unchanged:** `T-0210` fence 162 and `T-0211` fence 163, both `worktree: "."`, no `pid`, no expiry. H1 refuses future grants of that shape but does not rewrite these; they still falsify `DoD-5`'s `active_leases: 0` |
+| Decisions | **D-70, D-71, D-72, D-73 and D-74 are all still drafts** awaiting CP-4. `T-0189` is **VOID** (1/1 attempts); successor `T-0190` (`DONE`, merge `0edc0dc`) — superseded, not exonerated |
+
+**Next actions.** (1) Decide how `T-0192` is discharged (scope too narrow — see above). (2) Decide the Console/TTY question that blocks the authority gate: the reviewer requires `PMK_ACTOR=human:<name>` **plus an interactive TTY**, but the Console has none and its design must not change without a ruling. (3) Revoke the two invalid leases under human authority (`pmk revoke T-0210 --fence 162 …`, `pmk revoke T-0211 --fence 163 …`). (4) CP-3: `pmk worktree archive --all-dirty` then `pmk worktree prune --yes --archive` (dry-run first; leave the foreign `H1-H4-clean-*` trees). (5) CP-4: ratify D-72 + its erratum. Resume (A10), dispatch resumption and the first push remain operator-only and outside the repair.
+
+## Latest evidence (2026-11-10) — superseded by the measurement above
 
 Measured at `HEAD 53871a7`. Two tasks are active (T-0210 VERIFYING at fence 162, T-0211 LEASED at fence 163); no new dispatch was started in this check.
 

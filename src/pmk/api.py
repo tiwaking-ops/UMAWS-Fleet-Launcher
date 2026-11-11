@@ -512,6 +512,7 @@ class Kernel:
     def claim(self, task_id: str, *, holder: str, agent: str = "",
               role: str = "", session: str = "", worktree: str = "",
               pid: int | None = None, creation_time: int | None = None,
+              expires_at: str = "",
               actor: Actor | None = None,
               allow_scope_conflict: bool = False,
               allow_stale_hint: bool = False) -> Lease:
@@ -520,6 +521,13 @@ class Kernel:
         Refuses when: the task is not READY, its dependencies are not done,
         its write scope overlaps a task that already holds a lease (D-L6),
         or its attempts are exhausted.
+
+        A worktree-bearing grant is additionally admitted under H1: it is
+        refused with ``invalid_worktree`` when the path resolves to the
+        repository root, and with ``lease_incomplete`` when it would carry no
+        ``pid`` or no ``expires_at`` while the project is not ``RUNNING``.
+        Every refusal is recorded as a ``LEASE_REFUSED`` event and never
+        silently corrected (N-15).  Historical leases are not revisited.
         """
         with self._locked():
             state = self.state()
@@ -548,12 +556,50 @@ class Kernel:
                     raise KernelError("scope_overlap", task=task_id,
                                       conflicts=conflicts)
 
+            # H1: a worktree lease must be a real, supervisable grant.  The
+            # refusal is recorded and raised, never corrected in place.
+            if worktree:
+                candidate = Path(worktree)
+                if not candidate.is_absolute():
+                    candidate = self.repo.root / candidate
+                try:
+                    resolved = candidate.resolve()
+                except OSError:
+                    resolved = None
+                if resolved is not None and resolved == self.repo.root.resolve():
+                    self._append("LEASE_REFUSED", actor=actor, subject=task_id,
+                                 payload={"reason": "invalid_worktree",
+                                          "worktree": worktree,
+                                          "detail": ("the worktree resolves to "
+                                                     "the repository root")})
+                    raise KernelError(
+                        "invalid_worktree", task=task_id, worktree=worktree,
+                        msg=("a lease worktree must not resolve to the "
+                             "repository root"))
+                if state.project_state != "RUNNING" and (pid is None
+                                                         or not expires_at):
+                    self._append("LEASE_REFUSED", actor=actor, subject=task_id,
+                                 payload={"reason": "lease_incomplete",
+                                          "worktree": worktree,
+                                          "pid": pid,
+                                          "expires_at": expires_at,
+                                          "project_state": state.project_state,
+                                          "detail": ("a worktree lease outside "
+                                                     "RUNNING must carry a pid "
+                                                     "and an expires_at")})
+                    raise KernelError(
+                        "lease_incomplete", task=task_id, worktree=worktree,
+                        pid=pid, expires_at=expires_at,
+                        msg=("a worktree lease outside RUNNING must carry a pid "
+                             "and an expires_at"))
+
             fence = self._next_fence()
             attempt = card.attempt + 1
             now = self.clock.now_iso()
             lease = Lease(
                 task_id=task_id, fence=fence, holder=holder, agent=agent,
                 role=role, session=session, granted_at=now, renewed_at=now,
+                expires_at=expires_at,
                 pid=pid, creation_time=creation_time, worktree=worktree,
                 attempt=attempt,
             )

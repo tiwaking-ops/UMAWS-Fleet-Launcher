@@ -404,6 +404,60 @@ def test_a_failing_oracle_triggers_a_fix_round_then_fails(fake_kernel):
     assert all("creation_time" in e.payload for e in started)
 
 
+def test_a_fix_round_failed_agent_started_write_kills_the_new_process(
+        fake_kernel, monkeypatch):
+    """A fix-round writer the log cannot see must be killed, not adopted."""
+    from types import SimpleNamespace
+
+    from fleet import spawn as spawn_mod
+
+    task = make_task(fake_kernel)
+    harness = _harness(fake_kernel)
+    profile = Profile.from_dict(fake_profile("fake-a", scenario="hang"))
+    run, failure = harness.start(task, profile)
+    assert run is not None, failure
+    old_slot = run.slot
+    spawned = []
+    real_spawn = spawn_mod.spawn_slot
+
+    def capture_spawn(*args, **kwargs):
+        slot = real_spawn(*args, **kwargs)
+        spawned.append(slot)
+        return slot
+
+    monkeypatch.setattr(spawn_mod, "spawn_slot", capture_spawn)
+    real_record_event = fake_kernel.record_event
+
+    def fail_agent_started(event_type, **kwargs):
+        if event_type == "AGENT_STARTED":
+            raise OSError("event log is read-only")
+        return real_record_event(event_type, **kwargs)
+
+    monkeypatch.setattr(fake_kernel, "record_event", fail_agent_started)
+    failing = [SimpleNamespace(ok=False, cmd="pytest -q", exit=1)]
+    try:
+        assert harness._fix_round(run, failing) is None
+        assert spawned, "the fix-round process was never spawned"
+        new_slot = spawned[-1]
+        deadline = time.time() + 10
+        while ((spawn_mod.slot_alive(new_slot)
+                or spawn_mod.slot_alive(old_slot))
+               and time.time() < deadline):
+            time.sleep(0.05)
+        assert not spawn_mod.slot_alive(new_slot), (
+            "the fix-round process outlived the failed AGENT_STARTED write")
+        assert not spawn_mod.slot_alive(old_slot)
+        assert run.slot is old_slot
+        started = [e for e in fake_kernel.events()
+                   if e.type == "AGENT_STARTED" and e.subject == task.id]
+        assert len(started) == 1
+        assert started[0].payload.get("round") is None
+    finally:
+        for slot in (old_slot, *spawned):
+            if slot is not None and spawn_mod.slot_alive(slot):
+                spawn_mod.kill_slot(slot)
+
+
 def test_killing_a_worker_mid_task_does_not_promote_it(fake_kernel):
     """F2: the fence is unchanged and nothing is integrated.
 

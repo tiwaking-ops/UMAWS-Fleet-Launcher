@@ -632,12 +632,36 @@ def cmd_fleet_import_prompts(args) -> int:
 def cmd_dispatch_run(args) -> int:
     """Run the dispatch loop for a while (useful without the Console)."""
     from fleet.dispatcher import Dispatcher
+    from fleet.owner import DispatchOwner, resume_dispatch
     kernel = _kernel(args)
-    dispatcher = Dispatcher(kernel, _fleet_state(kernel),
-                            fixture_root=_fixture_root(kernel))
-    dispatcher.run_forever(max_seconds=args.seconds)
-    _out(dispatcher.status())
+    owner = DispatchOwner.for_kernel(kernel, "pmk dispatch run").acquire()
+    try:
+        fleet_state = _fleet_state(kernel)
+        if fleet_state.dispatch_paused:
+            if not getattr(args, "resume", False):
+                raise KernelError(
+                    "dispatch_paused",
+                    pause_reason=fleet_state.pause_reason or "dispatch is paused",
+                    hint="pass --resume to clear the persisted pause")
+            resume_dispatch(kernel, fleet_state, reason="pmk dispatch run --resume")
+        dispatcher = Dispatcher(kernel, fleet_state,
+                                fixture_root=_fixture_root(kernel))
+        dispatcher.run_forever(max_seconds=args.seconds)
+        _out(dispatcher.status())
+    finally:
+        owner.release()
     return 0
+
+
+def cmd_canary_run(args) -> int:
+    """Run exactly one READY card under one Dispatcher/Conductor owner."""
+    from fleet.canary import run_canary
+    kernel = _kernel(args)
+    result = run_canary(kernel, seconds=args.seconds,
+                        resume=getattr(args, "resume", False),
+                        fixture_root=_fixture_root(kernel))
+    _out(result)
+    return 0 if result["ok"] else 1
 
 
 # ---------------------------------------------------------------------------
@@ -794,19 +818,32 @@ def cmd_project_run(args) -> int:
     from fleet.conductor import Conductor
     from fleet.dispatcher import Dispatcher
     from fleet.overseer import OverseerRunner
+    from fleet.owner import DispatchOwner, resume_dispatch
     kernel = _kernel(args)
-    fleet_state = _fleet_state(kernel)
-    dispatcher = Dispatcher(kernel, fleet_state,
-                            fixture_root=_fixture_root(kernel))
-    overseer = OverseerRunner(kernel, fleet_state)
-    conductor = Conductor(kernel, dispatcher, overseer)
-    deadline = time.time() + args.seconds
-    while time.time() < deadline:
-        conductor.tick()
-        dispatcher.tick()
-        time.sleep(1)
-    from fleet.project import project_status
-    _out(project_status(kernel))
+    owner = DispatchOwner.for_kernel(kernel, "pmk project run").acquire()
+    try:
+        fleet_state = _fleet_state(kernel)
+        if fleet_state.dispatch_paused:
+            if not getattr(args, "resume", False):
+                raise KernelError(
+                    "dispatch_paused",
+                    pause_reason=fleet_state.pause_reason or "dispatch is paused",
+                    hint="pass --resume to clear the persisted pause")
+            resume_dispatch(kernel, fleet_state,
+                            reason="pmk project run --resume")
+        dispatcher = Dispatcher(kernel, fleet_state,
+                                fixture_root=_fixture_root(kernel))
+        overseer = OverseerRunner(kernel, fleet_state)
+        conductor = Conductor(kernel, dispatcher, overseer)
+        deadline = time.time() + args.seconds
+        while time.time() < deadline:
+            conductor.tick()
+            dispatcher.tick()
+            time.sleep(1)
+        from fleet.project import project_status
+        _out(project_status(kernel))
+    finally:
+        owner.release()
     return 0
 
 
@@ -1152,7 +1189,20 @@ def build_parser() -> argparse.ArgumentParser:
         .add_subparsers(dest="dispatch_command", required=True)
     dispatch_run = dispatch.add_parser("run", help="run the dispatch loop")
     dispatch_run.add_argument("--seconds", type=float, default=30)
+    dispatch_run.add_argument("--resume", action="store_true",
+                             help="clear a persisted dispatch pause before running")
     dispatch_run.set_defaults(func=cmd_dispatch_run)
+
+    # -- canary (single-owner supervised run) ---------------------------
+    canary = sub.add_parser("canary", help="single-owner canary runner") \
+        .add_subparsers(dest="canary_command", required=True)
+    canary_run = canary.add_parser(
+        "run", help="run exactly one READY card under one dispatcher and conductor")
+    canary_run.add_argument("--seconds", type=float, default=900,
+                            help="run window in seconds (default: 900)")
+    canary_run.add_argument("--resume", action="store_true",
+                            help="clear a persisted dispatch pause before running")
+    canary_run.set_defaults(func=cmd_canary_run)
 
     # -- agents (fleet amendment section 7.7) ---------------------------
     agent = sub.add_parser("agent", help="the running agents") \
@@ -1210,6 +1260,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     project_run = project.add_parser("run", help="run the project unattended")
     project_run.add_argument("--seconds", type=float, default=60)
+    project_run.add_argument("--resume", action="store_true",
+                            help="clear a persisted dispatch pause before running")
     project_run.set_defaults(func=cmd_project_run)
 
     # -- gateway (M5) ------------------------------------------------------

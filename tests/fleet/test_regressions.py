@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import time
@@ -337,9 +338,15 @@ def _submit_task(kernel, task, *, worktree_path=None):
 
     Returns the Lease.  Pass ``worktree_path`` to set the lease's worktree
     so the conductor's drain_merge_queue picks it up.
+
+    H1 lease admission (T-0192): a worktree-bearing grant outside RUNNING
+    must carry a live pid and an expiry, so a worktree claim here passes
+    this process's own pid.
     """
     lease = kernel.claim(task.id, holder="p",
-                         worktree=str(worktree_path) if worktree_path else "")
+                         worktree=str(worktree_path) if worktree_path else "",
+                         pid=os.getpid() if worktree_path else None,
+                         expires_at="2999-01-01T00:00:00Z" if worktree_path else "")
     bundle = _make_valid_bundle(task.id, lease.fence)
     kernel.submit(task.id, lease.fence, bundle)
     return lease
@@ -1069,7 +1076,9 @@ def test_per_fence_retry_isolates_fences(git_repo_master):
         new_lease = Lease(task_id=task.id, fence=new_fence)
         from pmk.models import LEASED
         # The task is now READY/LEASED — re-claim.
-        lease2 = kernel.claim(task.id, holder="p", worktree=str(worktree))
+        lease2 = kernel.claim(task.id, holder="p", worktree=str(worktree),
+                              pid=os.getpid(),
+                              expires_at="2999-01-01T00:00:00Z")
         bundle = _make_valid_bundle(task.id, lease2.fence)
         kernel.submit(task.id, lease2.fence, bundle)
         kernel.verify(task.id, lease2.fence, ok=True)
@@ -1609,6 +1618,132 @@ def test_a_failed_agent_started_write_kills_the_process_and_gives_up_the_lease(
     assert revoked[0].payload["reason"] == (
         "could not record the started process")
     assert [e for e in events if e.type == "QUARANTINED" and e.fence == fence]
+
+
+def test_a_failed_agent_started_write_leaves_a_give_up_handoff(
+        git_repo_master, monkeypatch):
+    """The next attempt can read why the failed start gave the lease up."""
+    from fleet import spawn as spawn_mod
+    from fleet.harness import Harness
+    from fleet.profiles import Profile
+    from fleet.state import FleetState
+
+    repo = git_repo_master
+    kernel = _make_kernel_from_repo(repo)
+    profile_dict = fake_profile(scenario="hang")
+    write_agents(repo, [profile_dict])
+
+    task = make_task(kernel, scope={"write": ["out.txt"], "read": []})
+
+    real_spawn = spawn_mod.spawn_slot
+    spawned = []
+    worktrees = []
+
+    def capture_spawn(*args, **kwargs):
+        slot = real_spawn(*args, **kwargs)
+        spawned.append((slot, kwargs["fence"]))
+        worktrees.append(Path(kwargs["worktree"]))
+        return slot
+
+    monkeypatch.setattr(spawn_mod, "spawn_slot", capture_spawn)
+
+    real_record_event = kernel.record_event
+
+    def fail_agent_started(event_type, **kwargs):
+        if event_type == "AGENT_STARTED":
+            raise OSError("event log is read-only")
+        return real_record_event(event_type, **kwargs)
+
+    monkeypatch.setattr(kernel, "record_event", fail_agent_started)
+
+    harness = Harness(kernel, FleetState())
+    run, result = harness.start(task, Profile.from_dict(profile_dict))
+
+    assert run is None
+    assert result is not None
+    assert result.outcome == "failed"
+    assert len(worktrees) == 1, "the process under test was never spawned"
+    worktree = worktrees[0]
+
+    slot, _fence = spawned[0]
+    deadline = time.monotonic() + 10
+    while spawn_mod.slot_alive(slot) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert not spawn_mod.slot_alive(slot), (
+        "the spawned process outlived the failed AGENT_STARTED write")
+
+    handoff = worktree / ".pmwork" / "HANDOFF.md"
+    assert handoff.is_file(), "the next attempt has no give-up handoff"
+    text = handoff.read_text(encoding="utf-8")
+    assert "previous attempt gave up" in text
+    assert "could not record the started process" in text
+    assert "check `git status`" in text
+
+
+def test_the_next_attempt_order_surfaces_the_give_up_handoff(
+        git_repo_master, monkeypatch):
+    """REC-05: a reused tree's ORDER.md carries the give-up note."""
+    from fleet import spawn as spawn_mod
+    from fleet.harness import Harness
+    from fleet.profiles import Profile
+    from fleet.state import FleetState
+
+    repo = git_repo_master
+    kernel = _make_kernel_from_repo(repo)
+    profile_dict = fake_profile(scenario="hang")
+    write_agents(repo, [profile_dict])
+    task = make_task(kernel, scope={"write": ["out.txt"], "read": []})
+
+    real_spawn = spawn_mod.spawn_slot
+    spawned = []
+    worktrees = []
+
+    def capture_spawn(*args, **kwargs):
+        slot = real_spawn(*args, **kwargs)
+        spawned.append(slot)
+        worktrees.append(Path(kwargs["worktree"]))
+        return slot
+
+    monkeypatch.setattr(spawn_mod, "spawn_slot", capture_spawn)
+
+    real_record_event = kernel.record_event
+
+    def fail_agent_started(event_type, **kwargs):
+        if event_type == "AGENT_STARTED":
+            raise OSError("event log is read-only")
+        return real_record_event(event_type, **kwargs)
+
+    monkeypatch.setattr(kernel, "record_event", fail_agent_started)
+
+    harness = Harness(kernel, FleetState())
+    run, result = harness.start(task, Profile.from_dict(profile_dict))
+
+    assert run is None
+    assert result is not None and result.outcome == "failed"
+    worktree = worktrees[0]
+
+    slot = spawned[0]
+    deadline = time.monotonic() + 10
+    while spawn_mod.slot_alive(slot) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert not spawn_mod.slot_alive(slot)
+    assert (worktree / ".pmwork" / "HANDOFF.md").is_file()
+
+    # The next attempt is the REC-05 "tree is reused" case.
+    monkeypatch.setattr(kernel, "record_event", real_record_event)
+    monkeypatch.setattr(
+        spawn_mod, "create_worktree", lambda *args, **kwargs: worktree)
+    run, failure = harness.start(
+        task, Profile.from_dict(fake_profile(scenario="ok")))
+    assert run is not None, failure
+    try:
+        order = (worktree / ".pmwork" / "ORDER.md").read_text(
+            encoding="utf-8")
+        assert "previous attempt gave up" in order
+        assert "could not record the started process" in order
+        assert "## Handoff\nnone" not in order
+    finally:
+        spawn_mod.kill_slot(run.slot)
 
 
 def test_scope_conflict_is_recorded_once_per_cause(git_repo_master):

@@ -33,6 +33,7 @@ from . import recover
 from . import select as select_mod
 from . import spawn as spawn_mod
 from .harness import Harness, LeaseResult, LeaseRun
+from .owner import owner_status
 from .profiles import Profile, load_profiles
 from .state import FleetState
 
@@ -162,6 +163,9 @@ class Dispatcher:
             "slots_in_use": len(self.runs),
             "dispatch_paused": self.fleet_state.dispatch_paused,
             "pause_reason": self.fleet_state.pause_reason,
+            "dispatch_owner": owner_status(
+                self.kernel, self.fleet_state.path
+            ),
             "free_ram_mb": free_ram_mb(),
             "min_free_ram_mb": self.min_free_ram_mb(),
         }

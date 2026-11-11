@@ -12,6 +12,8 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from fleet import harness, legacy, order, runenv, spawn
 from fleet.adapters.generic import TemplateAdapter
 from pmk import plat
@@ -100,6 +102,29 @@ def test_legacy_launch_resolves_a_stored_relative_cwd(tmp_path, monkeypatch):
     script = next((tmp_path / "scripts").glob("*.ps1")).read_text(
         encoding="utf-8-sig")
     assert str(wt.resolve()) in script
+
+
+def test_legacy_launch_rejects_a_stored_cwd_that_no_longer_exists(
+        tmp_path, monkeypatch):
+    """A stale prompts.json entry must fail before a shell or script is created."""
+    stale = tmp_path / "removed-worktree"
+    stale.mkdir()
+    stale.rmdir()
+
+    monkeypatch.setattr(legacy, "find_shell", lambda: "pwsh")
+
+    def fail_if_spawned(*args, **kwargs):
+        raise AssertionError("Popen must not be called for a missing cwd")
+
+    monkeypatch.setattr(legacy.subprocess, "Popen", fail_if_spawned)
+    entry = legacy.LauncherEntry(prefix="cli", prompt="hi", cwd=str(stale))
+
+    with pytest.raises(FileNotFoundError) as exc:
+        legacy.launch_legacy(
+            entry, keep_open=False, script_dir=str(tmp_path / "scripts"))
+
+    assert str(stale.resolve()) in str(exc.value)
+    assert not (tmp_path / "scripts").exists()
 
 
 def test_legacy_launch_falls_back_to_an_explicit_resolved_cwd(

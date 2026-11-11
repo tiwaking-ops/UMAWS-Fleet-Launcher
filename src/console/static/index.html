@@ -81,6 +81,7 @@
   <span class="pill" id="pill-state">…</span>
   <span class="pill" id="pill-slots">…</span>
   <span class="pill" id="pill-dispatch">…</span>
+  <span class="pill" id="pill-owner">…</span>
   <span class="pill" id="pill-chain">…</span>
   <span style="flex:1"></span>
   <span class="pill" id="pill-clock">…</span>
@@ -134,6 +135,10 @@
       <div class="card">
         <h2>Profiles</h2>
         <div id="profiles"></div>
+      </div>
+      <div class="card">
+        <h2>Dispatch lock</h2>
+        <div id="dispatch-lock"></div>
       </div>
     </div>
   </section>
@@ -244,6 +249,49 @@ function updateHeader(d) {
   const p = $("pill-dispatch");
   p.textContent = d.fleet && d.fleet.dispatch_paused ? "dispatch PAUSED" : "dispatch ok";
   p.className = "pill " + (d.fleet && d.fleet.dispatch_paused ? "bad" : "ok");
+  const own = (d.fleet && d.fleet.dispatch_owner) || {};
+  const po = $("pill-owner");
+  const known = !!own.state;
+  const label = own.held
+    ? (own.role || "unknown") + (own.pid ? " (" + own.pid + ")" : "")
+    : "free";
+  po.textContent = "owner: " + (known ? label : "?");
+  po.className = "pill " + (own.state === "active" ? "ok"
+    : (own.state === "stale" || own.state === "held") ? "warn" : "");
+  updateDispatchLock(own);
+}
+function updateDispatchLock(own) {
+  const el = $("dispatch-lock");
+  if (!el) return;
+  const rows = [
+    ["state", own.state || "unknown"],
+    ["held", own.held === true ? "yes" : own.held === false ? "no" : "?"],
+    ["owner", own.role || "unknown"],
+    ["pid", own.pid ?? "-"],
+    ["since", own.acquired_at
+      ? new Date(own.acquired_at * 1000).toLocaleString() : "-"],
+    ["lock", own.lock || "-"],
+    ["detail", own.detail || "-"],
+  ];
+  let html = "<table>" + rows.map(([k, v]) =>
+    `<tr><th>${esc(k)}</th><td class="mono">${esc(v)}</td></tr>`).join("") +
+    "</table>";
+  if (own.state === "stale") {
+    html += `<div class="row" style="margin-top:10px">
+      <button class="act" onclick="clearStaleOwner()">Clear stale owner</button>
+      <span class="small muted">The lock is free; remove the leftover owner record.</span>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+async function clearStaleOwner() {
+  const r = await post("/api/fleet/owner/clear");
+  if (!r || !r.state) {
+    alert("Could not clear the stale owner: " + JSON.stringify(r));
+    return;
+  }
+  updateDispatchLock(r);
+  log("dispatch owner: " + r.state);
 }
 function updateProject(st) {
   $("project-kpis").innerHTML = [
