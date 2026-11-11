@@ -905,6 +905,19 @@ class Kernel:
                 # ratification got overwritten.  Refuse and say so.
                 raise KernelError("ambiguous_queue_id", item=item_id,
                                   count=len(open_items))
+            item = open_items[0]
+            if item.get("class_k"):
+                # Class K is the human-ratification path, so it requires
+                # human authority (reviewer item 2, incident seq 3630).  The
+                # gate supplies the actor, so the recorded event names the
+                # human even when the caller passed none.
+                from .authority import AuthorityError, require_human_authority
+                try:
+                    actor = require_human_authority("class K queue decision",
+                                                    actor=actor)
+                except AuthorityError as exc:
+                    raise KernelError("not_authorized", item=item_id,
+                                      msg=str(exc)) from exc
             self._append("QUEUE_DECIDED", actor=actor, subject=item_id,
                          payload={"id": item_id, "choice": choice})
             return {"ok": True, "item": item_id, "choice": choice}

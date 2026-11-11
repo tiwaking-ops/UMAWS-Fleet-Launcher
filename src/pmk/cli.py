@@ -49,6 +49,21 @@ def _fail(exc: KernelError) -> int:
     return 2
 
 
+def _require_human(action: str) -> Actor:
+    """Return the human actor for an operator-only *action*, or fail closed.
+
+    Thin wrapper over :func:`pmk.authority.require_human_authority`, so every
+    command refuses the same way and through ``main``'s ``KernelError``
+    handler.  The refusal text does not say what to set.
+    """
+    from .authority import AuthorityError, require_human_authority
+    try:
+        return require_human_authority(action)
+    except AuthorityError as exc:
+        raise KernelError("not_authorized", action=action,
+                          msg=str(exc)) from exc
+
+
 def _load_scope(args) -> dict:
     scope = {"write": list(args.write or []), "read": list(args.read or [])}
     return scope
@@ -99,20 +114,17 @@ def cmd_task_void(args) -> int:
     oracle ``test -f pi-test.txt && grep -q pi pi-test.txt`` is a POSIX
     shell builtin unavailable on Windows.
     """
-    from pmk.api import _actor_from_env
     from pmk.events import Actor
     kernel = _kernel(args)
-    # PMK_ACTOR takes precedence; --actor only fills in when it is unset.
-    actor = _actor_from_env()
-    if actor is None:
+    # Human authority is required (reviewer item 2, incident seq 3630):
+    # PMK_ACTOR=human:<name> *and* an interactive TTY.  ``--actor`` is only a
+    # display label and cannot manufacture authority.
+    try:
+        actor = _require_human("task void")
+    except KernelError as exc:
+        return _fail(exc)
+    if getattr(args, "actor", None):
         actor = Actor.human(args.actor)
-    # The human-only check is advisory, not a security boundary — a worker
-    # that sets PMK_ACTOR=human: can bypass it.  But the default path
-    # (worker spawned with "worker:<profile>") is correctly refused.
-    if actor.kind != "human":
-        return _fail(KernelError(
-            "not_authorized",
-            msg=f"task_void requires a human actor; got kind={actor.kind!r}"))
     try:
         result = kernel.task_void(args.task_id, reason=args.reason, actor=actor)
         _out(result)
@@ -273,11 +285,16 @@ def cmd_pins_record(args) -> int:
     I8' breach, so re-recording is an explicit, recorded act, not a
     side-effect of editing a file.
     """
-    from pmk.events import Actor
     from pmk.policy import write_pins
     kernel = _kernel(args)
+    # Authority is checked *before* the pins are written, so a refused caller
+    # changes nothing (reviewer item 2).
+    try:
+        actor = _require_human("pins record")
+    except KernelError as exc:
+        return _fail(exc)
     path = write_pins(kernel.repo)
-    kernel.record_event("PINS_CHECKED", actor=Actor.human(),
+    kernel.record_event("PINS_CHECKED", actor=actor,
                         payload={"recorded": str(path),
                                  "note": "the pins were re-recorded"})
     _out({"ok": True, "pins": str(path)})
@@ -352,6 +369,12 @@ def cmd_stop(args) -> int:
 
 def cmd_resume(args) -> int:
     kernel = _kernel(args)
+    # Lifting a stop-the-line is an operator act (reviewer item 3): this used
+    # to delete the stop file with no authority check at all.
+    try:
+        _require_human("resume")
+    except KernelError as exc:
+        return _fail(exc)
     if kernel.repo.stop_file.exists():
         kernel.repo.stop_file.unlink()
     _out({"ok": True, "stopped": False})
@@ -592,12 +615,15 @@ def cmd_fleet_check(args) -> int:
 
 
 def cmd_fleet_enable(args) -> int:
-    from pmk.events import Actor
     kernel = _kernel(args)
+    try:
+        actor = _require_human("profile enable")
+    except KernelError as exc:
+        return _fail(exc)
     state = _fleet_state(kernel)
     state.enable(args.profile_id, note="enabled by the operator")
     state.save()
-    kernel.record_event("PROFILE_ENABLED", actor=Actor.human(),
+    kernel.record_event("PROFILE_ENABLED", actor=actor,
                         subject=args.profile_id,
                         payload={"profile": args.profile_id})
     _out({"profile": args.profile_id, "enabled": True})
@@ -605,12 +631,15 @@ def cmd_fleet_enable(args) -> int:
 
 
 def cmd_fleet_disable(args) -> int:
-    from pmk.events import Actor
     kernel = _kernel(args)
+    try:
+        actor = _require_human("profile disable")
+    except KernelError as exc:
+        return _fail(exc)
     state = _fleet_state(kernel)
     state.disable(args.profile_id, note=args.reason or "disabled by the operator")
     state.save()
-    kernel.record_event("PROFILE_DISABLED", actor=Actor.human(),
+    kernel.record_event("PROFILE_DISABLED", actor=actor,
                         subject=args.profile_id,
                         payload={"profile": args.profile_id,
                                  "reason": args.reason or ""})
@@ -619,13 +648,16 @@ def cmd_fleet_disable(args) -> int:
 
 
 def cmd_fleet_cool(args) -> int:
-    from pmk.events import Actor
     kernel = _kernel(args)
+    try:
+        actor = _require_human("profile cooling")
+    except KernelError as exc:
+        return _fail(exc)
     state = _fleet_state(kernel)
     state.cool(args.profile_id, args.minutes * 60,
                note=f"cooled for {args.minutes} minutes")
     state.save()
-    kernel.record_event("PROFILE_COOLING", actor=Actor.human(),
+    kernel.record_event("PROFILE_COOLING", actor=actor,
                         subject=args.profile_id,
                         payload={"profile": args.profile_id,
                                  "seconds": args.minutes * 60})
@@ -761,12 +793,15 @@ def cmd_agent_stop(args) -> int:
 
 
 def cmd_agent_swap(args) -> int:
-    from pmk.events import Actor
     kernel = _kernel(args)
+    try:
+        actor = _require_human("agent swap")
+    except KernelError as exc:
+        return _fail(exc)
     state = kernel.state()
     if args.task not in state.leases:
         raise KernelError("no_lease", task=args.task)
-    kernel.record_event("AGENT_RESUMED", actor=Actor.human(), subject=args.task,
+    kernel.record_event("AGENT_RESUMED", actor=actor, subject=args.task,
                         fence=state.leases[args.task].fence,
                         payload={"profile": args.profile, "mode": "swap",
                                  "requested_by": "operator"})
@@ -1011,8 +1046,9 @@ def build_parser() -> argparse.ArgumentParser:
     void = task.add_parser("void", help="permanently retire a task (operator-only)")
     void.add_argument("task_id")
     void.add_argument("--reason", required=True)
-    void.add_argument("--actor", default="operator",
-                      help="who is voiding (default: operator)")
+    void.add_argument("--actor", default=None,
+                      help=("optional human name label; human authority "
+                            "(PMK_ACTOR plus a terminal) is still required"))
     void.set_defaults(func=cmd_task_void)
 
     claim = sub.add_parser("claim", help="claim a task for a lease")

@@ -248,7 +248,7 @@ def test_queue_decision_closes_the_item(kernel):
     assert item["choice"] == "a"
 
 
-def test_queue_can_be_raised_and_decided_from_the_cli(tmp_path):
+def test_queue_can_be_raised_and_decided_from_the_cli(tmp_path, monkeypatch):
     """The two-key mechanism must be reachable from the command line.
 
     The queue is how a class K change is ratified: ``queue_add(class_k=True)``
@@ -279,6 +279,9 @@ def test_queue_can_be_raised_and_decided_from_the_cli(tmp_path):
     assert item["safe_default"] == "revert"
     assert item["state"] == "open"
 
+    # A class-K decision now requires human authority (reviewer item 2).
+    monkeypatch.setenv("PMK_ACTOR", "human:operator")
+    monkeypatch.setattr("pmk.authority.stdin_is_interactive", lambda: True)
     code = cli.main(["--root", str(tmp_path),
                      "queue", "decide", item["id"], "ratify"])
     assert code == 0
@@ -305,7 +308,8 @@ def test_queue_ids_do_not_collide_after_a_decision(kernel):
     assert second == "Q-002"
 
 
-def test_a_duplicate_id_cannot_overwrite_an_earlier_decision(kernel):
+def test_a_duplicate_id_cannot_overwrite_an_earlier_decision(kernel,
+                                                             monkeypatch):
     """A decision resolves ONE item, never every item sharing an id.
 
     A legacy log can contain a duplicate queue id (D-32).  When the
@@ -313,6 +317,10 @@ def test_a_duplicate_id_cannot_overwrite_an_earlier_decision(kernel):
     replaced an earlier and more important decision — which is how a class K
     ratification was silently rewritten from "ratify" to "void" (D-33).
     """
+    # A class-K decision now needs human authority (reviewer item 2); the
+    # guard is incidental to the duplicate-id behaviour under test.
+    monkeypatch.setenv("PMK_ACTOR", "human:operator")
+    monkeypatch.setattr("pmk.authority.stdin_is_interactive", lambda: True)
     first = kernel.queue_add(topic="class K ratification",
                              options=["ratify", "revert"], class_k=True)
     kernel.queue_decide(first, "ratify")

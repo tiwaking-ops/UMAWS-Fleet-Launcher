@@ -79,6 +79,10 @@ def test_cli_dispatch_requires_resume_when_paused(fake_kernel):
 def test_cli_dispatch_resume_clears_the_pause(fake_kernel, monkeypatch):
     from pmk.cli import cmd_dispatch_run
 
+    # Clearing a safety pause now requires human authority (reviewer item 3).
+    monkeypatch.setenv("PMK_ACTOR", "human:operator")
+    monkeypatch.setattr("pmk.authority.stdin_is_interactive", lambda: True)
+
     state = FleetState.load(fake_kernel.repo.fleet_state_path)
     state.dispatch_paused = True
     state.pause_reason = "test pause"

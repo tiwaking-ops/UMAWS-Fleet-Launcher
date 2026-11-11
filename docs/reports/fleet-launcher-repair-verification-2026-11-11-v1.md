@@ -666,8 +666,62 @@ The operator did run one, and it **refused — by design, not as a defect**:
 
 **Standing after this verification.** HEAD `a1d301c`, 0 behind / **137** ahead of `origin/main`. 212 cards: **156 VOID**, **43 DONE**, **13 READY**; `active_leases: 0`; chain verifies at **3,644 events**; `pmk sentinel` → `ok: true`, no findings; `work/` holds exactly **8** non-lease trees. **`DoD` PASS: DoD-1, DoD-2, DoD-3, DoD-4, DoD-5, DoD-6.** Still open: `DoD-7` (decision at the next free id), `DoD-8` (§14 matrix), `DoD-9` (§8 ticked); the unlanded hardening items **H3/H4/H7** (`T-0193`/`T-0194`/`T-0195` are READY); reviewer items 2–4 (the authority gate, unblocked by Decision **B = A**); and **CP-4** (ratify D-72 + its erratum and D-74; record `T-0189` as superseded by `T-0190`, not exonerated). Push is operator-only.
 
+## A.16 The human-authority gate, and a concurrent writer in the tree (2026-11-12)
+
+**Scope.** This section records the authority-gate work authorised on 2026-11-11 (reviewer items 2–3, plus item 4's answer), and a **concurrent-writer finding** discovered while doing it. The gate is uncommitted when written; the concurrent commits are not mine.
+
+### A.16.1 What was built — one shared gate
+
+`src/pmk/authority.py` (new) provides `require_human_authority(action, *, actor=None)`. It requires **both** a human identity (`PMK_ACTOR=human:<name>`, or an explicit `Actor(kind="human")`) **and** an interactive TTY (`sys.stdin.isatty()`, exposed as the seam `stdin_is_interactive`). Its refusal text does **not** say what to set.
+
+| Requirement (event `seq 3630`, item 2) | Where it is enforced now |
+|---|---|
+| task void | `cli.cmd_task_void` |
+| pins record | `cli.cmd_pins_record` (checked **before** the pins file is written) |
+| class-K `queue_decide` | `Kernel.queue_decide` — only when the item is `class_k`; non-class-K keeps the agent path |
+| `resume_dispatch` / `--resume` | `fleet.owner.resume_dispatch` (covers `pmk dispatch run --resume`, `pmk project run --resume`, the Console and the canary) |
+| `pmk resume` (stop file — §6's "no check at all") | `cli.cmd_resume` |
+| profile enable / disable / cooling | `cli.cmd_fleet_enable/disable/cool` |
+| `cmd_agent_swap` | `cli.cmd_agent_swap` |
+| `MANUAL_LAUNCH` | `console.app.api_launcher_launch` |
+| item 3 — canary events | `fleet.canary.run_canary`: `CANARY_STARTED`/`CANARY_FINISHED` now record the **verified human**, or the run refuses |
+
+**Deviation from the reviewer's own draft, recorded deliberately.** `tmp/reviewer-kernel` / `C:\temp\review-r15\kernel-actor-guards.diff` guard void, pins and class-K only, and their refusal text **names `PMK_ACTOR=human:<name>`** — which item 2 forbids ("the error text must not tell the caller what to set"). The requirement was followed, not the draft. The draft's class-K placement in `Kernel.queue_decide` was kept.
+
+**Item 4 — Console.** Under Decision **B = A**, and the operator's follow-on decision of 2026-11-12 (**terminal-only everywhere**), every privileged Console action refuses with HTTP **403** and points at the terminal: `/api/project/run`, `/api/fleet/{enable,disable,cool}`, `/api/launcher/launch` (MANUAL_LAUNCH) and a class-K `/api/queue/decide`. The Console's no-auth monitoring role is unchanged. **This is a governance decision and should be recorded** (next free id `D-75`).
+
+**One canary at a time** is already enforced structurally: `run_canary` takes the shared `DispatchOwner` lock as role `canary`, so a second owner is refused with `dispatch_owner_busy` before any event. No new mechanism was needed.
+
+### A.16.2 Evidence
+
+| Check | Result |
+|---|---|
+| Full gate (`python -m pytest -o addopts="" -q`) | **1332 passed, 1 skipped, 0 failed** (845.21 s) |
+| New gate module | `tests/pmk/test_authority_gate.py` — **18 tests** |
+| Existing tests adjusted (guard incidental to what they check) | `test_tasks.py` (2), `test_canary_runner.py` (1 + 2 new), `test_console_dispatch.py` (3 + 2 new), `test_dispatch_owner.py` (1) |
+| `python tools\check_subprocess_env.py` | `ok` (7 allowlisted), exit 0 |
+
+The tests drive the TTY seam (`pmk.authority.stdin_is_interactive`), never the live tree. **The gate is a boundary against the path of least resistance, not authentication** — any caller with Kernel access can still construct `Actor.human()` (as `Kernel.task_void`'s docstring already says); what it removes is every CLI/Console route that turned an unset or worker environment into a recorded human act.
+
+### A.16.3 Finding — a concurrent writer advanced HEAD during this work
+
+**Confirmed.** While this section was being written, `HEAD` moved `c8ac36b` → `33b9911` → `772e1bc`, by commits **I did not make**:
+
+| Commit | Contents | Reading |
+|---|---|---|
+| `33b9911` "overdue commit" (2026-11-12 01:00) | `src/fleet/dispatcher.py`, `src/fleet/harness.py`, `src/console/app.py`, `src/pmk/worktrees.py`; new `tests/fleet/test_reconcile_startup.py`, `tests/fleet/test_model_attribution.py`, `tests/pmk/test_prune_merge_trees.py` | maps onto **H3** (reconcile at startup) and **H4** (model attribution) |
+| `772e1bc` "feat(pmk): reclaim non-lease scratch worktrees, capture-first (completes **H7**)" (2026-11-12 09:12) | `src/pmk/cli.py`, `src/pmk/events.py` (`WORKTREE_SCRATCH_PRUNED`), `src/pmk/worktrees.py` (`scratch_records`, `merge_tree_records`, `prune_scratch`), `tests/pmk/test_worktree_lifecycle.py` (`+167`) | **H7** landed directly |
+
+Both are authored `umaws-pilot <umaws-pilot@localhost>`. **This is reviewer item 1's situation recurring**: the live tree is being edited and committed by an actor whose session the log does not identify. It is reported, not judged — the work appears coherent and I did not touch it.
+
+**Consequences for this section's evidence, stated plainly.** The gate run above executed on the working tree that already contained the H3/H4/H7 content now committed as `33b9911`/`772e1bc` (their `worktrees.py` was last written 09:08, before the run; `events.py` 08:56). So the 1332-pass figure covers **HEAD `772e1bc` plus this uncommitted gate change** — not `c8ac36b` alone, and not my change in isolation. `src/pmk/cli.py` is the one file both changes touch; my staged diff there is the nine authority hunks only, and their H7 command survives intact.
+
+### A.16.4 Standing
+
+The authority gate is implemented, tested and **staged** (11 files, `+529/−39`) but **uncommitted**; `worktrees.py` and `events.py` are **not** mine and were left alone. Reviewer **items 2 and 3 are now implemented** (was *Absent* / *Partial*); item 4's class-K half was already answered by Decision B = A, and its Console half is now decided (terminal-only). Item 1 remains **Unknown** and is now *more* pressing, not less. `DoD-7` (the decision record) is the natural home for the terminal-only ruling.
+
 ---
 
-**Author:** DeepSeek V4.1 Flash Free — `opencode/deepseek-v4.1-flash-free`. Authored both the report and this addendum, including §A.15; no independent assessment of either exists, and no `assessor_llm` is claimed.
-**Status of this addendum:** advisory verification record. It grants no authority, ratifies nothing, promotes nothing, and changes no kernel state beyond the one-line code fix recorded in §A.14. That fix is committed as `a1d301c`, and the clean-base gate is green at that base (§A.15).
-**Storage:** the report and §A.11–§A.14 are committed (`b2fe947`, `afcc0ba`, `2a579dd`, `a1d301c`); **§A.15 was uncommitted when written** and is staged for the operator. Folding the report into a decision record remains an operator decision.
+**Author:** DeepSeek V4.1 Flash Free — `opencode/deepseek-v4.1-flash-free`. Authored both the report and this addendum, including §A.15 and §A.16; no independent assessment of either exists, and no `assessor_llm` is claimed.
+**Status of this addendum:** advisory verification record. It grants no authority, ratifies nothing, promotes nothing, and changes no kernel state beyond the code recorded in §A.14 and §A.16.
+**Storage:** the report and §A.11–§A.15 are committed (`b2fe947`, `afcc0ba`, `2a579dd`, `a1d301c`, `c8ac36b`); **§A.16 was uncommitted when written** and is staged with the gate code for the operator. Folding the report into a decision record remains an operator decision.

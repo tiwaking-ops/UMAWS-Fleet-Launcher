@@ -31,6 +31,16 @@ from fleet.owner import DispatchOwner, owner_info_path  # noqa: E402
 from fleet.state import FleetState  # noqa: E402
 
 
+def _human_authority(monkeypatch) -> None:
+    """Simulate an operator terminal: the gate needs PMK_ACTOR plus a TTY.
+
+    The Console has no terminal, so these dispatch-mechanics tests drive the
+    gate as an operator running the Console from a terminal would.
+    """
+    monkeypatch.setenv("PMK_ACTOR", "human:operator")
+    monkeypatch.setattr("pmk.authority.stdin_is_interactive", lambda: True)
+
+
 def _git(root: Path, *args: str) -> None:
     subprocess.run(["git", "-C", str(root), *args], check=True,
                    capture_output=True, text=True)
@@ -241,8 +251,10 @@ def test_project_run_api_reports_paused_without_dispatch(console_api):
                 if kind in ("FLEET_ASSIGNED", "AGENT_STARTED")]
 
 
-def test_project_run_api_clears_pause_and_dispatches(console_api, capsys):
+def test_project_run_api_clears_pause_and_dispatches(console_api, capsys,
+                                                    monkeypatch):
     """POST Run clears the pause, persists it, and starts the READY task."""
+    _human_authority(monkeypatch)
     console, client = console_api
 
     response = client.post("/api/project/run")
@@ -314,8 +326,9 @@ def test_console_refuses_to_clear_a_live_owner(console_api):
         other.release()
 
 
-def test_run_api_refuses_a_second_dispatch_owner(console_api):
+def test_run_api_refuses_a_second_dispatch_owner(console_api, monkeypatch):
     """Run fails closed when another process already owns dispatch."""
+    _human_authority(monkeypatch)
     console, client = console_api
     other = DispatchOwner.for_kernel(console.kernel, "test-owner").acquire()
     try:
@@ -335,13 +348,39 @@ def test_run_api_refuses_a_second_dispatch_owner(console_api):
     assert console.dispatch_owner.held is True
 
 
-def test_stop_all_releases_the_dispatch_owner(console_api):
+def test_stop_all_releases_the_dispatch_owner(console_api, monkeypatch):
+    _human_authority(monkeypatch)
     console, client = console_api
     assert client.post("/api/project/run").status_code == 200
     assert console.dispatch_owner is not None
 
     assert client.post("/api/stop-all").status_code == 200
     assert console.dispatch_owner is None
+
+
+def test_console_refuses_all_privileged_actions_without_a_terminal(console_api):
+    """Terminal-only: the Console refuses privileged actions (2026-11-11)."""
+    _console, client = console_api
+
+    run = client.post("/api/project/run")
+    assert run.status_code == 403
+    assert run.json()["detail"]["reason"] == "not_authorized"
+
+    fleet = client.post("/api/fleet/enable", params={"profile": "p"})
+    assert fleet.status_code == 403
+
+    launch = client.post("/api/launcher/launch", params={"entry_id": "e"})
+    assert launch.status_code == 403
+
+
+def test_console_class_k_decision_is_refused(console_api):
+    console, client = console_api
+    item = console.kernel.queue_add(topic="class K", options=["a", "b"],
+                                    class_k=True)
+    response = client.post("/api/queue/decide",
+                           params={"item_id": item, "choice": "a"})
+    assert response.status_code == 403
+    assert response.json()["detail"]["error"] == "not_authorized"
 
 
 def test_console_refuses_start_duplicate_profile_id(tmp_path):

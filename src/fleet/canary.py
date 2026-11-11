@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import Callable
 
 from pmk.api import Kernel, KernelError
-from pmk.events import Actor
 from pmk.models import DONE, READY
 
 from .conductor import Conductor
@@ -82,6 +81,18 @@ def run_canary(kernel: Kernel, *, seconds: float = 900.0,
                     hint="pass --resume to clear the persisted pause")
             resume_dispatch(kernel, fleet_state, reason="canary run --resume")
 
+        # Human authority for the run itself (reviewer item 3): a verified
+        # human identity, or a refusal.  Checked after the read-only preflight
+        # and the pause handling, so those keep their own refusal reasons, and
+        # before any event is written.  The recorded actor is that human, not
+        # the kernel.
+        from pmk.authority import AuthorityError, require_human_authority
+        try:
+            operator = require_human_authority("canary run")
+        except AuthorityError as exc:
+            raise KernelError("not_authorized", action="canary run",
+                              msg=str(exc)) from exc
+
         started_at = now()
         start_event = None
         finish_event = None
@@ -90,7 +101,7 @@ def run_canary(kernel: Kernel, *, seconds: float = 900.0,
         result: dict = {}
         try:
             start_event = kernel.record_event(
-                "CANARY_STARTED", actor=Actor.kernel(), subject=card.id,
+                "CANARY_STARTED", actor=operator, subject=card.id,
                 payload={"task": card.id, "seconds": float(seconds),
                          "project_state": state.project_state,
                          "ready": [card.id]})
@@ -131,7 +142,7 @@ def run_canary(kernel: Kernel, *, seconds: float = 900.0,
                     payload["error_type"] = type(error).__name__
                 try:
                     finish_event = kernel.record_event(
-                        "CANARY_FINISHED", actor=Actor.kernel(),
+                        "CANARY_FINISHED", actor=operator,
                         subject=card.id, payload=payload)
                 except BaseException as exc:          # noqa: BLE001
                     record_error = f"{type(exc).__name__}: {exc}"

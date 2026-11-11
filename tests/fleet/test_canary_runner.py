@@ -52,6 +52,12 @@ def _patch_owner(monkeypatch) -> None:
                         lambda kernel, fleet_state: None)
 
 
+def _human_authority(monkeypatch) -> None:
+    """Simulate an operator terminal: the gate needs PMK_ACTOR plus a TTY."""
+    monkeypatch.setenv("PMK_ACTOR", "human:operator")
+    monkeypatch.setattr("pmk.authority.stdin_is_interactive", lambda: True)
+
+
 def _canary_events(kernel) -> list:
     return [event for event in kernel.events()
             if event.type in ("CANARY_STARTED", "CANARY_FINISHED")]
@@ -111,6 +117,7 @@ def test_canary_refuses_paused_dispatch(fake_kernel):
 def test_canary_uses_one_owner_and_records_the_run(fake_kernel, monkeypatch):
     task = make_task(fake_kernel)
     _patch_owner(monkeypatch)
+    _human_authority(monkeypatch)
     tick = [0.0]
 
     def now() -> float:
@@ -144,6 +151,33 @@ def test_canary_uses_one_owner_and_records_the_run(fake_kernel, monkeypatch):
     assert events[0].payload["ready"] == [task.id]
     assert events[1].payload["ticks"] == 2
     assert events[1].payload["state"] == "READY"
+    # The events record the human operator, not the kernel (reviewer item 3).
+    assert all(event.actor.kind == "human" for event in events)
+
+
+def test_canary_refuses_without_human_authority(fake_kernel, monkeypatch):
+    """A canary records a verified human or refuses (reviewer item 3)."""
+    make_task(fake_kernel)
+    monkeypatch.delenv("PMK_ACTOR", raising=False)
+    monkeypatch.setattr("pmk.authority.stdin_is_interactive", lambda: True)
+
+    with pytest.raises(KernelError) as exc:
+        canary.run_canary(fake_kernel, seconds=1)
+
+    assert exc.value.reason == "not_authorized"
+    assert _canary_events(fake_kernel) == []
+
+
+def test_canary_refuses_without_a_terminal(fake_kernel, monkeypatch):
+    make_task(fake_kernel)
+    monkeypatch.setenv("PMK_ACTOR", "human:operator")
+    monkeypatch.setattr("pmk.authority.stdin_is_interactive", lambda: False)
+
+    with pytest.raises(KernelError) as exc:
+        canary.run_canary(fake_kernel, seconds=1)
+
+    assert exc.value.reason == "not_authorized"
+    assert _canary_events(fake_kernel) == []
 
 
 def test_canary_run_is_wired_into_the_cli():

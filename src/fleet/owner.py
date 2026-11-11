@@ -238,15 +238,26 @@ def resume_dispatch(kernel: Kernel, fleet_state: FleetState, *,
                     reason: str) -> bool:
     """Persist an explicit resume and record why it happened.
 
+    Clearing a safety pause is an operator act, so it requires human
+    authority (reviewer items 2-3, incident seq 3630): ``PMK_ACTOR=human:``
+    plus an interactive TTY.  The Console has neither, so its Run button
+    refuses and points at the terminal.
+
     Returns ``True`` only when a paused state was actually cleared, so a
     caller can avoid writing an event for an already-running dispatcher.
     """
+    from pmk.authority import AuthorityError, require_human_authority
+    try:
+        actor = require_human_authority("dispatch resume")
+    except AuthorityError as exc:
+        raise KernelError("not_authorized", action="dispatch resume",
+                          msg=str(exc)) from exc
     if not fleet_state.dispatch_paused:
         return False
     fleet_state.dispatch_paused = False
     fleet_state.pause_reason = ""
     fleet_state.paused_at = 0.0
     fleet_state.save()
-    kernel.record_event("DISPATCH_RESUMED", actor=Actor.human(),
+    kernel.record_event("DISPATCH_RESUMED", actor=actor,
                         payload={"reason": reason})
     return True

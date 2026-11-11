@@ -201,6 +201,26 @@ def api_project_init(brief: str = "", path: str | None = None):
         raise HTTPException(status_code=400, detail=exc.to_dict()) from exc
 
 
+def _console_human(action: str) -> Actor:
+    """Human authority for a Console action, or a terminal-only refusal.
+
+    The Console has no interactive terminal, so in practice this always
+    refuses; that is deliberate (operator decision, 2026-11-11): privileged
+    actions are **terminal-only**, and the Console points the operator there
+    rather than changing its no-auth design.  The seam is retained so the
+    dispatch-owner and pause mechanics stay testable.
+    """
+    from pmk.authority import AuthorityError, require_human_authority
+    try:
+        return require_human_authority(action)
+    except AuthorityError as exc:
+        raise HTTPException(
+            status_code=403,
+            detail={"reason": "not_authorized", "action": action,
+                    "msg": (f"{action} is a terminal-only operator action; "
+                            "run it from the pmk CLI")}) from exc
+
+
 @app.post("/api/project/{action}")
 def api_project_action(action: str):
     from fleet.project import PAUSED, RUNNING, set_state
@@ -214,8 +234,10 @@ def api_project_action(action: str):
                          reason="resumed from the Console")
     if action == "run":
         # Run is the explicit operator action that takes the dispatch line
-        # and clears the persisted safety pause.  If another process already
-        # owns the line, fail without changing the pause state.
+        # and clears the persisted safety pause.  It is terminal-only, so it
+        # refuses here before touching the pause state.  If another process
+        # already owns the line, fail without changing the pause state.
+        _console_human("dispatch run")
         try:
             c.claim_dispatch_owner()
         except KernelError as exc:
@@ -255,19 +277,23 @@ def api_clear_dispatch_owner():
 @app.post("/api/fleet/{action}")
 def api_fleet_action(action: str, profile: str = "", minutes: int = 0):
     c = get_console()
+    actor = None
+    if action in ("enable", "disable", "cool"):
+        # Terminal-only: profile state is an operator act (reviewer item 2).
+        actor = _console_human(f"profile {action}")
     state = c.fleet_state
     kernel = c.kernel
     if action == "enable":
         state.enable(profile, note="enabled from the Console")
-        kernel.record_event("PROFILE_ENABLED", actor=Actor.human(),
+        kernel.record_event("PROFILE_ENABLED", actor=actor,
                             subject=profile, payload={"profile": profile})
     elif action == "disable":
         state.disable(profile, note="disabled from the Console")
-        kernel.record_event("PROFILE_DISABLED", actor=Actor.human(),
+        kernel.record_event("PROFILE_DISABLED", actor=actor,
                             subject=profile, payload={"profile": profile})
     elif action == "cool":
         state.cool(profile, minutes * 60, note="cooled from the Console")
-        kernel.record_event("PROFILE_COOLING", actor=Actor.human(),
+        kernel.record_event("PROFILE_COOLING", actor=actor,
                             subject=profile,
                             payload={"profile": profile, "seconds": minutes * 60})
     else:
@@ -323,7 +349,9 @@ def api_queue_decide(item_id: str, choice: str):
     try:
         return c.kernel.queue_decide(item_id, choice)
     except KernelError as exc:
-        raise HTTPException(status_code=400, detail=exc.to_dict()) from exc
+        # A class-K refusal is an authority answer, not a bad request.
+        code = 403 if exc.reason == "not_authorized" else 400
+        raise HTTPException(status_code=code, detail=exc.to_dict()) from exc
 
 
 # -- overseer and metrics ---------------------------------------------------
@@ -449,12 +477,14 @@ def api_launcher_launch(entry_id: str, mode: str = "legacy",
                         profile: str = ""):
     from fleet.legacy import launch_legacy, load_entries
     c = get_console()
+    # MANUAL_LAUNCH is an operator act and is terminal-only (reviewer item 2).
+    actor = _console_human("manual launch")
     entries, _ = load_entries(c.launcher_path)
     entry = next((e for e in entries if e.id == entry_id), None)
     if entry is None:
         raise HTTPException(status_code=404, detail="no such entry")
 
-    c.kernel.record_event("MANUAL_LAUNCH", actor=Actor.human(),
+    c.kernel.record_event("MANUAL_LAUNCH", actor=actor,
                           subject=entry.name or entry_id,
                           payload={"entry": entry_id, "mode": mode,
                                    "profile": profile})
