@@ -274,6 +274,8 @@ Steps 1 → 2 → 3 → 4 are the minimum that changes the verdict from `PARTIAL
 **Method:** as in the header above. Every claim marked *Confirmed* below was reproduced in this session from the files, the kernel, the event log, and fresh test runs.
 **State as of this addendum:** HEAD `5267cdb` on `main` (0 behind / 133 ahead of `origin/main`); chain verifies (I1, 3,634 events); project `PAUSED`; `active_leases: 2`; 35 pmk worktrees; working tree still dirty and **uncommitted**.
 
+> **Committed later the same day — see §A.11.** The work described below was committed as `b2fe947`, and the clean-base gate has since run green at that base. Every "uncommitted" statement in §A.0–§A.10 is superseded by §A.11.
+
 ## A.0 Addendum verdict
 
 **PARTIAL — engine hardening advanced; programme incomplete.**
@@ -439,13 +441,13 @@ Then, in order:
 |---|---|---|
 | 1 | Revoke the two invalid leases (human authority) | `pmk revoke T-0210 --fence 162 --reason "H1: repo-root worktree grant; invalid"` · `pmk revoke T-0211 --fence 163 --reason "H1: repo-root worktree grant; invalid"` |
 | 2 | CP-3: capture the 7 dirty trees, then prune | `pmk worktree archive --all-dirty` (verifies each capture) → `pmk worktree prune --yes --archive`. **Dry-run first** by omitting `--yes`. Do not prune the foreign `H1-H4-clean-*` trees without an explicit ruling |
-| 3 | Re-run the gate at the post-landing base | `python -m pytest -q`, then `tools\check_clean_base.ps1 -Python "<absolute path to .venv\Scripts\python.exe>"` — see the note below |
-| 4 | Settle the uncommitted set by provenance (§A.4) | Commit decision; the reviewer's "do not commit group A" applies to the **Unknown-provenance wave** only |
+| 3 | Re-run the gate at the post-landing base | **Done (§A.11)** — `clean-base gate exit=0` at `b2fe947`. Command: `tools\check_clean_base.ps1 -Python "<absolute path to .venv\Scripts\python.exe>"` |
+| 4 | Settle the uncommitted set by provenance (§A.4) | **Done (§A.11)** — committed as `b2fe947`, 24 files, three provenances in one commit. The reviewer's "do not commit group A" was overtaken by the operator's instruction to commit; the wave's authorship is still Unknown |
 | 5 | CP-4: ratify D-72 (+ its erratum), not D-73 | Operator act in `pilot/decisions.md`; D-70…D-74 are all still drafts |
 | 6 | Record T-0189's final disposition | `T-0189` is **VOID** (attempt 1/1); successor **T-0190** (fence 157, `DONE`, merge `0edc0dc`); phrase it as superseded, not exonerated |
 | 7 | Item 8, excluded from "repair" | Resume (A10), dispatch resumption, first push — operator-only; `DISPATCH_RESUMED`/`DISPATCH_PAUSED`/`MANUAL_LAUNCH` are still **0** occurrences in the chain |
 
-**Important limit on DoD-1.** The clean-base gate at `5267cdb` (recorded above, exit 0) predates every change in this addendum, and the changes are **uncommitted**. `tools/check_clean_base.ps1` checks out `HEAD` into a detached worktree, so it cannot cover uncommitted work at all. Until the changes are committed, **no clean-base proof of them is possible** — the dirty-tree runs above are the only evidence, which is exactly the limitation B-14/N-05 warn about. Also note the tool's `-Python` parameter must be an **absolute** path (§7.3 fragility 3, still unfixed).
+**Important limit on DoD-1 — superseded by §A.11.** When this was written, the clean-base gate at `5267cdb` (recorded above, exit 0) predated every change in this addendum and the changes were **uncommitted**; `tools/check_clean_base.ps1` checks out `HEAD` into a detached worktree, so it could not cover uncommitted work at all, and the dirty-tree runs were the only evidence — exactly the limitation B-14/N-05 warn about. **That limit no longer applies:** the work was committed as `b2fe947` and the gate has since run green at that base (§A.11). Two notes still stand: the tool's `-Python` parameter must be an **absolute** path (§7.3 fragility 3, still unfixed), and the gate log does not record pytest's count line (§A.11, fragility 4).
 
 ## A.10 Evidence index (addendum)
 
@@ -454,14 +456,68 @@ Then, in order:
 | Full suite, post-fix | `tmp/gate-h1-frag-20261111.log` | exit 0, 1 skipped, under load, with the identity guard green |
 | Full suite, mid-fix | `tmp/gate-h1-20261111.log` | the 9 remaining conductor-lease failures + identity guard, before their helpers were updated |
 | H1 oracle | `tests/pmk/test_lease_admission.py` (+ `tests/pmk/test_tasks.py`) | 35 passed |
-| DoD-1 (pre-addendum base) | `tmp/clean-base-20261111-094825.log`, `tmp/clean-base-verify-20261111b.log` | `clean-base gate exit=0 sha=5267cdb…` — **does not cover this addendum's changes** |
+| DoD-1 (pre-addendum base) | `tmp/clean-base-20261111-094825.log`, `tmp/clean-base-verify-20261111b.log` | `clean-base gate exit=0 sha=5267cdb…` — predates this addendum's changes; **superseded by §A.11**, which gates them at `b2fe947` |
 | Reviewer's drafts | `tmp/reviewer-kernel/` (separate clone, `M src/pmk/api.py`, `M src/pmk/cli.py`, `?? tests/pmk/test_actor_enforcement.py`), `C:\temp\review-r15\` | item 3's starting material — another actor's work, protected |
 | Wave handoff prompt | `prompt-canary-process-opencode-to-freebuff-v1.md` | implicates an opencode-family session; **not proof** |
 | Reviewer's relay | event `seq 3630`, `2026-11-10T10:17:19Z`, subject `T-0211` | the six items in §A.6 |
 | Live invalid leases | `.pm/views/status.md:29-32` | `T-0210` fence 162, `T-0211` fence 163 — unchanged |
 
+## A.11 Commit and clean-base verification (2026-11-11, later)
+
+**§A.0–§A.10 above were written before the work was committed; their "uncommitted" statements are superseded here.**
+
+**Confirmed — the commit.** The staged 24-file set was committed by the operator as **`b2fe947`** (`fleet/pmk: single-owner dispatch lock, canary runner, H1 lease admission, gate fragility fixes`), parent `5267cdb`, author and committer `umaws-pilot <umaws-pilot@localhost>`, 2026-11-11 17:33:18 +1300, +2185/−27.
+
+| Check | Result |
+|---|---|
+| Committed tree vs the tree whose index I gated | `77c41560fc314e8cdf3f8036accec9483efcce23` — **byte-identical** to throwaway commit `93acefa`'s tree, so the green run applies to exactly what was committed |
+| Protected paths inside the commit | **0** entries from `src/cna/**`, `agents.toml`, `.pm/**`, `tmp/**` |
+| Identity-guard hook | wrote no `identity-warnings.log` |
+
+**Confirmed — the clean-base gate now covers the repair.** `tools/check_clean_base.ps1` at `HEAD b2fe947`, absolute `-Python`, log `tmp/clean-base-20261111-b2fe947.log`:
+
+| Observation | Reading |
+|---|---|
+| `clean-base gate exit=0 sha=b2fe9478108c9534af0fe96a774d1c8f9ce22053` | green |
+| Import lines `…\umaws-gate-20261111-b2fe947\src\cna\engine\loop.py` and `…\src\pmk\__init__.py` | both resolve **inside** the gate worktree — no P-01 editable-install shadowing |
+| Progress marks in the log | **1220 tests marked: 1219 pass, 1 skip, 0 fail** |
+| Gate worktree | removed on success (the script does this); `umaws-gate-20261111-b2fe947` no longer exists |
+
+**Derived — the 1292-vs-1220 gap is fully accounted for, and it is the point of the tool.** The working tree collects **1292**; the clean tree at `b2fe947` collects **1220**. The 72-test difference is **entirely uncommitted test material**, verified by a per-file collection diff:
+
+| Source | Tests | Kind |
+|---|---|---|
+| `test_data_intake.py` (18), `test_p1b1_land_contracts.py` (12), `test_p1c2_gate.py` (7), `test_data_r05.py` (5), `test_report_reconciliation.py` (5) | **47** | **untracked** CNA test files |
+| `test_transport.py` (11), `test_data_r04.py` (7), `test_scenario_loader.py` (6), `test_stage_supply.py` (1) | **25** | tracked, but **modified** by uncommitted CNA work |
+| **Total** | **72** | 47 + 25 = 72 ✓ |
+
+All 72 sit in the A-12-protected CNA body, deliberately left uncommitted. The gate therefore measures the committed tree and only the committed tree — which is what DoD-1 asks for.
+
+**Finding — the gate log does not record its own result (new; call it fragility 4).** `check_clean_base.ps1` never gets pytest's terminal count line into its log. Cause, reproducible: `addopts = -q` is set in **both** `pytest.ini` and `pyproject.toml`, and the script adds a further explicit `-q`, so pytest runs at effectively `-qq`, which suppresses the summary line. The 1220 figure above therefore comes from the progress marks, not from the log. **Every** gate log cited in this programme shares the defect — including `tmp/gate-h1-frag-20261111.log`, cited in §A.1, which is why the "1292 collected" in that row actually comes from a separate `--collect-only` run and not from the log it names.
+
+| Capture method | Terminal count line present? |
+|---|---|
+| `pytest -q … *> file` (config `-q` + explicit `-q`) | **no** — progress line only |
+| `pytest -q … \| Out-File` | **no** |
+| `cmd /c "… > file 2>&1"` | **no** |
+| `Start-Process -RedirectStandardOutput` | **no** |
+| `pytest -o addopts="" -q …` (single `-q`) | **yes** — e.g. `4 passed in 2.76s` |
+
+**Suggested fix (not applied — `tools/` is outside this repair's authorized scope):** drop the duplicate `-q`, or pass `-o addopts=""` with a single `-q`, or persist `-rA` so the totals land in the log. Until then, a gate log's exit code and progress marks are its evidence, and the count must be recovered separately.
+
+**Corrections to this addendum's own earlier statements.**
+
+| # | Earlier statement (section) | Correction |
+|---|---|---|
+| 1 | §A.9 "Important limit on DoD-1": the changes are **uncommitted** … **no clean-base proof of them is possible** | **Superseded.** Committed as `b2fe947`; the gate ran there and exited 0 (above). |
+| 2 | §A.10 DoD-1 row: **does not cover this addendum's changes** | **Superseded.** The `b2fe947` gate does cover them. |
+| 3 | State/status lines in §A.0, §A.10, §A.4: working tree "**uncommitted**"; "Its code changes are **uncommitted**" | **Corrected.** The repair slice *and* the fleet wave are committed inside `b2fe947`. Still uncommitted: the CNA body (A-12 protected), `agents.toml` (operator), `.pm/**` runtime state, `tmp/**`, and root-level strays. |
+| 4 | §A.1 evidence row: "Full suite … 1292 collected (`tmp/gate-h1-frag-20261111.log`)" | **Provenance corrected.** That log has no count line (§A.11 fragility 4); 1292 is a working-tree `--collect-only` figure, and the committed tree's clean-base figure is **1220**. |
+
+**Standing after the commit.** **DoD-1 is now PASS at `b2fe947`**, a base that includes H1 and both fragility fixes. Two of §A.9's steps are discharged: **step 3** (re-run the gate at the post-landing base — clean-base green) and **step 4** (settle the uncommitted set — committed as `b2fe947`). **Steps 1, 2, 5, 6 and 7 remain open**, as do Decisions A and B. DoD-5 remains partial (the leases). Hardening: **3 of 7 items landed** (H1, H2, H6), H5 partial, H3/H4/H7 absent; the human-authority gate and CP-3/CP-4 still open.
+
 ---
 
 **Author:** DeepSeek V4.1 Flash Free — `opencode/deepseek-v4.1-flash-free`. Authored both the report and this addendum; no independent assessment of either exists, and no `assessor_llm` is claimed.
-**Status of this addendum:** advisory verification record. It grants no authority, ratifies nothing, promotes nothing, and changes no kernel state. Its code changes are **uncommitted**.
-**Storage:** uncommitted in `docs/reports/`. Committing it, citing it from `HANDOFF.md`, or folding it into a decision record are operator decisions.
+**Status of this addendum:** advisory verification record. It grants no authority, ratifies nothing, promotes nothing, and changes no kernel state. Its code changes are committed as `b2fe947` (§A.11), and the clean-base gate is green at that base.
+**Storage:** committed inside `b2fe947` as part of the 24-file set; §A.11 is an uncommitted later edit. Citing it from `HANDOFF.md` has since been done (that file's 2026-11-11 block). Folding it into a decision record remains an operator decision.
