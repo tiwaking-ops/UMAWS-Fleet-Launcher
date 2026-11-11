@@ -419,7 +419,7 @@ Correction 6 is recorded because I stated the mis-attribution before it was reso
 1. If `T-0192` is run through the harness, `diff_scope_check` will refuse the merge — the change legitimately spans files the card does not own.
 2. `pmk supersede` (`--commit`, `--ref`, `--reason`) marks a task superseded by a commit; it does **not** amend a card's scope, and no command does. So the remedies are: **void `T-0192` (operator-only) and create a corrected-scope replacement**, or **land the work directly and record that `T-0192` is discharged outside the harness.**
 
-## A.8 Finding — the card and the tree disagree
+## A.8 Finding — the card and the tree disagree (**resolved — see §A.12**)
 
 H1's work is done and gate-green, and `T-0192` still reads `READY` (attempt 0 of 2). Because resumption is excluded (item 8) and dispatch is `PAUSED`, the card cannot travel claim → submit → verify → integrate, so it cannot reach `DONE`.
 
@@ -427,11 +427,13 @@ H1's work is done and gate-green, and `T-0192` still reads `READY` (attempt 0 of
 
 **Derived.** This is a direct consequence of excluding resumption, not a defect — but it means the ledger currently *understates* the repair. Whoever next reconciles the ledger should not read `T-0192 READY` as "H1 not done".
 
+**Resolved 2026-11-11 — §A.12.** The operator discharged the card the same day; `T-0192` is now `VOID` and this finding is closed.
+
 ## A.9 Ordered next steps, with exact commands
 
 Two decisions change the most; everything else follows them.
 
-**Decision A — how `T-0192` is discharged (§A.7).** Either land directly and record it, or `pmk task void T-0192 --reason "scope too narrow; landed directly"` and recreate with `tests/fleet/test_regressions.py` and `tests/fleet/test_conductor_leases.py` in `write`. `pmk task void` is operator-only.
+**Decision A — how `T-0192` is discharged (§A.7).** ***Resolved 2026-11-11 — see §A.12.** The text below was the *pre-decision* framing and its "either … or" is superseded: `supersede` and `void` turned out to be complementary, not alternatives.* Either land directly and record it, or `pmk task void T-0192 --reason "scope too narrow; landed directly"` and recreate with `tests/fleet/test_regressions.py` and `tests/fleet/test_conductor_leases.py` in `write`. `pmk task void` is operator-only.
 
 **Decision B — the Console/TTY question (item 3).** The reviewer requires `PMK_ACTOR=human:<name>` **plus an interactive TTY**, while item 4 says the Console's no-auth design must not change pending your decision — and the Console has no TTY. Either the Console class-K path fails (as the reviewer anticipates) with a per-start token proposed later, or the Console is exempt from the TTY condition. **I did not guess this.** Everything else in item 3 is unambiguous and the reviewer's draft is ready to adopt.
 
@@ -515,6 +517,51 @@ All 72 sit in the A-12-protected CNA body, deliberately left uncommitted. The ga
 | 4 | §A.1 evidence row: "Full suite … 1292 collected (`tmp/gate-h1-frag-20261111.log`)" | **Provenance corrected.** That log has no count line (§A.11 fragility 4); 1292 is a working-tree `--collect-only` figure, and the committed tree's clean-base figure is **1220**. |
 
 **Standing after the commit.** **DoD-1 is now PASS at `b2fe947`**, a base that includes H1 and both fragility fixes. Two of §A.9's steps are discharged: **step 3** (re-run the gate at the post-landing base — clean-base green) and **step 4** (settle the uncommitted set — committed as `b2fe947`). **Steps 1, 2, 5, 6 and 7 remain open**, as do Decisions A and B. DoD-5 remains partial (the leases). Hardening: **3 of 7 items landed** (H1, H2, H6), H5 partial, H3/H4/H7 absent; the human-authority gate and CP-3/CP-4 still open.
+
+## A.12 Decision A resolved — `T-0192` discharged (2026-11-11)
+
+**Confirmed.** The operator closed Decision A with two human-attributed events, in the order §A.9 prescribed:
+
+| seq | type | actor | payload |
+|---|---|---|---|
+| 3635 | `SUPERSEDED_BY` | `human:operator` | `commit: b2fe947`, `ref: ""`, reason recorded |
+| 3636 | `TASK_VOIDED` | `human:operator` | `fence: 0`, reason recorded |
+
+`pmk task show T-0192` → `state: VOID` with its `block_reason` set; the READY queue fell from **12 to 11**; `pmk sentinel` → `ok: true`, `findings: []` across all twelve invariants (I1, I3, I4, I5, I6, I7, I8', I13, I14, I15, I16, I17). Chain verifies at **3,637 events** (the event above 3,636 is the sentinel's own `PINS_CHECKED`).
+
+**Correction — §A.7 and §A.9 framed `supersede` and `void` as alternatives. They are complementary, and only `void` discharges the card.** Reading the implementation afterwards: `record_supersession` (`src/pmk/api.py:942`) appends a `SUPERSEDED_BY` event and nothing else — no reducer reads that type (`src/pmk/state.py` handles `TASK_VOIDED` but has no `SUPERSEDED_BY` branch), and its sole consumer is sentinel I5/R1 (`src/pmk/sentinel.py:170`), which applies only to a task that was `INTEGRATED` with an empty commit — a state `T-0192` never reached (it was never claimed). **Used alone, `supersede` would have left the card `READY`.** `void` is the retirement; `supersede` is the REC-11 traceability annotation recording *where the content landed*. Both were run, in that order.
+
+**Standing.** §A.7's scope defect and §A.8's card/tree disagreement are both closed. `T-0192` is `VOID`; its H1 content is committed and clean-base-proven in `b2fe947`; the ledger no longer understates the repair; and §A.8's caution ("do not read `READY` as 'H1 not done'") is obsolete. Decision B, the two invalid leases, CP-3 and CP-4 remain open.
+
+## A.13 CP-2 executed and CP-3 attempted — a reclamation defect found (2026-11-11)
+
+**CP-2 — closed.** The operator revoked both invalid leases: events `seq 3638` (`T-0210`, fence 162) and `seq 3639` (`T-0211`, fence 163), actor `human:operator`. `pmk status` now reports **`active_leases: 0`**, so `DoD-5`'s second half is satisfied — H1 refuses that grant shape prospectively, and the two historical instances are retired by human action.
+
+**Finding — `new_fence` is not unique (minor).** Both revocations returned `new_fence: 165`. Cause: `_next_fence` (`src/pmk/api.py:192-201`) takes the maximum over `event.fence` and `payload["fence"]`, but a `REVOKED` event records the *new* fence under `payload["new_fence"]`, which is never read. Consecutive revocations therefore hand out the same generation number. **Benign here** — fences are compared per task (`_current_fence`), both cards are now `VOID`, and nothing can race them — but it means `new_fence` is not the global monotonic counter its name implies.
+
+**Views are stale, not wrong.** `.pm/views/status.md:29-32` still lists the `T-0210`/`T-0211` leases although the kernel reports none; views regenerate on a debounce and `pmk views` forces it. No state defect.
+
+**CP-3 — 14 of 27 reclaimed; 13 are stuck, and that is a defect.** The operator ran `worktree archive --all-dirty` (7 captured, including the three foreign `H1-H4-clean-*` / `launcher-repair-clean-*` trees, which `prune` then correctly left in place) and `worktree prune --yes --archive`, which **removed 14** trees and archived each first. **21 remain**: 8 non-lease trees (`gate-*`, `h1-h4-branch-*`, the three foreign ones, `legacy-launcher-cwd-fallback-*`) and **13 that `prune` refused with "an active lease still owns this worktree"** — a message that is false.
+
+| Observation | Confirmed detail |
+|---|---|
+| `pmk status` | `active_leases: 0` |
+| The 13 refused trees | `T-0139-117`, `T-0150-121`, `T-0169-145`–`T-0174-150`, `T-0181-144`, `T-0182-151`, `T-0190-157`, `T-0191-158`, `T-0196-159` |
+| Their cards | **all `DONE`** |
+| Their lease entries | **still present** in `state.leases`; lease fence equals the worktree-name fence exactly |
+| `state.leases` | **38 entries — all 38 stale** (`active_leases()` returns 0) |
+
+**Root cause.** The reducer pops a lease only on `REVOKED` (`src/pmk/state.py:166`). `INTEGRATED` sets the card to `DONE` (`src/pmk/state.py:190-193`) and leaves the lease in place, so **every normally-completed task retains its lease forever**. `worktrees._skip_reason` then consults the **unfiltered** table (`src/pmk/worktrees.py:757-759`) and refuses reclamation whenever a leftover entry's fence matches the tree name — precisely the case for every worktree of a completed task.
+
+**Why nothing else clears it.** `pmk sweep` iterates `state.active_leases()` (`src/pmk/cli.py:378`), which filters to `ACTIVE_STATES = (LEASED, SUBMITTED, VERIFYING, INTEGRATING)` (`src/pmk/models.py:34`) — the 38 stale entries are invisible to it. `pmk revoke` would pop one, but it also drags the card out of `DONE` back to `READY`/`BLOCKED` (`src/pmk/state.py:155-165`), resurrecting finished work. **No existing command reclaims these 13 trees without corrupting card state.**
+
+**Derived.** A REC-04 reclamation defect with real operational cost: worktrees of *successfully completed* tasks are permanently unreclaimable, so the census can only grow. It also means §A.9 step 2 cannot be completed as written.
+
+**Two candidate fixes** — both small, either sufficient; the first is at the cause:
+1. Pop the lease on `INTEGRATED` (`src/pmk/state.py:190`): a `DONE` task has no meaningful lease. Check the late-submission path, which already falls back to the card's own fence (`_current_fence`).
+2. Make `_skip_reason` consult `active_leases()` rather than the raw table (`src/pmk/worktrees.py:757`), so a stale entry cannot block reclamation.
+
+**Standing.** Chain verifies at **3,639 events**; `pmk sentinel` → `ok: true`, no findings; project `PAUSED`; 21 pmk worktrees. CP-2 closed and `DoD-5` satisfied; CP-3 is blocked by the defect above, **not** by an operator decision; Decision B still open.
 
 ---
 
