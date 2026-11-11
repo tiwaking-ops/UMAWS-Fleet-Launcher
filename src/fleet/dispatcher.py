@@ -567,8 +567,11 @@ class Dispatcher:
             else:
                 lost.append(task_id)
 
-        self.kernel.record_event(
-            "RECONCILED", payload={"adopted": adopted, "lost": lost})
+        try:
+            self.kernel.record_event(
+                "RECONCILED", payload={"adopted": adopted, "lost": lost})
+        except KernelError:
+            pass
         return {"adopted": adopted, "lost": lost}
 
     # ------------------------------------------------------------------

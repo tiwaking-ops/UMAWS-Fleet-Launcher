@@ -882,6 +882,27 @@ def reclaim_after_capture(repo, state, path: Path, *,
         _release_lock(lock)
 
 
+def discover_merge_trees(temp_root: Path | str | None = None) -> list[dict]:
+    """Report scratch merge worktrees under ``%TEMP%/pmk-merge-*``.
+
+    Read-only discovery: the trees are listed for operator visibility but never
+    removed by :func:`prune`.
+    """
+    root = Path(temp_root) if temp_root is not None else Path(tempfile.gettempdir())
+    if not root.is_dir():
+        return []
+    found: list[dict] = []
+    for path in sorted(root.glob("pmk-merge-*")):
+        try:
+            if not path.is_dir():
+                continue
+            found.append({"name": path.name, "path": str(path),
+                          "bytes": dir_bytes(path)})
+        except OSError:
+            continue
+    return found
+
+
 def prune(repo, state, *, dry_run: bool = True,
           older_than_days: float | None = None,
           keep_unmerged: bool = True,
@@ -907,10 +928,14 @@ def prune(repo, state, *, dry_run: bool = True,
     and is re-checked against its capture before ``git worktree remove``.
     A tree ``git status`` calls clean can still hold ignored files, so it
     is captured too rather than deleted on the strength of that status.
+
+    Scratch merge trees under ``%TEMP%/pmk-merge-*`` are reported in
+    ``merge_trees`` for visibility and are never removed here.
     """
     recs = records(repo, state)
     candidates: list[dict] = []
     skipped: list[dict] = []
+    merge_trees = discover_merge_trees()
 
     for r in recs:
         if r["fence"] is None:
@@ -963,4 +988,5 @@ def prune(repo, state, *, dry_run: bool = True,
         "counts": {"candidates": len(candidates), "removed": len(removed),
                    "archived": len(archived), "skipped": len(skipped)},
         "recoverable_bytes": sum(c["bytes"] for c in candidates),
+        "merge_trees": merge_trees,
     }

@@ -106,6 +106,8 @@ class LeaseRun:
     main_tree_status_start: dict | None = None
     #: Every main-tree path that was dirty at spawn (the summary keeps only 20).
     main_tree_paths_start: frozenset = frozenset()
+    served_models: list[str] = field(default_factory=lambda: ["unavailable"])
+    provenance_source: str = "unavailable"
 
     def to_dict(self) -> dict:
         return {"task": self.task.id, "profile": self.profile.id,
@@ -581,7 +583,7 @@ class Harness:
         # Recorded at submit, before the answer, so the fact outlives the
         # gateway and the run.  Empty is a real answer for a direct-CLI
         # profile, and it leaves D-L12's veto in force rather than guessing.
-        served = self._record_provenance(run)
+        self._record_provenance(run)
 
         # -- the oracles decide -------------------------------------------
         # R-02: validate agent claims before trusting oracles
@@ -690,7 +692,9 @@ class Harness:
             premise_check={"refuted": False},
             budget_used={},
             resolved_models=[{"profile": run.lease.holder,
-                              "session": run.session, "family": "unknown"}],
+                              "session": run.session, "family": "unknown",
+                              "served_models": list(run.served_models),
+                              "source": run.provenance_source}],
             constitution_hash=constitution_hash,
             context_hash="",
         )
@@ -770,13 +774,23 @@ class Harness:
         except OSError:
             pass                         # a cache that cannot be written is not worth failing a run
 
+        if models:
+            served_models = sorted(models)
+            source = "gateway-window"
+        else:
+            served_models = ["unavailable"]
+            source = "unavailable"
+
+        run.served_models = list(served_models)
+        run.provenance_source = source
+
         self.kernel.record_event(
             "MODEL_SERVED", subject=run.task.id, fence=run.lease.fence,
             payload={"deployment": deployment,
-                     "served_models": sorted(models),
+                     "served_models": served_models,
                      "profile": run.profile.id,
                      "via_gateway": run.profile.via_gateway,
-                     "source": "gateway-window" if models else "none"})
+                     "source": source})
         return models
 
     def _recover(self, run: LeaseRun, result: LeaseResult,

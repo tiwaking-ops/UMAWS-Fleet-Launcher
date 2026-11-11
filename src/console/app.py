@@ -83,6 +83,7 @@ class Console:
         self.fixture_root = self.repo.root / "tests" / "fleet" / "fixtures"
         self.dispatcher = Dispatcher(self.kernel, self.fleet_state,
                                     fixture_root=self.fixture_root)
+        self.dispatcher.reconcile()
         self.overseer = OverseerRunner(self.kernel, self.fleet_state)
         self.conductor = Conductor(self.kernel, self.dispatcher, self.overseer)
         self.port = port
