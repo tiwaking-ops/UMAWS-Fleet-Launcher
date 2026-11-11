@@ -754,7 +754,12 @@ def _deletion_refusal(repo, state, path: Path) -> str:
         return "not a lease worktree name"
     if state is None:
         return "no Kernel state; cannot prove the lease is inactive"
-    lease = state.leases.get(task_id)
+    # Only an *active* lease may refuse reclamation.  ``state.leases`` can
+    # still hold an entry for a task that has left ACTIVE_STATES (for example
+    # after PREMISE_REFUTED), and reading that raw table made a finished
+    # task's worktree permanently unreclaimable; the active set is the
+    # authority on what is still held.
+    lease = state.active_leases().get(task_id)
     if lease is not None and lease.fence == fence:
         return "an active lease still owns this worktree"
     task = state.tasks.get(task_id)

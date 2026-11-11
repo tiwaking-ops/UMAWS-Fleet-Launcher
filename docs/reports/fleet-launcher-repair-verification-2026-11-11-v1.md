@@ -551,17 +551,46 @@ All 72 sit in the A-12-protected CNA body, deliberately left uncommitted. The ga
 | Their lease entries | **still present** in `state.leases`; lease fence equals the worktree-name fence exactly |
 | `state.leases` | **38 entries — all 38 stale** (`active_leases()` returns 0) |
 
-**Root cause.** The reducer pops a lease only on `REVOKED` (`src/pmk/state.py:166`). `INTEGRATED` sets the card to `DONE` (`src/pmk/state.py:190-193`) and leaves the lease in place, so **every normally-completed task retains its lease forever**. `worktrees._skip_reason` then consults the **unfiltered** table (`src/pmk/worktrees.py:757-759`) and refuses reclamation whenever a leftover entry's fence matches the tree name — precisely the case for every worktree of a completed task.
+**Root cause.** The reducer pops a lease only on `REVOKED` (`src/pmk/state.py:166`); `INTEGRATED` sets the card to `DONE` (`src/pmk/state.py:190-193`) and **retains** the lease entry — deliberately, because `revoke` requires it for a post-integration review (§A.14). The defect is therefore not the retention but the consumer: `worktrees._deletion_refusal` (`src/pmk/worktrees.py:757-759`) read that **unfiltered** table and refused reclamation whenever a leftover entry's fence matched the tree name — precisely the case for every worktree of a completed task.
 
 **Why nothing else clears it.** `pmk sweep` iterates `state.active_leases()` (`src/pmk/cli.py:378`), which filters to `ACTIVE_STATES = (LEASED, SUBMITTED, VERIFYING, INTEGRATING)` (`src/pmk/models.py:34`) — the 38 stale entries are invisible to it. `pmk revoke` would pop one, but it also drags the card out of `DONE` back to `READY`/`BLOCKED` (`src/pmk/state.py:155-165`), resurrecting finished work. **No existing command reclaims these 13 trees without corrupting card state.**
 
 **Derived.** A REC-04 reclamation defect with real operational cost: worktrees of *successfully completed* tasks are permanently unreclaimable, so the census can only grow. It also means §A.9 step 2 cannot be completed as written.
 
-**Two candidate fixes** — both small, either sufficient; the first is at the cause:
-1. Pop the lease on `INTEGRATED` (`src/pmk/state.py:190`): a `DONE` task has no meaningful lease. Check the late-submission path, which already falls back to the card's own fence (`_current_fence`).
-2. Make `_skip_reason` consult `active_leases()` rather than the raw table (`src/pmk/worktrees.py:757`), so a stale entry cannot block reclamation.
+**Two candidate fixes were weighed; only the second is correct.** (The fix as landed, and how the first was falsified, are in §A.14.)
+1. ~~Pop the lease on `INTEGRATED` (`src/pmk/state.py:190`).~~ **Rejected.** The retained entry is load-bearing: a post-integration review calls `revoke` on a `DONE` task, and `revoke` raises `no_lease` unless `state.leases` still holds the entry (`src/pmk/api.py:650-652`). Popping it broke two tests that assert exactly that path — `test_sentinel_silent_for_revoked_task_with_failing_bundle` and `test_sentinel_does_not_flag_valid_reintegration` (both in `tests/pmk/test_regression_i5.py`).
+2. **Make `_deletion_refusal` consult `active_leases()`** rather than the raw table (`src/pmk/worktrees.py:757`) — the predicate the check actually means ("is this still *held*?"), and robust to every non-active state rather than `DONE` alone.
 
-**Standing.** Chain verifies at **3,639 events**; `pmk sentinel` → `ok: true`, no findings; project `PAUSED`; 21 pmk worktrees. CP-2 closed and `DoD-5` satisfied; CP-3 is blocked by the defect above, **not** by an operator decision; Decision B still open.
+**Standing.** Chain verifies at **3,639 events**; `pmk sentinel` → `ok: true`, no findings; project `PAUSED`; 21 pmk worktrees. CP-2 closed and `DoD-5` satisfied; CP-3 was blocked by the defect above, **not** by an operator decision — fixed in §A.14.
+
+## A.14 CP-3 defect fixed — the reclamation predicate (2026-11-11)
+
+**Confirmed — the fix is one production change, in the consumer.**
+
+| File | Change |
+|---|---|
+| `src/pmk/worktrees.py` | `_deletion_refusal` asks **`state.active_leases()`** instead of the raw `state.leases` table. Only a lease that is still *held* may refuse reclamation. |
+| `src/pmk/state.py` | No behavioural change; a comment now records that the `INTEGRATED` lease entry is **retained deliberately** (`revoke` needs it) and that "is this still held?" must be asked of `active_leases()`. |
+| `tests/pmk/test_worktree_lifecycle.py` | Two regression tests: a `DONE` task's tree must be reclaimable and must be removed by `prune`; and an entry left by `PREMISE_REFUTED` must not refuse reclamation either. |
+
+**A first fix was attempted and falsified — §A.13's recommendation 1 is withdrawn.** Popping the lease on `INTEGRATED` looked like the cause-level fix, and I recommended it. It broke `tests/pmk/test_regression_i5.py::test_sentinel_silent_for_revoked_task_with_failing_bundle` and `::test_sentinel_does_not_flag_valid_reintegration`: **both integrate a task and then `revoke` it for post-integration review**, and `revoke` raises `no_lease` once the entry is gone (`src/pmk/api.py:650-652`). The retention is load-bearing, not a leak. Recorded here because the wrong fix was recommended before it was tested.
+
+**Evidence.**
+
+| Check | Before | After |
+|---|---|---|
+| `state.leases` / `active_leases()` | 38 / 0 | 38 / 0 — retained by design |
+| The 13 refused trees, `_deletion_refusal` | refused | all **13** return `""` |
+| `pmk worktree prune` dry-run skips | 8 non-lease + **13 "active lease"** | 8 non-lease only |
+| Full gate (`python -m pytest -o addopts="" -q`) | — | **1293 passed, 1 skipped**, exit 0 |
+| `test_regression_i5.py` + `test_worktree_lifecycle.py` | — | 83 passed, 1 skipped |
+| `pmk sentinel` | — | `ok: true`, no findings |
+
+Read-only probes: `tmp/probe_leases.py`, `tmp/probe_reclaimable.py`.
+
+**Residual observation, recorded as behaviour rather than a defect.** `pmk task show` still displays the retained lease entry for a `DONE` task. That is now understood as intentional — the entry is the fence a post-integration `revoke` needs — so it is left alone.
+
+**Standing.** CP-3 can now be completed: `pmk worktree prune --yes --archive` should remove the 13 previously-refused trees, while the 8 non-lease trees (including the three foreign `H1-H4-clean-*` / `launcher-repair-clean-*` gate trees) remain correctly skipped. Whether to run it is CP-3's operator decision. **Decision B was answered `A`** — the Console refuses class-K decisions and points at the terminal; no per-start token. Chain verifies at **3,640 events**; project `PAUSED`; `active_leases: 0`.
 
 ---
 

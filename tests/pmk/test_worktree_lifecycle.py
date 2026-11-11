@@ -512,6 +512,57 @@ def test_reclaim_refuses_an_active_lease(kernel, repo):
     assert not (repo.root / "stranded").exists()
 
 
+def test_a_finished_tasks_lease_entry_does_not_block_its_tree(kernel, repo):
+    """REC-04 regression: a completed task's worktree must stay reclaimable.
+
+    ``state.leases`` retains an entry for a finished task -- deliberately, so
+    that ``revoke`` can still be called for a post-integration review (see
+    ``test_sentinel_silent_for_revoked_task_with_failing_bundle``).  The
+    deletion check used to read that raw table, so every completed task's
+    worktree was permanently unreclaimable -- 13 of them on the live repo on
+    2026-11-11, refused with a false "an active lease still owns this
+    worktree".
+    """
+    card = make_card(kernel)
+    lease = kernel.claim(card.id, holder="p")
+    tree = _make_worktree(repo, f"{card.id}-{lease.fence}")
+    kernel.record_event("INTEGRATING", subject=card.id, fence=lease.fence,
+                        payload={"commit": "deadbee"})
+    kernel.record_event("INTEGRATED", subject=card.id, fence=lease.fence,
+                        payload={"commit": "deadbee",
+                                 "bundle": f"EB-{card.id}-{lease.fence}"})
+
+    state = kernel.state()
+
+    assert state.tasks[card.id].state == "DONE"
+    assert card.id in state.leases                  # the entry is retained...
+    assert card.id not in state.active_leases()     # ...but it is not active
+    assert worktrees._deletion_refusal(repo, state, tree) == ""
+    assert f"{card.id}-{lease.fence}" in worktrees.prune(
+        repo, state, dry_run=False)["removed"]
+
+
+def test_deletion_refusal_ignores_a_lease_left_by_a_non_active_task(
+        kernel, repo):
+    """Only an *active* lease may refuse reclamation.
+
+    A card can leave ACTIVE_STATES while its lease entry lingers -- here via
+    ``PREMISE_REFUTED``, which does not pop it.  Such an entry must not block
+    reclamation of a clean tree.
+    """
+    card = make_card(kernel)
+    lease = kernel.claim(card.id, holder="p")
+    tree = _make_worktree(repo, f"{card.id}-{lease.fence}")
+    kernel.premise_refuted(card.id, lease.fence, reason="premise false")
+
+    state = kernel.state()
+
+    assert state.tasks[card.id].state == "VOID"
+    assert card.id in state.leases                     # entry still present
+    assert card.id not in state.active_leases()        # but not active
+    assert worktrees._deletion_refusal(repo, state, tree) == ""
+
+
 def test_reclaim_refuses_protected_context_sync(kernel, repo):
     tree = repo.work_dir / "context-sync"
     tree.mkdir(parents=True)

@@ -191,6 +191,11 @@ def rebuild(events: list[Event]) -> State:
             card = state.tasks.get(subject or "")
             if card:
                 card.state = DONE
+            # NOTE: the lease entry is deliberately NOT dropped here.  A
+            # post-integration review calls ``revoke`` on a DONE task, and
+            # ``revoke`` (api.py) requires the entry to exist; dropping it
+            # breaks that path.  Consumers that mean "is this still held?"
+            # must ask ``active_leases()``, not this raw table.
 
         elif etype == "QUARANTINED":
             lease = state.leases.get(subject or "")
