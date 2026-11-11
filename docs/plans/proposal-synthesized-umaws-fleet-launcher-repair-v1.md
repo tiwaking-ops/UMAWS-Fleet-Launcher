@@ -651,17 +651,17 @@ Wherever this document says "record" or "full output":
 
 **Per irreversible action: one decision (before), one evidence artefact (after):**
 
-| Action | Decision (before) | Evidence (after) |
-|---|---|---|
-| Protective capture (Ph. 1) | note | patch + archive + hashes + restorability record |
-| Slice commit (Ph. 3) | note naming the slice | commit SHA + focused-test output |
-| Revoke a lease (Ph. 4, CP-2) | CP-2 record + reason | before/after `pmk task show` |
-| Clean-base gate (Ph. 5/9) | — | full output + base SHA + import proof |
-| H-item card (Ph. 6) | the card itself | harness output, bundle, gate output |
-| Prune/delete a tree (Ph. 7, CP-3) | CP-3 record | census + archive/verify proof per tree |
-| Canary (Ph. 11) | — | bundle + ledger tail + gate output |
-| Land on `main` (Ph. 10, CP-1) | CP-1 record | new `main` SHA, ff-only proof |
-| Draft decision (Ph. 12, CP-4) | the draft itself | bundle reference + `pmk status` at stop |
+| Action | Decision (before) | Evidence (after) | Status 2026-11-12 (measured) |
+|---|---|---|---|
+| Protective capture (Ph. 1) | note | patch + archive + hashes + restorability record | **satisfied** — the Phase 1 capture; the repair then landed as slice commits (`b2fe947`, `a1d301c`, `803feb9`) |
+| Slice commit (Ph. 3) | note naming the slice | commit SHA + focused-test output | **satisfied** — each slice commit carries its SHA; the full gate is **1332 passed / 1 skipped / 0 failed** (report §A.16.2) |
+| Revoke a lease (Ph. 4, CP-2) | CP-2 record + reason | before/after `pmk task show` | **satisfied** — `REVOKED` seq 3638 (`T-0210`, fence 162) and seq 3639 (`T-0211`, fence 163); `active_leases: 0` |
+| Clean-base gate (Ph. 5/9) | — | full output + base SHA + import proof | **satisfied** — `clean-base gate exit=0` at `5267cdb`, `b2fe947` and `a1d301c`, imports resolving inside the gate worktree (`tmp/clean-base-*`) |
+| H-item card (Ph. 6) | the card itself | harness output, bundle, gate output | **not applicable** — H1, H3, H4 and H7 all landed **directly**, not through the harness, so no card bundle exists. Recorded as a deviation (report §A.7, §A.16.5) |
+| Prune/delete a tree (Ph. 7, CP-3) | CP-3 record | census + archive/verify proof per tree | **satisfied** — CP-3 complete: every removed tree archived first (`stranded/`); the scratch prune reclaimed 18/18 |
+| Canary (Ph. 11) | — | bundle + ledger tail + gate output | **satisfied** — `EB-T-0196-159` (`gate_output`: `pytest -q`, exit 0); the original is `EB-T-0191-158` |
+| Land on `main` (Ph. 10, CP-1) | CP-1 record | new `main` SHA, ff-only proof | **Unknown** — no CP-1 record was located this session; the landings are visible as commits (`b2fe947`, `a1d301c`, `803feb9`), but the CP-1 record itself was not verified |
+| Draft decision (Ph. 12, CP-4) | the draft itself | bundle reference + `pmk status` at stop | **satisfied (draft)** — `D-75` drafted 2026-11-12; ratification remains the operator's CP-4 act |
 
 The completeness check (DoD-9): at the end, every row has both — or an explicit `Unknown` / not-applicable note.
 
@@ -739,15 +739,15 @@ Fill from measurements, never from memory. Each DoD is machine-checkable.
 
 | DoD | Criterion | Command / proof | Measured | Evidence file |
 |---|---|---|---|---|
-| **DoD-1** | Gate green in a detached clean worktree at the recorded post-landing base, imports resolving inside it | Phase 5.2/9.3 at the Phase 10 SHA → exit 0 | **PASS at `b2fe947`** (measured 2026-11-11, post-landing — this base *includes* H1 and both gate-fragility fixes): `clean-base gate exit=0 sha=b2fe9478108c9534af0fe96a774d1c8f9ce22053`, imports resolving inside the gate worktree, **1220 tests marked — 1219 pass / 1 skip / 0 fail**. Caveat: the gate log carries no count line (`addopts = -q` in `pytest.ini` **and** `pyproject.toml`, plus the script's own `-q`, runs pytest at `-qq`), so the count was recovered from the progress marks — see the report's §A.11. The earlier PASS at `5267cdb` (pre-H1) also stands. A further PASS at **`a1d301c`** (the §A.14 CP-3 fix): `clean-base gate exit=0 sha=a1d301c8a5d9a3a55d0a5e268e5169ee9633bab6`, imports resolving inside the gate worktree (count line again absent — fragility 4), log `tmp/clean-base-20261111-235639.log` | `tmp/clean-base-20261111-b2fe947.log`, `tmp/clean-base-20261111-235639.log` (and `tmp/clean-base-20261111-094825.log`, `tmp/clean-base-verify-20261111b.log`) — the planned `tmp\rb-9-final-gate.log` was never produced |
+| **DoD-1** | Gate green in a detached clean worktree at the recorded post-landing base, imports resolving inside it | Phase 5.2/9.3 at the Phase 10 SHA → exit 0 | **PASS at `b2fe947`** (measured 2026-11-11, post-landing — this base *includes* H1 and both gate-fragility fixes): `clean-base gate exit=0 sha=b2fe9478108c9534af0fe96a774d1c8f9ce22053`, imports resolving inside the gate worktree, **1220 tests marked — 1219 pass / 1 skip / 0 fail**. Caveat: the gate log carries no count line (`addopts = -q` in `pytest.ini` **and** `pyproject.toml`, plus the script's own `-q`, runs pytest at `-qq`), so the count was recovered from the progress marks — see the report's §A.11. **Fragility 4 was fixed 2026-11-12** (`tools/check_clean_base.ps1` now runs `pytest -o addopts="" -q`, and resolves `-Python` before changing directory — fragilities 3 and 4); gate logs now carry their own count line, demonstrated at `35e4bdc` (**1261 passed / 1 skipped**, report §A.17.1). The earlier PASS at `5267cdb` (pre-H1) also stands. A further PASS at **`a1d301c`** (the §A.14 CP-3 fix): `clean-base gate exit=0 sha=a1d301c8a5d9a3a55d0a5e268e5169ee9633bab6`, imports resolving inside the gate worktree (count line again absent — fragility 4), log `tmp/clean-base-20261111-235639.log` | `tmp/clean-base-20261111-b2fe947.log`, `tmp/clean-base-20261111-235639.log` (and `tmp/clean-base-20261111-094825.log`, `tmp/clean-base-verify-20261111b.log`) — the planned `tmp\rb-9-final-gate.log` was never produced |
 | **DoD-2** | `tests/fleet` + `tests/pmk` collect in one command | `python -m pytest -q --collect-only tests/fleet tests/pmk` → exit 0 | **PASS** — exit 0 after the H2 fixture split | `tmp/combined-collection-only.log` |
 | **DoD-3** | Env invariant holds for all `src/fleet` subprocess sites | `python tools\check_subprocess_env.py` → exit 0 | **PASS (2026-11-11)** — `python tools\check_subprocess_env.py` → `ok: no unguarded subprocess spawns (7 allowlisted); fleet cwd checks pass`, exit 0 | tool output (report §A.15) |
 | **DoD-4** | Censuses reconcile or the difference is fully explained; no un-captured deletion | `pmk worktree list` vs `git worktree list` + archive records | **PASS (2026-11-11)** — reconciled (report §A.15): `git worktree list` **28** = 1 main + **8** `work/` (identical names to `pmk`'s 8) + **6** `tmp/` + **1** `.claude/worktrees/*` + **12** `%TEMP%` (`pmk-merge-*` ×10, `pmk-precheck-dry-*` ×2 — the H7 subject). CP-3 archived every removed tree before deletion (13 removed / 13 archived; `stranded/` holds 97) | report §A.15; `stranded\` archive |
 | **DoD-5** | Lease admission check rejects repo-root / pid-less / expiry-less leases; `active_leases: 0` | `tests\pmk\test_lease_admission.py` passes; `pmk status` | **PASS (2026-11-11)** — both halves. H1 landed: `pytest -q tests/pmk/test_lease_admission.py tests/pmk/test_tasks.py` = **35 passed**. And `active_leases: 0`: the two historical invalid leases were revoked by the operator (`REVOKED` seq 3638 `T-0210` fence 162, seq 3639 `T-0211` fence 163; `REVOKED` also pops the lease), so `pmk status` reports 0. H1 refuses that grant shape prospectively and deliberately did not rewrite the historical records — human revocation closed them | `tests/pmk/test_lease_admission.py` output; `pmk status`; report §A.13 (`tmp\rb-4-lease.txt` was never produced, as with DoD-1's planned log) |
 | **DoD-6** | Fresh supervised canary reaches `DONE` through the real path; bundle carries non-empty `gate_output` | `pmk task show <canary>` transition trail + `bundle.json` | **PASS** — fresh T-0196 `DONE` at base `9bb0139`, merge `951d1ee`; bundle `EB-T-0196-159` carries non-empty `gate_output` (`pytest -q`, exit 0); events seq 3554–3558. T-0191 remains the original proof (`EB-T-0191-158`) | `.pm/evidence/EB-T-0196-159/bundle.json`; `tests/fleet/test_merge_queue.py` |
-| **DoD-7** | Decision drafted with the full payload at the next free id; checklist items 13/15 evidence-linked | `pilot\decisions.md` + checklist | _pending_ | doc sections |
-| **DoD-8** | Every in-scope OQ/R item closed or explicitly deferred with reason | §14 matrix filled from measurements | _pending_ | §14 |
-| **DoD-9** | Every irreversible action has decision-before + evidence-after | §8 table fully ticked or not-applicable | _pending_ | run log |
+| **DoD-7** | Decision drafted with the full payload at the next free id; checklist items 13/15 evidence-linked | `pilot\decisions.md` + checklist | **PASS (2026-11-12)** — **`D-75`** drafted in `pilot\decisions.md` (the terminal-only operator surface + the shared human-authority gate, landed as `803feb9`); checklist items **13** (suite green) and **15** (live canary reaches `DONE`) were already ticked with evidence and remain so. D-75 awaits CP-4 ratification | `pilot\decisions.md` (D-75); `pilot\repair-resumption-checklist-v1.md` items 13/15 |
+| **DoD-8** | Every in-scope OQ/R item closed or explicitly deferred with reason | §14 matrix filled from measurements | **PASS (2026-11-12)** — §14 now carries a measured status column: every in-scope OQ/R item is **CLOSED**, **RECORDED** and deferred to CP-4 with its reason (OQ-07, OQ-08, OQ-12), or marked **n/a** (the P/F/S registers). Residual documentation drift (OQ-10) is scoped and named rather than rewritten | §14 |
+| **DoD-9** | Every irreversible action has decision-before + evidence-after | §8 table fully ticked or not-applicable | **PASS (2026-11-12)** — §8 now carries a measured status column: six rows satisfied, one **not-applicable** (the H-items landed directly, so no card bundle exists — recorded as a deviation, report §A.16.5), one explicit **Unknown** (no CP-1 record was located this session), and one satisfied as a draft (`D-75`) | §8 |
 
 **A mediocre outcome is "the suite is green on my dirty tree and I think the canary will pass." A great outcome is: the gate is green in a detached clean worktree, the canary ran through the real path and reached `DONE`, the bundle shows why, and a draft decision records it — reproducible by a fresh agent from the ledger alone.**
 
@@ -757,25 +757,25 @@ Fill from measurements, never from memory. Each DoD is machine-checkable.
 
 ## 14. Traceability matrix (OQ / R / S → phase)
 
-| Item | Source | Location in this document | Status at synthesis |
-|---|---|---|---|
-| OQ-01 / R-01 | Dangling base file | Phase 5 (5.1 verify-first; 5.2 gate; 5.4 standing check) | base fix landed (`9b3b70d`/`de107f8`, Confirmed) → verify |
-| OQ-02 / R-02 | Phantom lease / admission check | Phase 4 (CP-2) + Phase 6 H1 | `active_leases: 0` (Confirmed) → verify + guard |
-| OQ-03 / R-03 | Uncommitted repair | Phase 1 (capture) + Phase 3 (slices) + Phase 10 (CP-1) | open — 31 files (+2298/−451, Confirmed) |
-| OQ-04 / R-14 | No passing canary; A10 blocked | Phase 11 + Phase 12 (CP-4) | closed — fresh canary T-0191 `DONE` with non-empty `gate_output`; merge `c7fcdf3` |
-| OQ-05 / R-04 | Census disagreement; stale merge trees | Phase 7 (CP-3) + Phase 6 H7 | open — 29 vs 41 (Confirmed) |
-| OQ-06 / R-05 | conftest collision | Phase 6 H2 → DoD-2 | closed — H2 fixture split landed; combined collection exit 0 |
-| OQ-07 | Identity commits Unknown | Phase 8.2 (record Unknown; rewrite banned) | record-only (A-13) |
-| OQ-08 / R-11 | `Q-077` / policy window | Phase 8.2 + B-12 payload standard | record-only (A-13) |
-| OQ-09 / R-06 | `reconcile()` not wired | Phase 6 H3 | open |
-| OQ-10 / R-12 | Documentation drift | Phase 8.1 (errata) | open |
-| OQ-11 / R-07 | Model attribution empty | Phase 6 H4 | open — `served_models: []` measured (seq 3477) |
-| OQ-12 / R-13 | Sentinel red baseline | Phase 8.3 (CP-4 disposition) | red recorded (checklist item 14) |
-| OQ-13 | Author's out-of-band work | Phase 8.4 (inventory) + §12 | inventory-only |
-| P-01…P-33 | Problem register | Covered via the rows above; env/hints/shell/evidence causes guarded by B-06/B-08/B-10/B-05 | — |
-| F-01…F-19 | Fix register | Landed items verified in Phase 3; new items are Phase 6 cards | verify at Phase 2/3 |
-| S-01…S-18 | Safeguards | §5 B-01…B-20 (all embedded) | binding |
-| New: `4e72901` base regression | Harness fix uncommitted | Phase 3 slice S1 + Phase 5 | open (Confirmed — seq 3494) |
+| Item | Source | Location in this document | Status at synthesis | Status 2026-11-12 (measured) |
+|---|---|---|---|---|
+| OQ-01 / R-01 | Dangling base file | Phase 5 (5.1 verify-first; 5.2 gate; 5.4 standing check) | base fix landed (`9b3b70d`/`de107f8`, Confirmed) → verify | **CLOSED** — clean-base gate `exit=0` at `5267cdb`, `b2fe947` and `a1d301c` (report §A.11, §A.15) |
+| OQ-02 / R-02 | Phantom lease / admission check | Phase 4 (CP-2) + Phase 6 H1 | `active_leases: 0` (Confirmed) → verify + guard | **CLOSED** — H1 landed (`b2fe947`); the two historical leases revoked at CP-2 (seq 3638/3639); `active_leases: 0`; DoD-5 PASS |
+| OQ-03 / R-03 | Uncommitted repair | Phase 1 (capture) + Phase 3 (slices) + Phase 10 (CP-1) | open — 31 files (+2298/−451, Confirmed) | **CLOSED** — the repair is committed (`b2fe947`, `a1d301c`, `803feb9`); the CNA body stays deliberately uncommitted under A-12 (deferred, reason recorded) |
+| OQ-04 / R-14 | No passing canary; A10 blocked | Phase 11 + Phase 12 (CP-4) | closed — fresh canary T-0191 `DONE` with non-empty `gate_output`; merge `c7fcdf3` | **CLOSED** — DoD-6 PASS; `EB-T-0196-159` (`951d1ee`) is the second proof; no further canary is owed (report §A.15) |
+| OQ-05 / R-04 | Census disagreement; stale merge trees | Phase 7 (CP-3) + Phase 6 H7 | open — 29 vs 41 (Confirmed) | **CLOSED** — DoD-4 reconciled (28 = 1 + 8 + 6 + 1 + 12, report §A.15); H7 landed (`772e1bc`, refined `e477c5f`) |
+| OQ-06 / R-05 | conftest collision | Phase 6 H2 → DoD-2 | closed — H2 fixture split landed; combined collection exit 0 | **CLOSED** — unchanged; DoD-2 PASS |
+| OQ-07 | Identity commits Unknown | Phase 8.2 (record Unknown; rewrite banned) | record-only (A-13) | **RECORDED — deferred to CP-4** (D-70); renewed 2026-11-12 (reviewer item 1, report §A.16.4) |
+| OQ-08 / R-11 | `Q-077` / policy window | Phase 8.2 + B-12 payload standard | record-only (A-13) | **RECORDED — deferred to CP-4** (D-71) |
+| OQ-09 / R-06 | `reconcile()` not wired | Phase 6 H3 | open | **CLOSED** — H3 landed in `33b9911`; `Dispatcher.reconcile()` is called at `console/app.py:86` |
+| OQ-10 / R-12 | Documentation drift | Phase 8.1 (errata) | open | **CLOSED in scope** — the owed errata are written (D-72 erratum, D-73 erratum, report §A.5/§A.11/§A.15/§A.16) and the plan's DoD rows reconciled; residual staleness outside the repair's scope is named, not rewritten |
+| OQ-11 / R-07 | Model attribution empty | Phase 6 H4 | open — `served_models: []` measured (seq 3477) | **CLOSED** — H4 landed in `33b9911`; `MODEL_SERVED` falls back to `["unavailable"]` (`harness.py:769-790`) |
+| OQ-12 / R-13 | Sentinel red baseline | Phase 8.3 (CP-4 disposition) | red recorded (checklist item 14) | **RECORDED — deferred to CP-4** — checklist item 14 stands; `pmk sentinel` measured `ok: true`, no findings on 2026-11-12 |
+| OQ-13 | Author's out-of-band work | Phase 8.4 (inventory) + §12 | inventory-only | **RECORDED** — §12 inventory; A-14 |
+| P-01…P-33 | Problem register | Covered via the rows above; env/hints/shell/evidence causes guarded by B-06/B-08/B-10/B-05 | — | **n/a** — coverage via the rows above |
+| F-01…F-19 | Fix register | Landed items verified in Phase 3; new items are Phase 6 cards | verify at Phase 2/3 | **CLOSED** — landed items verified; the Phase 6 remainder is H5 (partial), whose reason is in the DoD rows |
+| S-01…S-18 | Safeguards | §5 B-01…B-20 (all embedded) | binding | **binding** |
+| New: `4e72901` base regression | Harness fix uncommitted | Phase 3 slice S1 + Phase 5 | open (Confirmed — seq 3494) | **CLOSED** — the base fix landed (`9b3b70d`/`de107f8`) and the clean-base gate is green |
 
 ---
 

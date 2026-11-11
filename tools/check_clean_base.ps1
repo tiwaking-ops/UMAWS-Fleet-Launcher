@@ -40,6 +40,17 @@ if (-not (Test-Path (Join-Path $RepoRoot '.git'))) {
     throw "not a git worktree: $RepoRoot"
 }
 
+# Fragility 3: resolve the interpreter to an absolute path *before* any
+# Push-Location.  Step 3 runs pytest from inside the detached worktree, so a
+# relative -Python (or a bare name resolved against the new cwd) would not be
+# found.  Resolving here makes the parameter absolute from any cwd.
+try {
+    $Python = (Get-Command $Python -ErrorAction Stop).Source
+}
+catch {
+    throw "python not found: '$Python' - pass -Python with an absolute path"
+}
+
 $origin = Get-Location
 Push-Location $RepoRoot
 try {
@@ -70,7 +81,12 @@ try {
                 }
             }
 
-            & $Python -m pytest -q *> $log
+            # Fragility 4: pytest.ini *and* pyproject.toml both set
+            # addopts = -q, and this script previously added a third -q, so
+            # the run was effectively -qq and pytest's terminal count line
+            # never reached the log.  Clear addopts and keep a single -q so
+            # the summary lands in the log.
+            & $Python -m pytest -o addopts="" -q *> $log
             $gateExit = $LASTEXITCODE
             Get-Content -Path $log -Tail 12 | Write-Host
         }

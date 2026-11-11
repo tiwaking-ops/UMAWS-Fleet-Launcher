@@ -716,12 +716,69 @@ Both are authored `umaws-pilot <umaws-pilot@localhost>`. **This is reviewer item
 
 **Consequences for this section's evidence, stated plainly.** The gate run above executed on the working tree that already contained the H3/H4/H7 content now committed as `33b9911`/`772e1bc` (their `worktrees.py` was last written 09:08, before the run; `events.py` 08:56). So the 1332-pass figure covers **HEAD `772e1bc` plus this uncommitted gate change** — not `c8ac36b` alone, and not my change in isolation. `src/pmk/cli.py` is the one file both changes touch; my staged diff there is the nine authority hunks only, and their H7 command survives intact.
 
-### A.16.4 Standing
+### A.16.4 Ruling — reviewer item 1 (2026-11-12)
 
-The authority gate is implemented, tested and **staged** (11 files, `+529/−39`) but **uncommitted**; `worktrees.py` and `events.py` are **not** mine and were left alone. Reviewer **items 2 and 3 are now implemented** (was *Absent* / *Partial*); item 4's class-K half was already answered by Decision B = A, and its Console half is now decided (terminal-only). Item 1 remains **Unknown** and is now *more* pressing, not less. `DoD-7` (the decision record) is the natural home for the terminal-only ruling.
+**Ruling: `Unknown`, with the candidate sessions named as leads. No attribution is claimed.** The reviewer asked which session edited the live tree. The event log cannot answer: the concurrent session's own kernel-visible acts were recorded with `actor.kind = "kernel"` — the two `WORKTREE_SCRATCH_PRUNED` events at seq 3645–3646 — exactly as the CLI and the fleet record their own machine actions. Codex holds **no** thread whose cwd is this project. The only store that names anything is opencode's own `session_v2`:
+
+| session id | created | last active | title | near |
+|---|---|---|---|---|
+| `ses_e3594395bffeG69voW7h1A7G1z` | 2026-11-12 00:43:43 | 2026-11-12 00:59:38 | "Repair UMAWS Fleet Launcher" | `33b9911` at 01:00:12 |
+| `ses_e33d5d742ffeyUXspljUKRJfHd` | 2026-11-12 08:51:17 | 2026-11-12 09:49:53 | "worktree reuse" | `772e1bc` at 09:38:28 |
+| `ses_e36a6c389ffeNrqWTGaCBFQv9t` | 2026-11-11 19:43:51 | 2026-11-12 10:48:03 | "No Scope UMAWS Fleet Launcher scope proposal" | — |
+| `ses_e3904492dffeW5Kb59Qb82kq2e` | 2026-11-11 08:42:27 | 2026-11-12 10:54:22 | "REPAIR UMAWS Fleet Launcher repair status" | — |
+
+**Derived, not confirmed.** Two sessions are *temporally adjacent* to the commits and are the best available leads; the mapping is not provable (a store row cannot be bound to a commit), and the list does not distinguish the operator's own sessions from the concurrent one. §A.3's correction stands and is now demonstrated twice: an event log records events, not editor sessions, and cannot be made to name one after the fact. Read-only probes: `tmp/probe_sessions_t1.py`, `tmp/probe_sessions_wide.py`, `tmp/probe_codex_threads.py`.
+
+### A.16.5 Standing
+
+The authority gate is **committed as `803feb9`** (12 files, `+586/−42`); the concurrent session's `worktrees.py`/`events.py` were **not** mine and were left alone. Reviewer **items 2 and 3 are implemented** (were *Absent* / *Partial*); item 4 is answered (**Decision B = A**, and the Console is now terminal-only — `D-75`); item 1 is **Unknown (final, with leads)** above; item 5 remains open and item 6 is editorial. `D-75` is drafted, so **`DoD-7` is PASS**; `DoD-8` and `DoD-9` remain.
+
+**Also confirmed.** `T-0193`/`T-0194` (H3/H4) and `T-0195` (H7) are **landed and wired** (`33b9911`; `772e1bc`, refined by `e477c5f`) but their cards still read `READY` — the §A.8 disagreement once more. `T-0195`'s landed diff also touches `cli.py` and `test_worktree_lifecycle.py`, which are that card's **read** scope (§A.7 shape). Dispatch is **unpaused** (`dispatch_paused: false`) with `project_state: RUNNING` and 13 `READY` cards, so the stale cards should be retired before anything takes the dispatch line.
+
+## A.17 Second batch — DoD-8/DoD-9, reviewer item 5, and the two gate fragilities (2026-11-12)
+
+### A.17.1 Gate fragilities 3 and 4 — fixed and proven
+
+| Fragility | Cause | Fix |
+|---|---|---|
+| **3** — a relative `-Python` is unresolvable | the script `Push-Location`s into the detached worktree before invoking `$Python`, so a relative path (or a bare name) resolved against the wrong directory | `tools/check_clean_base.ps1` now resolves `$Python` with `Get-Command` **before** any location change, and throws a clear message if it cannot |
+| **4** — the gate log carried no count line | `addopts = -q` in `pytest.ini` **and** `pyproject.toml`, plus the script's own `-q`, ran pytest at effectively `-qq`, suppressing the summary | the gate now runs `pytest -o addopts="" -q`, clearing the config `addopts` and keeping a single `-q` |
+
+**Confirmed.** Run end-to-end from the repository root with a **relative** `-Python`:
+
+| Observation | Reading |
+|---|---|
+| `clean-base gate exit=0 sha=35e4bdc7bd791386bca5c8d93337971dca9ba187` | green at HEAD |
+| Log line `1261 passed, 1 skipped in 435.58 s` | **the count line is now in the log** — the §A.11 gap is closed |
+| Import lines resolving inside `umaws-gate-20261112-113728` | no editable-install shadowing |
+| `-Python no-such-python-xyz` | throws `python not found: … pass -Python with an absolute path` and exits 1 without creating a worktree |
+
+The working tree still collects **1333** against the clean tree's **1261**; the 72-test gap is the uncommitted CNA material exactly as §A.11 attributed it. Note the deltas also confirm §A.16's caveat: the clean tree here is `35e4bdc`, which now contains H3/H4/H7.
+
+### A.17.2 `DoD-8` and `DoD-9` — PASS
+
+- **§14 (OQ/R traceability)** now carries a measured **`Status 2026-11-12`** column beside the preserved `Status at synthesis`. Every in-scope item is **CLOSED**, **RECORDED** and deferred to CP-4 with its reason (OQ-07, OQ-08, OQ-12), or marked **n/a** (the P/F/S registers). `OQ-09` (reconcile unwired) and `OQ-11` (empty attribution) closed by `33b9911`; `OQ-05` (census/merge trees) by `35e4bdc`+`e477c5f`; `OQ-10` (documentation drift) is closed **in scope** — the owed errata are written and the residual staleness is named, not silently dropped. → **`DoD-8` PASS.**
+- **§8 (irreversible actions)** now carries a measured **`Status 2026-11-12`** column. Six rows are satisfied, one is **not applicable** (the H-items landed directly, so no card bundle exists — recorded as a deviation, §A.16.5), one is an explicit **Unknown** (no CP-1 record was located this session), and one is satisfied as a draft (`D-75`). → **`DoD-9` PASS**, per its own "or an explicit `Unknown` / not-applicable note" clause.
+
+### A.17.3 Reviewer item 5 — already delivered; one presentational gap
+
+A corrected, **genuine `git format-patch`** already exists and meets all four clauses:
+
+| Clause | Status in `tmp/canary-process/0004-gate-timeout-all-gates.patch` |
+|---|---|
+| (a) deliver as `git format-patch` | **met** — `From 3e9c6bcc… Mon Sep 17 00:00:00 2001`, `Subject: [PATCH] fleet: budget every merge gate and record gate evidence`; `git apply --check` exits 0 against the current tree |
+| (b) rename `canary_gate_timeout_s` | **met** — `gate_timeout_s` / `DEFAULT_GATE_TIMEOUT_S`; the old name is **absent from the live tree** entirely (it existed only inside the raw patch and `tmp/review-followups/`) |
+| (c) docs say "12.5–15 minutes, unknown" | **met** — the card and runbook hunks read "*the gate ran between 12.5 and 15 minutes, unknown*" |
+| (d) remove "too tight" | **met** — **0** occurrences in the corrected patch; in the live tree the phrase survives only in `docs/sources/umaws.md:856`, about *envelopes*, not the gate |
+
+**Two things are not done, and I am not doing them unilaterally.** The reviewer's own `tmp/reviewer-patches/patches-rebased/0004-rebased.patch` is **still the raw diff** — it is another actor's artifact (A-14: cite, do not modify), so I left it; delivering the corrected file under that exact name is a copy the operator should authorise. And the **live** `pilot/cards/canary-replacement-v1.md:139` still asserts "gate ~ 4 minutes (measured 3 m 59 s …)" — the figure the reviewer says was the failed T-0148 gate. Applying `0004` fixes it, so I did **not** pre-empt that hunk; whether to apply `0004` (it also adds the fleet setting) is an operator decision.
+
+### A.17.4 Standing
+
+`DoD` **PASS: DoD-1 … DoD-9** — all nine. Reviewer track: item 1 `Unknown (final, with leads)`; items **2 and 3 implemented**; item 4 answered (`D-75`); item 5's substance delivered (above); item 6 editorial. Open and operator-only: the `T-0193`–`T-0195` discharges, CP-4 ratification, applying `0004`, and the push.
 
 ---
 
-**Author:** DeepSeek V4.1 Flash Free — `opencode/deepseek-v4.1-flash-free`. Authored both the report and this addendum, including §A.15 and §A.16; no independent assessment of either exists, and no `assessor_llm` is claimed.
-**Status of this addendum:** advisory verification record. It grants no authority, ratifies nothing, promotes nothing, and changes no kernel state beyond the code recorded in §A.14 and §A.16.
-**Storage:** the report and §A.11–§A.15 are committed (`b2fe947`, `afcc0ba`, `2a579dd`, `a1d301c`, `c8ac36b`); **§A.16 was uncommitted when written** and is staged with the gate code for the operator. Folding the report into a decision record remains an operator decision.
+**Author:** DeepSeek V4.1 Flash Free — `opencode/deepseek-v4.1-flash-free`. Authored both the report and this addendum, including §A.15, §A.16 and §A.17; no independent assessment of either exists, and no `assessor_llm` is claimed.
+**Status of this addendum:** advisory verification record. It grants no authority, ratifies nothing, promotes nothing, and changes no kernel state beyond the code recorded in §A.14 and §A.16 and the two `tools/` fixes in §A.17.1.
+**Storage:** the report through §A.16 is committed (`b2fe947`, `afcc0ba`, `2a579dd`, `a1d301c`, `c8ac36b`, `803feb9`); **§A.17 was uncommitted when written** and is staged with the `tools/check_clean_base.ps1` fixes. Folding the report into a decision record remains an operator decision.
