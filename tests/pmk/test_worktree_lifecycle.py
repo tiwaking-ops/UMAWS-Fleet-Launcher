@@ -899,3 +899,170 @@ def test_reclaim_refuses_a_start_record_without_a_pid(kernel, repo):
     assert "no pid" in result["reason"]
     assert tree.is_dir()
     assert not (repo.root / "stranded").exists()
+
+
+# ---------------------------------------------------------------------------
+# Scratch trees -- the non-lease canary/gate/merge worktrees the fleet leaves
+# ---------------------------------------------------------------------------
+
+def _make_scratch_worktree(repo, name):
+    """A real git worktree under work/ whose name is not <task>-<fence>."""
+    path = repo.work_dir / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "worktree", "add", "--detach", str(path), "HEAD"],
+                   cwd=repo.root, capture_output=True)
+    return path
+
+
+def test_scratch_records_lists_only_non_lease_names(kernel, repo):
+    _make_scratch_worktree(repo, "gate-1234")
+    _make_scratch_worktree(repo, "T-0001-1")          # a lease-shaped name
+    (repo.work_dir / "context-sync").mkdir()          # protected
+
+    names = [r["name"] for r in worktrees.scratch_records(repo, kernel.state())]
+    assert names == ["gate-1234"]
+
+
+def test_is_git_worktree_is_false_for_a_plain_directory(kernel, repo):
+    # A plain directory inside work/ sits inside the main checkout, so
+    # `git rev-parse --is-inside-work-tree` answers true for it; the strict
+    # --show-toplevel check must still report it as not its own worktree --
+    # otherwise a raw scratch capture would record the main checkout's diff.
+    plain = repo.work_dir / "plain"
+    plain.mkdir(parents=True)
+    assert worktrees.is_git_worktree(repo, plain) is False
+    tree = _make_scratch_worktree(repo, "gate-1234")
+    assert worktrees.is_git_worktree(repo, tree) is True
+
+
+def test_reclaim_refuses_a_non_lease_name_without_allow_scratch(kernel, repo):
+    tree = _make_scratch_worktree(repo, "gate-1234")
+    result = worktrees.reclaim_after_capture(repo, kernel.state(), tree)
+    assert result["reclaimed"] is False
+    assert "not a lease worktree name" in result["reason"]
+    assert tree.is_dir()
+
+
+def test_scratch_prune_is_a_dry_run_by_default(kernel, repo):
+    tree = _make_scratch_worktree(repo, "gate-1234")
+    result = worktrees.prune_scratch(repo, kernel.state(), include_merge=False)
+    assert result["dry_run"] is True
+    assert result["candidates"] == ["gate-1234"]
+    assert result["removed"] == []
+    assert tree.is_dir()
+    assert not (repo.root / "stranded").exists()
+
+
+def test_scratch_prune_captures_then_removes_a_gate_tree(kernel, repo):
+    tree = _make_scratch_worktree(repo, "gate-1234")
+    (tree / "README.md").write_text("# scratch\n", encoding="utf-8")
+    (tree / "note.py").write_text("print(1)\n", encoding="utf-8")
+
+    result = worktrees.prune_scratch(repo, kernel.state(), dry_run=False,
+                                     include_merge=False)
+
+    assert [r["name"] for r in result["removed"]] == ["gate-1234"]
+    assert not tree.exists()
+    dest = repo.root / "stranded" / "gate-1234"
+    ok, problems = worktrees.verify_archive(dest)
+    assert ok, problems
+    assert (dest / "diff.patch").read_text(encoding="utf-8").strip()
+
+
+def test_scratch_prune_leaves_a_lease_tree_alone(kernel, repo):
+    lease = _make_scratch_worktree(repo, "T-0001-9")   # lease-shaped name
+    (lease / "README.md").write_text("# lease\n", encoding="utf-8")
+    result = worktrees.prune_scratch(repo, kernel.state(), dry_run=False,
+                                     include_merge=False)
+    assert result["candidates"] == []          # never a scratch candidate
+    assert lease.is_dir()
+
+
+def test_scratch_prune_never_touches_context_sync(kernel, repo):
+    sync = repo.work_dir / "context-sync"
+    sync.mkdir(parents=True)
+    (sync / "state.json").write_text("{}", encoding="utf-8")
+    result = worktrees.prune_scratch(repo, kernel.state(), dry_run=False,
+                                     include_merge=False)
+    assert result["candidates"] == []
+    assert (sync / "state.json").is_file()
+
+
+def test_merge_tree_records_reports_the_inner_worktree(tmp_path):
+    parent = tmp_path / "pmk-merge-abc"
+    (parent / "merge").mkdir(parents=True)
+    recs = worktrees.merge_tree_records(tmp_path)
+    assert [r["name"] for r in recs] == ["pmk-merge-abc"]
+    assert recs[0]["has_worktree"] is True
+
+
+def test_scratch_prune_reclaims_a_merge_tree(kernel, repo, tmp_path):
+    parent = tmp_path / "pmk-merge-abc"
+    parent.mkdir()
+    merge = parent / "merge"
+    subprocess.run(["git", "worktree", "add", "--detach", str(merge), "HEAD"],
+                   cwd=repo.root, capture_output=True, check=True)
+    (merge / "README.md").write_text("# merged\n", encoding="utf-8")
+
+    result = worktrees.prune_scratch(repo, kernel.state(), dry_run=False,
+                                     temp_root=tmp_path, include_work=False)
+
+    assert [r["name"] for r in result["removed"]] == ["pmk-merge-abc"]
+    assert not parent.exists()                  # the parent goes once empty
+    dest = repo.root / "stranded" / "pmk-merge-abc"
+    ok, problems = worktrees.verify_archive(dest)
+    assert ok, problems
+
+
+def test_scratch_prune_captures_an_orphan_merge_directory_raw(kernel, repo,
+                                                              tmp_path):
+    # A merge directory whose repository is gone is not a git worktree, so
+    # it is captured as raw bytes rather than as a git diff.
+    parent = tmp_path / "pmk-merge-orphan"
+    merge = parent / "merge"
+    merge.mkdir(parents=True)
+    (merge / "leftover.txt").write_bytes(b"bytes that exist nowhere else\n")
+
+    result = worktrees.prune_scratch(repo, kernel.state(), dry_run=False,
+                                     temp_root=tmp_path, include_work=False)
+
+    assert [r["name"] for r in result["removed"]] == ["pmk-merge-orphan"]
+    assert not parent.exists()
+    dest = repo.root / "stranded" / "pmk-merge-orphan"
+    ok, problems = worktrees.verify_archive(dest)
+    assert ok, problems
+    with tarfile.open(dest / "untracked.tar") as tf:
+        assert tf.extractfile("leftover.txt").read() == \
+            b"bytes that exist nowhere else\n"
+    manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["raw"] is True
+
+
+def test_scratch_prune_removes_an_empty_merge_directory(kernel, repo, tmp_path):
+    parent = tmp_path / "pmk-merge-empty"
+    parent.mkdir()
+    result = worktrees.prune_scratch(repo, kernel.state(), dry_run=False,
+                                     temp_root=tmp_path, include_work=False)
+    assert [r["name"] for r in result["removed"]] == ["pmk-merge-empty"]
+    assert not parent.exists()
+
+
+def test_cli_scratch_prune_dry_run_then_apply(kernel, repo, capsys):
+    from pmk import cli
+
+    tree = _make_scratch_worktree(repo, "gate-cli")
+    (tree / "README.md").write_text("# scratch\n", encoding="utf-8")
+
+    code = cli.main(["--root", str(repo.root), "worktree", "prune", "--scratch"])
+    assert code == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["dry_run"] is True
+    assert out["candidates"] == ["gate-cli"]
+    assert tree.is_dir()
+
+    code = cli.main(["--root", str(repo.root), "worktree", "prune", "--scratch",
+                     "--yes"])
+    assert code == 0
+    out = json.loads(capsys.readouterr().out)
+    assert [r["name"] for r in out["removed"]] == ["gate-cli"]
+    assert not tree.exists()

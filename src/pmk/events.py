@@ -46,6 +46,9 @@ KNOWN_EVENT_TYPES = frozenset({
     "LEASE_REFUSED",
     "INTEGRATING", "INTEGRATED", "QUARANTINED", "PREMISE_REFUTED",
     "SUPERSEDED_BY", "WORKTREE_RECLAIM", "WORKTREE_RECLAIMED",
+    # An operator surface reclaimed the non-lease scratch trees (canary,
+    # gate, %TEMP%/pmk-merge-*) capture-first; see worktrees.prune_scratch.
+    "WORKTREE_SCRATCH_PRUNED",
     "ORACLE_RESULT", "SCOPE_VIOLATION",
     "BRIEFING_GENERATED", "VIEWS_REGENERATED", "SENTINEL_RUN",
     "INCIDENT", "QUEUE_ITEM", "QUEUE_DECIDED", "PINS_CHECKED",

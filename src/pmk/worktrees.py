@@ -87,6 +87,22 @@ def dir_bytes(path: Path) -> int:
     return total
 
 
+def _rmtree_force(path: Path) -> None:
+    """Remove a directory tree, clearing the read-only bits git leaves.
+
+    A linked worktree's ``.git`` file (and files copied from a git object)
+    can be read-only, which makes ``shutil.rmtree`` fail on Windows.  Clear
+    the bit deepest-first, then remove the tree.
+    """
+    for parent_dir, dirs, files in os.walk(path, topdown=False):
+        for name in files + dirs:
+            try:
+                os.chmod(os.path.join(parent_dir, name), stat.S_IWRITE)
+            except OSError:
+                pass
+    shutil.rmtree(path)
+
+
 def _dirty(repo, path: Path) -> tuple[bool, int]:
     """``(is_dirty, entry_count)`` from ``git status --porcelain -uall``.
 
@@ -151,6 +167,27 @@ def stats(repo, state=None, *, with_git: bool = False) -> dict:
 def is_dirty(repo, path: Path) -> bool:
     """Public wrapper over the git-status check."""
     return _dirty(repo, path)[0]
+
+
+def is_git_worktree(repo, path: Path) -> bool:
+    """True only when *path* is itself a work tree git can resolve.
+
+    ``git rev-parse --is-inside-work-tree`` is not enough: a plain directory
+    dropped inside ``work/`` sits *inside* the main checkout, so git answers
+    ``true`` for it too.  Comparing ``--show-toplevel`` to *path* means an
+    orphaned scratch directory (a stale merge tree whose repository is gone)
+    is correctly reported as not a worktree, and is captured as raw bytes
+    rather than as a git diff of the main checkout.
+    """
+    code, out, _err = repo.git("rev-parse", "--show-toplevel", cwd=path)
+    if code != 0:
+        return False
+    try:
+        top = Path(out.strip()).resolve()
+        target = Path(path).resolve()
+    except OSError:
+        return False
+    return os.path.normcase(str(top)) == os.path.normcase(str(target))
 
 
 # ---------------------------------------------------------------------------
@@ -310,6 +347,35 @@ def _quiescence_digest(repo, path: Path) -> str:
     return hasher.hexdigest()
 
 
+def _raw_entries(path: Path) -> list[str]:
+    """Every non-directory entry under *path*, as posix-relative names."""
+    entries: list[str] = []
+    for entry in path.rglob("*"):
+        try:
+            if entry.is_dir() and not entry.is_symlink():
+                continue
+        except OSError:
+            continue
+        entries.append(entry.relative_to(path).as_posix())
+    return sorted(entries)
+
+
+def _raw_digest(path: Path) -> str:
+    """Digest a non-git directory exactly as :func:`archive_plain_dir` packs it.
+
+    Same seed (``b""``), same tag and same order as that capture, so the
+    post-capture barrier compares like for like.
+    """
+    hasher = _new_digest(b"")
+    for rel in _raw_entries(path):
+        try:
+            _info, _data, digest, size = _read_entry(path, rel)
+        except (OSError, ValueError) as exc:
+            raise CaptureError(f"could not read {rel!r}: {exc}") from exc
+        _digest_add(hasher, "u", rel, digest, size)
+    return hasher.hexdigest()
+
+
 def _claim_dest(root: Path, stem: str, *, limit: int = 1000) -> Path:
     """Create a fresh archive directory; never reuse an existing one."""
     root.mkdir(parents=True, exist_ok=True)
@@ -323,7 +389,8 @@ def _claim_dest(root: Path, stem: str, *, limit: int = 1000) -> Path:
     raise CaptureError(f"no free archive destination for {stem!r}")
 
 
-def archive_tree(repo, state, path: Path, *, target_root: Path | None = None) -> dict:
+def archive_tree(repo, state, path: Path, *, target_root: Path | None = None,
+                 stem: str | None = None) -> dict:
     """Capture one worktree's uncommitted work (REC-02).
 
     Writes ``<root>/stranded/<task>-<fence>/`` containing:
@@ -349,8 +416,8 @@ def archive_tree(repo, state, path: Path, *, target_root: Path | None = None) ->
     try:
         base, diff, untracked, ignored = _scan_tree(repo, path)
         hasher = _new_digest(diff)
-        dest = _claim_dest(root, (f"{task_id}-{fence}" if fence is not None
-                                  else path.name))
+        dest = _claim_dest(root, stem or (f"{task_id}-{fence}"
+                                          if fence is not None else path.name))
     except (CaptureError, OSError) as exc:
         return dict(failed, reason=str(exc))
 
@@ -420,6 +487,65 @@ def archive_tree(repo, state, path: Path, *, target_root: Path | None = None) ->
             "untracked_count": len(untracked),
             "ignored_count": len(ignored),
             "tree_digest": manifest["tree_digest"]}
+
+
+def archive_plain_dir(path: Path, *, target_root: Path, stem: str) -> dict:
+    """Capture a directory that is not a git worktree, in REC-02's shape.
+
+    A stale ``%TEMP%/pmk-merge-*`` directory whose repository is gone still
+    holds bytes that exist nowhere else, so it is captured before it is
+    removed.  There is no base commit, so ``diff.patch`` is empty and every
+    non-directory entry lands in ``untracked.tar``; :func:`verify_archive`
+    then re-checks it exactly as it does a lease capture (counts, sha256 and
+    a ``tree_digest`` rebuilt from the archive's own bytes).
+    """
+    path = Path(path)
+    root = Path(target_root)
+    failed = {"name": path.name, "archived": False}
+    try:
+        files = _raw_entries(path)
+        dest = _claim_dest(root, stem)
+    except (CaptureError, OSError) as exc:
+        return dict(failed, reason=str(exc))
+    hasher = _new_digest(b"")
+    try:
+        _write_file(dest / "diff.patch", b"")
+        packed = _pack_files(path, files, dest / "untracked.tar", hasher, "u")
+        manifest = {
+            "task": stem,
+            "fence": None,
+            "worktree": path.name,
+            "state": "?",
+            "base_commit": None,
+            "raw": True,
+            "tracked_changes": False,
+            "untracked_count": len(files),
+            "untracked_packed": packed,
+            "untracked_files": files[:500],
+            "ignored_count": 0,
+            "ignored_packed": 0,
+            "result_md": False,
+            "diff_bytes": 0,
+            "diff_sha256": hashlib.sha256(b"").hexdigest(),
+            "untracked_tar_bytes": (dest / "untracked.tar").stat().st_size,
+            "untracked_tar_sha256": _sha256_file(dest / "untracked.tar"),
+            "tree_digest": hasher.hexdigest(),
+            "capture_version": 2,
+            "archived_at": _now_iso(),
+        }
+        _write_file(dest / "manifest.json",
+                    (json.dumps(manifest, indent=2) + "\n").encode("utf-8"))
+        # Same barrier as a git capture: the directory must still be exactly
+        # what was packed, or it is kept.
+        if _raw_digest(path) != manifest["tree_digest"]:
+            raise CaptureError(
+                "the directory changed while it was being captured")
+    except (CaptureError, OSError, ValueError, tarfile.TarError) as exc:
+        shutil.rmtree(dest, ignore_errors=True)
+        return dict(failed, reason=str(exc))
+    return {"name": path.name, "archived": True, "dest": str(dest),
+            "raw": True, "diff_bytes": 0, "untracked_count": len(files),
+            "ignored_count": 0, "tree_digest": manifest["tree_digest"]}
 
 
 def _tar_entries(tar_path: Path) -> tuple[list[str], str]:
@@ -737,9 +863,21 @@ def _unverifiable_processes(processes: list[dict]) -> list[dict]:
     return [p for p in processes if p.get("pid") is None]
 
 
-def _deletion_refusal(repo, state, path: Path) -> str:
-    """H1: only a direct, unprotected lease worktree with no live lease."""
-    root = worktree_root(repo)
+def _deletion_refusal(repo, state, path: Path, *, allow_scratch: bool = False,
+                      root: Path | None = None) -> str:
+    """H1: only a direct, unprotected worktree with no live lease.
+
+    *root* is the container whose direct children may be reclaimed; by
+    default the lease worktree root (``<repo>/work``).  A scratch prune
+    passes the parent of a merge tree instead.
+
+    *allow_scratch* additionally permits a directory whose name is **not**
+    ``<task>-<fence>`` -- the canary/gate/merge scratch trees the fleet
+    leaves behind and the lease-only rule refuses.  Such a tree holds no
+    lease, so the active-lease guard cannot apply to it; the protected-name
+    and containment checks still do.
+    """
+    root = Path(root) if root is not None else worktree_root(repo)
     try:
         root_resolved = root.resolve()
         target_resolved = path.resolve()
@@ -751,7 +889,9 @@ def _deletion_refusal(repo, state, path: Path) -> str:
         return "not a direct child of the worktree root"
     task_id, fence = parse_name(path.name)
     if fence is None:
-        return "not a lease worktree name"
+        if not allow_scratch:
+            return "not a lease worktree name"
+        return ""
     if state is None:
         return "no Kernel state; cannot prove the lease is inactive"
     # Only an *active* lease may refuse reclamation.  ``state.leases`` can
@@ -770,7 +910,11 @@ def _deletion_refusal(repo, state, path: Path) -> str:
 
 def reclaim_after_capture(repo, state, path: Path, *,
                           target_root: Path | None = None,
-                          extra_processes: list[dict] | None = None) -> dict:
+                          extra_processes: list[dict] | None = None,
+                          allow_scratch: bool = False,
+                          root: Path | None = None,
+                          stem: str | None = None,
+                          remove_parent: bool = False) -> dict:
     """REC-01: capture a worktree, verify it, prove quiescence, remove it.
 
     This is the **only** function that deletes a worktree.  It never
@@ -786,6 +930,15 @@ def reclaim_after_capture(repo, state, path: Path, *,
       capture the tree is digested again, so anything that wrote to it
       while it was being captured keeps it on disk.
 
+    A **scratch** reclaim (``allow_scratch=True``) extends this to a
+    directory the lease path refuses: a non-lease name under *root*, or a
+    ``%TEMP%/pmk-merge-*`` tree.  Such a directory is still protected-name
+    and containment checked, still captured and verified, and — when it is
+    not itself a git worktree, as a stale merge directory is not — captured
+    as raw bytes (:func:`archive_plain_dir`) rather than as a git diff.
+    ``stem`` names its archive, and ``remove_parent`` drops the now-empty
+    parent (a ``pmk-merge-*`` directory around a ``merge`` worktree).
+
     Returns a result dict; ``reclaimed`` is true only when the worktree
     was actually removed.
     """
@@ -798,7 +951,8 @@ def reclaim_after_capture(repo, state, path: Path, *,
     # H1: never delete a protected path, a path outside work/, or a tree
     # whose lease is still active.  This is checked before any archive or
     # lock work, so a refusal leaves no side effects.
-    refusal = _deletion_refusal(repo, state, path)
+    refusal = _deletion_refusal(repo, state, path, allow_scratch=allow_scratch,
+                                root=root)
     if refusal:
         result["reason"] = refusal
         return result
@@ -832,7 +986,19 @@ def reclaim_after_capture(repo, state, path: Path, *,
             result["processes"] = busy
             return result
 
-        capture = archive_tree(repo, state, path, target_root=target_root)
+        is_git = is_git_worktree(repo, path)
+        if is_git:
+            capture = archive_tree(repo, state, path, target_root=target_root,
+                                   stem=stem)
+        elif allow_scratch:
+            capture = archive_plain_dir(
+                path,
+                target_root=(Path(target_root) if target_root
+                             else archive_root(repo)),
+                stem=stem or path.name)
+        else:
+            result["reason"] = "not a git worktree"
+            return result
         if not capture.get("archived"):
             result["reason"] = (f"capture failed: "
                                 f"{capture.get('reason', 'unknown')}")
@@ -845,18 +1011,22 @@ def reclaim_after_capture(repo, state, path: Path, *,
         result["archived"] = True
         result["archive"] = str(dest)
 
-        # Restore proof: the archive must be able to reconstruct the
-        # captured tracked changes on its recorded base before deletion.
-        restored, restore_problems = verify_restore(repo, dest)
-        if not restored:
-            result["reason"] = ("restore proof failed: "
-                                + "; ".join(restore_problems))
-            return result
-        result["restore_verified"] = True
+        if is_git:
+            # Restore proof: the archive must be able to reconstruct the
+            # captured tracked changes on its recorded base before deletion.
+            # A raw directory capture has no base commit, so there is no
+            # patch to replay; verify_archive already proved its bytes.
+            restored, restore_problems = verify_restore(repo, dest)
+            if not restored:
+                result["reason"] = ("restore proof failed: "
+                                    + "; ".join(restore_problems))
+                return result
+            result["restore_verified"] = True
 
         # The barrier: the tree must still be exactly what was captured.
         try:
-            digest = _quiescence_digest(repo, path)
+            digest = (_quiescence_digest(repo, path) if is_git
+                      else _raw_digest(path))
         except CaptureError as exc:
             result["reason"] = f"post-capture recheck failed: {exc}"
             return result
@@ -871,15 +1041,48 @@ def reclaim_after_capture(repo, state, path: Path, *,
             result["processes"] = busy
             return result
 
-        code, out, err = repo.git("worktree", "remove", "--force", str(path))
-        if code != 0:
-            result["reason"] = ("git worktree remove failed: "
-                                f"{(err.strip() or out.strip())}")
-            return result
+        if is_git:
+            code, out, err = repo.git("worktree", "remove", "--force", str(path))
+            if code != 0:
+                result["reason"] = ("git worktree remove failed: "
+                                    f"{(err.strip() or out.strip())}")
+                return result
+        else:
+            try:
+                _rmtree_force(path)
+            except OSError as exc:
+                result["reason"] = f"could not remove the directory: {exc}"
+                return result
         result["reclaimed"] = True
-        return result
     finally:
         _release_lock(lock)
+    # Runs after the lock is released, so the lock file is not itself the
+    # thing that stops the parent directory from being empty.
+    if result["reclaimed"] and remove_parent:
+        _remove_empty_parent(path, result)
+    return result
+
+
+def _remove_empty_parent(path: Path, result: dict) -> None:
+    """After a scratch reclaim, drop the parent when it is now empty.
+
+    A ``%TEMP%/pmk-merge-*`` directory normally holds only its ``merge``
+    worktree, so once that worktree is reclaimed the parent is empty.  Any
+    remaining entry is kept and reported rather than deleted.
+    """
+    parent = path.parent
+    try:
+        leftovers = sorted(p.name for p in parent.iterdir())
+    except OSError:
+        return
+    if leftovers:
+        result["parent_kept"] = leftovers[:20]
+        return
+    try:
+        parent.rmdir()
+        result["parent_removed"] = True
+    except OSError as exc:
+        result["parent_note"] = f"empty parent not removed: {exc}"
 
 
 def discover_merge_trees(temp_root: Path | str | None = None) -> list[dict]:
@@ -989,4 +1192,102 @@ def prune(repo, state, *, dry_run: bool = True,
                    "archived": len(archived), "skipped": len(skipped)},
         "recoverable_bytes": sum(c["bytes"] for c in candidates),
         "merge_trees": merge_trees,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Scratch trees -- the non-lease worktrees the fleet leaves behind
+# ---------------------------------------------------------------------------
+
+def scratch_records(repo, state) -> list[dict]:
+    """Directories under ``work/`` whose name is not ``<task>-<fence>``.
+
+    These are the canary and gate worktrees (``gate-*``, ``H1-H4-*``,
+    ``launcher-repair-*``): real git worktrees, but not leases, so the
+    lease-only :func:`prune` refuses them by name.
+    """
+    return [record(repo, state, p) for p in iter_dirs(repo)
+            if parse_name(p.name)[1] is None]
+
+
+def merge_tree_records(temp_root: Path | str | None = None) -> list[dict]:
+    """Every ``%TEMP%/pmk-merge-*`` directory, with the worktree it holds."""
+    out: list[dict] = []
+    for tree in discover_merge_trees(temp_root):
+        parent = Path(tree["path"])
+        worktree = parent / "merge"
+        out.append({"name": parent.name,
+                    "path": str(parent),
+                    "merge": str(worktree) if worktree.is_dir() else "",
+                    "has_worktree": worktree.is_dir(),
+                    "bytes": tree["bytes"]})
+    return out
+
+
+def prune_scratch(repo, state, *, dry_run: bool = True,
+                  target_root: Path | None = None,
+                  temp_root: Path | str | None = None,
+                  include_work: bool = True,
+                  include_merge: bool = True) -> dict:
+    """Reclaim the non-lease scratch trees the fleet leaves behind.
+
+    Two classes, both of which the lease-only :func:`prune` refuses:
+
+    * a directory under ``work/`` whose name is not ``<task>-<fence>``
+      (a canary or gate tree); and
+    * a ``%TEMP%/pmk-merge-*`` directory -- the ``merge`` worktree it holds,
+      or the directory itself when that worktree is gone.
+
+    Dry-run by default.  Every removal goes through
+    :func:`reclaim_after_capture`, so each tree is captured (REC-02, or a
+    raw directory capture when it is not a git worktree) and the capture is
+    verified before anything is deleted.  A merge directory is removed in
+    full only once its worktree is gone and nothing else remains in it.
+    """
+    root = Path(target_root) if target_root else archive_root(repo)
+    planned: list[str] = []
+    removed: list[dict] = []
+    skipped: list[dict] = []
+
+    candidates: list[tuple[str, Path, dict]] = []
+    if include_work:
+        for rec in scratch_records(repo, state):
+            candidates.append(("work", Path(rec["path"]), {}))
+    if include_merge:
+        default_temp = Path(temp_root) if temp_root is not None \
+            else Path(tempfile.gettempdir())
+        for rec in merge_tree_records(temp_root):
+            parent = Path(rec["path"])
+            if rec["has_worktree"]:
+                candidates.append(("merge", parent / "merge",
+                                   {"root": parent, "remove_parent": True}))
+            else:
+                candidates.append(("merge-dir", parent,
+                                   {"root": default_temp}))
+
+    for kind, path, extra in candidates:
+        name = path.parent.name if kind == "merge" else path.name
+        planned.append(name)
+        if dry_run:
+            continue
+        outcome = reclaim_after_capture(repo, state, path, target_root=root,
+                                        allow_scratch=True, stem=name, **extra)
+        entry = {"name": name, "kind": kind, "path": str(path),
+                 "reclaimed": bool(outcome.get("reclaimed")),
+                 "archive": outcome.get("archive", ""),
+                 "reason": outcome.get("reason", "")}
+        if outcome.get("reclaimed"):
+            removed.append(entry)
+        else:
+            skipped.append(entry)
+
+    return {
+        "dry_run": dry_run,
+        "include_work": include_work,
+        "include_merge": include_merge,
+        "candidates": planned,
+        "removed": removed,
+        "skipped": skipped,
+        "counts": {"candidates": len(planned), "removed": len(removed),
+                   "skipped": len(skipped)},
     }
