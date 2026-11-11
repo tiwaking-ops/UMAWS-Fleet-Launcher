@@ -592,8 +592,82 @@ Read-only probes: `tmp/probe_leases.py`, `tmp/probe_reclaimable.py`.
 
 **Standing.** CP-3 can now be completed: `pmk worktree prune --yes --archive` should remove the 13 previously-refused trees, while the 8 non-lease trees (including the three foreign `H1-H4-clean-*` / `launcher-repair-clean-*` gate trees) remain correctly skipped. Whether to run it is CP-3's operator decision. **Decision B was answered `A`** — the Console refuses class-K decisions and points at the terminal; no per-start token. Chain verifies at **3,640 events**; project `PAUSED`; `active_leases: 0`.
 
+## A.15 Post-commit verification — `a1d301c`, CP-3 completed, and the canary that was not needed (2026-11-11)
+
+**Scope.** This section verifies the operator's own commit and follow-on run of §A.14's steps: the commit `a1d301c`, the clean-base gate at that base, CP-3's completion, `DoD-3` and `DoD-4`. It also corrects advice I gave in §A.9/§A.10 and repeated in `HANDOFF.md`: **the `DoD-6` canary did not need to be re-run, and recommending it was wrong.**
+
+**Confirmed — the commit.**
+
+| Field | Value |
+|---|---|
+| SHA | `a1d301c8a5d9a3a55d0a5e268e5169ee9633bab6` |
+| Tree | `e976189a4d80b118480c303d4d19099c7a44f2f9` |
+| Parent | `2a579dd` |
+| Author / committer | `umaws-pilot <umaws-pilot@localhost>` |
+| Scale | 6 files, +104/−13 |
+| Base relationship | 0 behind / **137** ahead of `origin/main` |
+
+The six files are exactly the ones §A.14 staged: `src/pmk/worktrees.py` (the one-line fix), `src/pmk/state.py` (comment only), `tests/pmk/test_worktree_lifecycle.py` (two regression tests), this report, `HANDOFF.md`, and the plan's `DoD-5` row.
+
+**Confirmed — the clean-base gate now covers the fix.** `tools/check_clean_base.ps1 -Python "<absolute path to .venv\Scripts\python.exe>"` at `HEAD a1d301c`, log `tmp/clean-base-20261111-235639.log`:
+
+| Observation | Reading |
+|---|---|
+| `clean-base gate exit=0 sha=a1d301c8a5d9a3a55d0a5e268e5169ee9633bab6` | green |
+| Import lines `…\umaws-gate-20261111-235639\src\cna\engine\loop.py` and `…\src\pmk\__init__.py` | resolve **inside** the gate worktree — no editable-install shadowing |
+| Count line | absent again — fragility 4 (§A.11), unchanged |
+
+The gate worktree `C:\temp\projects\umaws-gate-20261111-235639` was removed on success. **`DoD-1` therefore PASSES at a third base**, the first that contains the CP-3 fix.
+
+**Confirmed — CP-3 is complete.** The §A.14 fix made the 13 previously-refused trees reclaimable, and the operator's dry run and real run agree:
+
+| Run | Result |
+|---|---|
+| `pmk worktree prune` (dry run) | 13 candidates, **0** active-lease skips; the only skips are the **8** non-lease trees (`"not a lease worktree name"`); `recoverable_bytes: 186,472,774` |
+| `pmk worktree prune --yes --archive` | **removed 13**, **archived 13** (each to `stranded\<name>`), **skipped 8** |
+
+`work/` now holds **exactly the 8 non-lease trees** — `gate-*` ×3, `h1-h4-branch-*`, the three foreign `H1-H4-clean-*` / `launcher-repair-clean-*` gate trees, and `legacy-launcher-cwd-fallback-*` — all correctly protected. No un-captured deletion: every removed tree was archived first (`stranded/` holds 97 archived trees).
+
+**Confirmed — `DoD-3` passes.** `python tools\check_subprocess_env.py` → `ok: no unguarded subprocess spawns (7 allowlisted); fleet cwd checks pass`, exit 0. The plan row's `_pending_` was stale.
+
+**Confirmed — `DoD-4` reconciles.** `git worktree list` reports **28** entries against `pmk`'s **8**, and the difference is fully attributed:
+
+| Group | Count | Note |
+|---|---|---|
+| Main checkout | 1 | the repository root |
+| `work/` | 8 | **identical names** to `pmk worktree list` — the 8 non-lease trees |
+| `tmp/` | 6 | canary/precheck base trees: `canary-base-20261110` and its nested `T-0147-120`, `canary-base-e302119`, `canary-process-0004`, `canary-process-verify`, `clean-head-20261110` |
+| `.claude/worktrees/` | 1 | `agent-a8ea164055f940daf` |
+| `%TEMP%` | 12 | **10** `pmk-merge-*` merge scratch trees + **2** `pmk-precheck-dry-bje5ewal` base/scratch — the subject of **H7** |
+| **Total** | **28** | 1 + 8 + 6 + 1 + 12 = 28 ✓ |
+
+**Correction — the canary was unnecessary, and my earlier advice to run one was wrong.**
+
+§A.9's step list and `HANDOFF.md`'s next-actions said to run a fresh supervised canary "for `DoD-6`". **That is not required.** `DoD-6` has been **PASS** since earlier on 2026-11-11: fresh `T-0196` reached `DONE` at base `9bb0139` (merge `951d1ee`) and its bundle carries a non-empty `gate_output` — verified this session from `.pm/evidence/EB-T-0196-159/bundle.json`: `cmd: pytest -q`, `exit: 0`, `ok: true`, populated `stdout_tail`. The original proof `T-0191` / `EB-T-0191-158` is intact, and `OQ-04`/`R-14` are recorded closed.
+
+The operator did run one, and it **refused — by design, not as a defect**:
+
+```json
+{ "error": "canary_requires_exactly_one_ready", "count": 13, "ready": [ "T-0193", "…", "T-0211" ] }
+```
+
+`run_canary` (`src/fleet/canary.py:55-60`) requires **exactly one** `READY` card and raises `canary_requires_exactly_one_ready` otherwise; the project has 13. The check runs **before** the dispatch-owner lock is taken and before `CANARY_STARTED`, so the refusal wrote no event and left no partial state. **No canary is owed.**
+
+**Derived — a side effect worth naming.** Revoking a lease returns its card to `READY` (`REVOKED` → `READY`, or `BLOCKED` if attempts are exhausted) — the same semantics that made §A.13's first candidate fix wrong. So CP-2 (revoking `T-0210`/`T-0211`) moved those two cards back into the queue: `READY` went **11 → 13**, now `T-0193`–`T-0195`, `T-0199`, `T-0200`, `T-0202`–`T-0207`, `T-0210`, `T-0211`. Separately, `project resume` (run to clear the way for the canary) set `project_state: RUNNING`; the canary then refused, so the project is now **`RUNNING` with no dispatch owner**. Whether to pause or to dispatch is an operator decision; H1's `lease_incomplete` half is dormant while `RUNNING`, by design.
+
+**Corrections to earlier sections.**
+
+| # | Earlier statement (section) | Correction |
+|---|---|---|
+| 1 | §A.14 Standing: "CP-3 can now be completed … Chain verifies at 3,640 events; project `PAUSED`" | **Superseded.** CP-3 is complete (above); chain verifies at **3,644 events**; project is **`RUNNING`**; `active_leases: 0`. |
+| 2 | §A.9 step list / `HANDOFF.md` next-actions: run a fresh canary for `DoD-6` | **Withdrawn.** `DoD-6` was already PASS (`T-0196`); the canary refused by design. See above. |
+| 3 | Body §Verdict point 5 and §9 step 11: "CP-3 … remain unexercised" | **Partly superseded.** CP-3 is exercised and complete; **CP-4** (ratification) alone remains of that pair. |
+| 4 | Plan `DoD-3` / `DoD-4` rows: `_pending_` | **Corrected** in the plan. `DoD-3` **PASS** (tool exit 0); `DoD-4` **reconciled** (28 = 1 + 8 + 6 + 1 + 12). |
+
+**Standing after this verification.** HEAD `a1d301c`, 0 behind / **137** ahead of `origin/main`. 212 cards: **156 VOID**, **43 DONE**, **13 READY**; `active_leases: 0`; chain verifies at **3,644 events**; `pmk sentinel` → `ok: true`, no findings; `work/` holds exactly **8** non-lease trees. **`DoD` PASS: DoD-1, DoD-2, DoD-3, DoD-4, DoD-5, DoD-6.** Still open: `DoD-7` (decision at the next free id), `DoD-8` (§14 matrix), `DoD-9` (§8 ticked); the unlanded hardening items **H3/H4/H7** (`T-0193`/`T-0194`/`T-0195` are READY); reviewer items 2–4 (the authority gate, unblocked by Decision **B = A**); and **CP-4** (ratify D-72 + its erratum and D-74; record `T-0189` as superseded by `T-0190`, not exonerated). Push is operator-only.
+
 ---
 
-**Author:** DeepSeek V4.1 Flash Free — `opencode/deepseek-v4.1-flash-free`. Authored both the report and this addendum; no independent assessment of either exists, and no `assessor_llm` is claimed.
-**Status of this addendum:** advisory verification record. It grants no authority, ratifies nothing, promotes nothing, and changes no kernel state. Its code changes are committed as `b2fe947` (§A.11), and the clean-base gate is green at that base.
-**Storage:** committed inside `b2fe947` as part of the 24-file set; §A.11 is an uncommitted later edit. Citing it from `HANDOFF.md` has since been done (that file's 2026-11-11 block). Folding it into a decision record remains an operator decision.
+**Author:** DeepSeek V4.1 Flash Free — `opencode/deepseek-v4.1-flash-free`. Authored both the report and this addendum, including §A.15; no independent assessment of either exists, and no `assessor_llm` is claimed.
+**Status of this addendum:** advisory verification record. It grants no authority, ratifies nothing, promotes nothing, and changes no kernel state beyond the one-line code fix recorded in §A.14. That fix is committed as `a1d301c`, and the clean-base gate is green at that base (§A.15).
+**Storage:** the report and §A.11–§A.14 are committed (`b2fe947`, `afcc0ba`, `2a579dd`, `a1d301c`); **§A.15 was uncommitted when written** and is staged for the operator. Folding the report into a decision record remains an operator decision.
