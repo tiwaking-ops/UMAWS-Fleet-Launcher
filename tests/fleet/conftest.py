@@ -108,3 +108,27 @@ def fake_kernel(kernel: Kernel, git_repo: Repo) -> Kernel:
     """A kernel whose only profile is the fake CLI."""
     write_agents(git_repo, [fake_profile()])
     return kernel
+
+
+@pytest.fixture(autouse=True)
+def fleet_scratch_stays_in_tmp(monkeypatch, tmp_path: Path):
+    """Fleet scratch lives under this test's ``tmp_path``, never the global temp.
+
+    ``fleet.scratch`` built ``pmk-merge-*`` / ``pmk-precheck-*`` directories
+    in the global ``%TEMP%``, which nothing ever collected: a run killed
+    mid-merge left a tree there permanently, and the lease-admission
+    precheck left an empty husk behind on every call.  A pytest-managed
+    ``tmp_path`` goes away with the test, so a leaked scratch directory can
+    no longer outlive the run that made it.
+
+    An explicit ``temp_root`` still wins, so a test that wants to assert on
+    the scratch can pass its own directory.
+    """
+    from fleet import scratch
+
+    real = scratch.scratch_dir
+
+    def scoped(prefix: str, temp_root=None):
+        return real(prefix, tmp_path if temp_root is None else temp_root)
+
+    monkeypatch.setattr(scratch, "scratch_dir", scoped)

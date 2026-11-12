@@ -48,14 +48,13 @@ validation_problems) so Kernel.integrate and merge.py cannot disagree.
 from __future__ import annotations
 
 import os
-import shutil
-import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from pmk.api import Kernel, KernelError
 
+from . import scratch
 from .runenv import import_origin_problems, worktree_env
 
 #: The identity every pipeline-landed commit must carry.  Four commits in the
@@ -193,7 +192,8 @@ def _persist_gate_output(bundle, kernel, output: dict) -> None:
 
 
 def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
-              gate_cmd: str = "", keep_worktree: bool = True) -> MergeResult:
+              gate_cmd: str = "", keep_worktree: bool = True,
+              temp_root: Path | str | None = None) -> MergeResult:
     """Run one lease through the merge queue.
 
     B-R2b: The merge and gate run in a TEMP WORKTREE (not the main tree).
@@ -209,6 +209,11 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
     6. result.commit = main's HEAD after the fast-forward. Always remove
        <temp> and its temp branch.
     Keep the "changed nothing" reintegration behaviour.
+
+    *temp_root* places the merge scratch under a caller-owned directory --
+    a pytest-managed ``tmp_path`` in tests -- instead of the global temp
+    directory; see :mod:`fleet.scratch` for why the default littered it.
+    The scratch is removed on every exit path, read-only files included.
     """
     from .harness import scope_check
 
@@ -281,7 +286,7 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
     base_head = base_head.strip()
 
     # B-R2b: Create temp worktree from clean main HEAD
-    merge_dir = Path(tempfile.mkdtemp(prefix="pmk-merge-"))
+    merge_dir = scratch.scratch_dir("pmk-merge-", temp_root)
     temp_wt = merge_dir / "merge"
     max_retries = 2
     retry_count = 0
@@ -422,9 +427,9 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
                         repo.git("worktree", "remove", "--force", str(temp_wt))
                     except Exception:
                         pass
-                    shutil.rmtree(merge_dir, ignore_errors=True)
+                    scratch.remove_scratch(merge_dir)
                     # Recreate merge_dir for next iteration
-                    merge_dir = Path(tempfile.mkdtemp(prefix="pmk-merge-"))
+                    merge_dir = scratch.scratch_dir("pmk-merge-", temp_root)
                     temp_wt = merge_dir / "merge"
                     base_head = current_main_head
                     retry_count += 1
@@ -484,7 +489,7 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
                     pass
 
     finally:
-        shutil.rmtree(merge_dir, ignore_errors=True)
+        scratch.remove_scratch(merge_dir)
 
     # Should not reach here
     result.message = "merge queue exhausted retries"
