@@ -180,26 +180,27 @@ argv_resume = ["cline", "--provider", "cline", "--model", "{model}", "{prompt}",
 models = [
   "nvidia/nemotron-3.5-lightning-free",
   "cline-free/nemotron-3.5-super-vl",
-  "reflection/beam-free",
+  # /**Thu Nov 12 11:38:59 NZDT 2026*/ REMOVED by Tiwa "reflection/beam-free",
   # Poolside models removed - shut down October 31, 2026
 ]
 # Cline models (each with correct family)
-[[profile]]
-id = "cline-beam"
-adapter = "cline"
-family = "reflection"
-priority = 31
-max_concurrent = 1
-via_gateway = false
-roles = ["implement"]
-argv_new = ["cline", "--provider", "cline", "--model", "cline-free/nemotron-3.5-super-vl", "{prompt}"]
-argv_resume = ["cline", "--provider", "cline", "--model", "{model}", "{prompt}", "--id", "{session}"]
-models = [
-  "nvidia/nemotron-3.5-lightning-free",
-  "cline-free/nemotron-3.5-super-vl",
-  "cline-free/solar-mini4",
+# /**Thu Nov 12 11:38:59 NZDT 2026*/ REMOVED by Tiwa cline-beam profile
+# [[profile]]
+# id = "cline-beam"
+# adapter = "cline"
+# family = "reflection"
+# priority = 31
+# max_concurrent = 1
+# via_gateway = false
+# roles = ["implement"]
+# argv_new = ["cline", "--provider", "cline", "--model", "cline-free/nemotron-3.5-super-vl", "{prompt}"]
+# argv_resume = ["cline", "--provider", "cline", "--model", "{model}", "{prompt}", "--id", "{session}"]
+# models = [
+#   "nvidia/nemotron-3.5-lightning-free",
+#   "cline-free/nemotron-3.5-super-vl",
+#   "cline-free/solar-mini4",
   # Poolside models removed - shut down October 31, 2026
-]
+# ]
 
 [[profile]]
 id = "cline-nemo-lightning"
@@ -213,7 +214,7 @@ argv_new = ["cline", "--provider", "cline", "--model", "nvidia/nemotron-3.5-ligh
 argv_resume = ["cline", "--provider", "cline", "--model", "{model}", "{prompt}", "--id", "{session}"]
 models = [
   "cline-free/solar-mini4",
-  "reflection/beam-free",
+# /**Thu Nov 12 11:38:59 NZDT 2026*/ REMOVED by Tiwa   "reflection/beam-free",
   "cline-free/nemotron-3.5-super-vl",
   # Poolside models removed - shut down October 31, 2026
 ]
@@ -229,7 +230,7 @@ argv_new = ["cline", "--provider", "cline", "--model", "nvidia/nemotron-3.5-ligh
 argv_resume = ["cline", "--provider", "cline", "--model", "{model}", "{prompt}", "--id", "{session}"]
 models = [
   "cline-free/solar-mini4",
-  "reflection/beam-free",
+# /**Thu Nov 12 11:38:59 NZDT 2026*/ REMOVED by Tiwa   "reflection/beam-free",
   "nvidia/nemotron-3.5-lightning-free",
   # Poolside models removed - shut down October 31, 2026
 ]
@@ -269,7 +270,7 @@ id = "opencode-strongest"
 adapter = "opencode"
 family = "opencode"
 priority = 50
-max_concurrent = 2
+max_concurrent = 1
 via_gateway = false
 roles = ["plan", "review", "implement"]
 argv_new = ["opencode", "run", "-m", "{model}", "{prompt}"]
@@ -290,7 +291,7 @@ id = "overseer-inkling"
 adapter = "opencode"
 family = "inkling"
 priority = 60
-max_concurrent = 2
+max_concurrent = 1
 via_gateway = false
 roles = ["plan", "review", "implement"]
 argv_new = ["opencode", "run", "-m", "{model}", "{prompt}"]
@@ -309,7 +310,7 @@ id = "opencode-orca-auto"
 adapter = "opencode"
 family = "opencode"
 priority = 70
-max_concurrent = 2
+max_concurrent = 1
 via_gateway = false
 roles = ["plan", "review", "implement"]
 argv_new = ["opencode", "run", "-m", "{model}", "{prompt}"]
@@ -342,25 +343,26 @@ models = [
 "upstage/solar-mini4:free",
 ]
 
-[[profile]]
-id = "hermes-ornith"
-adapter = "hermes"
-family = "ornith"
-priority = 4
-max_concurrent = 2
-via_gateway = false
-roles = ["implement", "review", "plan"]
-argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}"]
+# /**Thu Nov 12 11:38:59 NZDT 2026*/ REMOVED by Tiwa hermes-ornith profile
+#[[profile]]
+# id = "hermes-ornith"
+# adapter = "hermes"
+# family = "ornith"
+# priority = 4
+# max_concurrent = 1
+# via_gateway = false
+# roles = ["implement", "review", "plan"]
+# argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}"]
 # Measured: under -Q, hermes writes a `session_id: YYYYMMDD_HHMMSS_<hex6>`
 # line to STDERR (which plat.spawn merges into the stdout log via
 # subprocess.STDOUT).  There is NO "Resume this session with" trailer.
 # The working directory is already set by the harness (cwd=worktree), so no
 # --in flag is needed.
-argv_resume = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}", "--resume", "{session}"]
-model = "ornith/ornith-1.5-122b:free"
-models = [
-"upstage/solar-mini4:free",
-]
+# argv_resume = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}", "--resume", "{session}"]
+# model = "ornith/ornith-1.5-122b:free"
+# models = [
+# "upstage/solar-mini4:free",
+# ]
 
 [[profile]]
 id = "hermes-solar-mini4"
@@ -399,7 +401,7 @@ argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--sour
 argv_resume = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}", "--resume", "{session}"]
 model = "reflection/beam-1.0-501b-a23b:free"
 models = [
-"ornith/ornith-1.5-122b:free",
+# /**Thu Nov 12 11:38:59 NZDT 2026*/ REMOVED by Tiwa "ornith/ornith-1.5-122b:free",
 "upstage/solar-mini4:free",
 ]
 
