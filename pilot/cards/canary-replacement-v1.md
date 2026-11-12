@@ -136,8 +136,9 @@ Expected event sequence for `<NEW-ID>` (all at one fence):
 | `INTEGRATING` → `INTEGRATED` | commit authored `umaws-pilot <umaws-pilot@localhost>` |
 | `TASK_DONE` | state `DONE` |
 
-Budget: agent typically 1–3 minutes, gate ≈ 4 minutes (measured 3 m 59 s on the canary of
-2026-11-07), merge seconds. If the agent has not exited after 15 minutes the stall bound revokes it.
+Budget: agent typically 1–3 minutes; the gate ran between 12.5 and 15 minutes,
+unknown. The 3 m 59 s figure in the earlier card was the failed T-0148 gate. Merge
+seconds. If the agent has not exited after 15 minutes the stall bound revokes it.
 
 ## 5. Abort immediately if
 

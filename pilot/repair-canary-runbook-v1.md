@@ -56,6 +56,13 @@
    ./.venv/Scripts/pmk.exe sentinel
    ```
 
+## Gate budget
+
+The gate ran between 12.5 and 15 minutes, unknown. The 4-minute figure came from the
+failed T-0148 gate; measured SUBMITTED→ORACLE_RESULT spans include queue and bundle
+work, so they do not establish the gate subprocess duration. The fleet setting is
+`gate_timeout_s = 1200`.
+
 ## Abort immediately if any of these is true
 
 - the worktree path is outside `work/`;
