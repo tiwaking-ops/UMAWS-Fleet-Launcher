@@ -1,9 +1,9 @@
 ---
 title: "Fleet scratch leak — root-cause fix report"
-version: "1.0.0"
+version: "1.1.0"
 date: "2026-11-12"
 author_llm: "Step 5 Preview (stepfun-ai/step-5-preview, nvidia)"
-scope: "the fleet's throwaway directories in the global %TEMP% (pmk-merge-*, pmk-precheck-*, pmk-precheck-dry-*): measurement, root cause, fix, and what is deliberately left alone"
+scope: "the fleet's throwaway directories in the global %TEMP% (pmk-merge-*, pmk-precheck-*, pmk-precheck-dry-*): measurement, root cause, fix, the two operator-approved reclaim runs, and what is deliberately left alone"
 ---
 
 # Fleet scratch leak — root-cause fix report
@@ -99,21 +99,66 @@ processes are writing to). Autouse fixtures are already house style here.
 * **Full suite**: **1347 passed, 1 skipped** (`umaws_junit_scratchfix.xml`), the
   gate recorded in the commit message.
 
-## 6. What is deliberately left alone (the operator's item 1)
+## 6. What was deliberately left alone — then what the operator approved
 
-| Surface | Size | Why it stays |
+The operator reviewed the residual inventory and approved two of the three
+groups:
+
+| Surface | Size | Outcome |
 |---|---|---|
-| 13 orphan/empty `pmk-merge-*` shells | ~0 bytes | their repositories are gone, so ownership cannot be proven — the same gate that protects the other project's tree |
-| 1 live `pmk-merge-*` (umaws-noscope-toy) | — | **another project's in-flight merge**; the ownership gate skips it |
-| 412 `pmk-precheck-*` husks | ~0 bytes | unprovable by design, and now stopped at the source; machine hygiene, not repo work |
-| 1 `pmk-precheck-dry-*` (2026-11-10) | 29.85 MiB | **this repo's**, two worktrees still registered (`base`, `scratch`), `scratch` carries 2 modified files — a capture-first reclaim is a sanctioned-path extension, offered as a decision |
-| `tmp/` | 172.2 MiB | 5 **tracked** files and 6 registered worktrees: a content decision as well as a cleanup, offered as a decision |
-| `.claude/worktrees/agent-a8ea…` | — | another agent's worktree |
+| 13 orphan/empty `pmk-merge-*` shells | ~0 bytes | **left alone** — their repositories are gone, so ownership cannot be proven, and one of the family is another project's *live* merge |
+| 1 live `pmk-merge-*` (umaws-noscope-toy) | — | **left alone** — another project's in-flight merge; the ownership gate skips it |
+| 412 `pmk-precheck-*` husks | ~0 bytes | **left alone** — unprovable by design and now stopped at the source; machine hygiene, not repo work |
+| 1 `pmk-precheck-dry-*` (2026-11-10) | 29.85 MiB | **reclaimed** — approved "extend the sanctioned path, then run" (section 7) |
+| `tmp/` registered canary worktrees (6) | 97.91 MiB | **reclaimed** — approved "only the 6 registered canary worktrees" (section 8) |
+| `tmp/` reviewer trees (3), 5 tracked files, small canary/gate dirs | 60.9 MiB + ~0.5 MiB | **left alone** — other agents' work and repo content |
+| `.claude/worktrees/agent-a8ea…` | — | **left alone** — another agent's worktree |
 
 One operational note: the venv is an **editable install** of `src`, so every
 newly started `pmk`/pytest process picks this fix up. The two
 `umaws-noscope-toy` fleet processes running at the time of the fix hold the old
 code in memory and keep making husks until they restart.
+
+## 7. Run one — `pmk worktree prune --precheck-trees --yes`
+
+The dry run listed exactly the two worktrees of the stale directory; the applied
+run reclaimed both, capture-first, and the results verified:
+
+| Check | Result |
+|---|---|
+| `removed` | 2/2 (`base`, `scratch`), 0 skipped |
+| `%TEMP%/pmk-precheck-dry-bje5ewal` | gone (29.85 MiB freed) |
+| `git worktree list` | 0 registrations left; `git worktree prune -n -v` silent |
+| `stranded/` | 115 → 117; both archives `verify_archive` → True |
+| `stranded/…-scratch/diff.patch` | 1390 bytes, `src/pmk/worktrees.py` — the one tracked change |
+| `stranded/…-scratch/untracked.tar` | `tests/pmk/test_prune_merge_trees.py` — the one untracked file |
+| `stranded/…-scratch/ignored.tar` | 25 ignored files packed |
+
+Re-gate after the extension: the full suite is **1353 passed, 1 skipped**
+(`umaws_junit_precheck.xml`) — 1347 from the fix's gate plus the six new
+precheck cases.
+
+So the two `git status` entries the stale tree carried were captured, not
+discarded.
+
+## 8. Run two — the six registered canary worktrees under `tmp/`
+
+A documented one-off through the sanctioned deletion path
+(`worktrees.reclaim_after_capture`, deepest-first so the nested
+`work/T-0147-120` was captured before the directory containing it).  Scope was
+exactly the six registered worktrees; the reviewer trees, the five tracked
+files and everything else under `tmp/` were not touched.
+
+| Check | Result |
+|---|---|
+| `removed` | 6/6, 0 kept |
+| `tmp/` | 172.18 → 74.27 MiB (**97.91 MiB freed**), 30 → 25 directories |
+| `git worktree list` | 0 `tmp/` registrations; `git worktree prune -n -v` silent |
+| `git ls-files tmp` | still 5 tracked files |
+| `stranded/` | 117 → 123; all six archives `verify_archive` → True |
+| Dirty trees captured | `canary-base-20261110` (1 entry), `clean-head-20261110` (2 entries) |
+
+The other four were clean, so their archives are empty patches by design.
 
 ## 7. Provenance
 
