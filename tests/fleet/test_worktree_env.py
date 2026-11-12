@@ -27,6 +27,7 @@ from pmk.models import Lease
 
 from fleet.harness import Harness, run_command
 from fleet.merge import integrate
+from fleet.runenv import import_origin_problems
 
 from _fleet_fixtures import make_task
 
@@ -177,3 +178,33 @@ def test_worker_env_scrubs_gateway_profile_then_prepends(tmp_path, monkeypatch):
     assert "OPENAI_API_KEY" not in env
     assert "ANYROUTER_API_KEY" not in env
     assert env["PYTHONPATH"].startswith(str(wt / "src"))
+
+
+# ---------------------------------------------------------------------------
+# import-origin preflight (R-02)
+# ---------------------------------------------------------------------------
+
+def test_import_origin_accepts_modules_under_the_worktree(tmp_path):
+    wt = tmp_path / "wt"
+    (wt / "src" / "cna" / "tools").mkdir(parents=True)
+    (wt / "src" / "cna" / "tools" / "coverage.py").write_text(
+        "VALUE = 1\n", encoding="utf-8")
+    (wt / "src" / "pmk").mkdir(parents=True)
+    (wt / "src" / "pmk" / "__init__.py").write_text("", encoding="utf-8")
+    (wt / "src" / "pmk" / "api.py").write_text("VALUE = 2\n", encoding="utf-8")
+
+    assert import_origin_problems(wt) == []
+
+
+def test_import_origin_rejects_a_module_resolved_from_main(tmp_path, monkeypatch):
+    host = tmp_path / "host"
+    (host / "cna" / "tools").mkdir(parents=True)
+    (host / "cna" / "tools" / "coverage.py").write_text(
+        "VALUE = 3\n", encoding="utf-8")
+    wt = tmp_path / "wt"
+    (wt / "src" / "cna").mkdir(parents=True)
+    monkeypatch.setenv("PYTHONPATH", str(host))
+
+    problems = import_origin_problems(wt)
+
+    assert any("cna.tools.coverage" in problem for problem in problems)

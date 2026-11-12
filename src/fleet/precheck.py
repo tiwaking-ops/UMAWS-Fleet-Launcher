@@ -29,6 +29,7 @@ def oracles_already_pass(kernel, task, *, timeout: int = 600) -> tuple[bool, lis
     # Imported here: harness imports this module from ``start``; a module-level
     # import would close the cycle.
     from .harness import run_command
+    from .runenv import import_origin_problems
 
     repo = kernel.repo
     oracles = list(getattr(task, "oracles", []) or [])
@@ -44,6 +45,12 @@ def oracles_already_pass(kernel, task, *, timeout: int = 600) -> tuple[bool, lis
 
     results: list[dict] = []
     try:
+        origin_problems = import_origin_problems(worktree)
+        if origin_problems:
+            results.append({"cmd": "<import-origin>", "exit": 1, "ok": False,
+                            "error": "; ".join(origin_problems)})
+            return False, results
+
         for oracle in oracles:
             exit_code, _stdout, _stderr = run_command(oracle, worktree, timeout=timeout)
             results.append({"cmd": oracle, "exit": exit_code, "ok": exit_code == 0})

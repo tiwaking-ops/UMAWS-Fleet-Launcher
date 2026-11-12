@@ -383,5 +383,30 @@ def test_merge_conflict_clean():
     assert status_after == status_before, f"main working tree changed despite conflict: {status_after}"
 
 
+def test_gate_event_records_duration_and_both_heads():
+    """A green gate event must carry the timing and the two tree identities."""
+    kernel, repo = _make_kernel_with_git()
+    _create_uncommitted_file_in_main(repo, "unrelated.txt")
+    card, lease, worktree = _create_task_and_bundle(kernel, ["src/thing.py"])
+    _, before, _ = _git(repo, "rev-parse", "HEAD")
+    before = before.strip()
+
+    result = integrate(kernel, card, lease, worktree, gate_cmd="exit 0")
+
+    assert result.ok, result.message
+    gate_events = [
+        event for event in kernel.events()
+        if event.type == "ORACLE_RESULT" and event.subject == card.id
+        and event.payload.get("stage") == "gate"
+        and event.payload.get("ok") is True
+    ]
+    assert gate_events, "no successful gate event"
+    payload = gate_events[-1].payload
+    assert payload["base_head"] == before
+    assert payload["merged_head"] == result.commit
+    assert isinstance(payload["duration_s"], (int, float))
+    assert payload["duration_s"] >= 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
