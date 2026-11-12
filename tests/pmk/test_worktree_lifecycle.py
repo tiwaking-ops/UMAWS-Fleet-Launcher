@@ -1227,3 +1227,125 @@ def test_cli_precheck_prune_dry_run_lists_both_worktrees(kernel, repo, tmp_path,
                                  "pmk-precheck-dry-cli"]
     assert out["removed"] == []
     assert parent.is_dir()
+
+
+# ---------------------------------------------------------------------------
+# R-12 -- reclaiming one named path, and recording it
+# ---------------------------------------------------------------------------
+
+def _make_worktree_at(repo, path: Path):
+    """A real git worktree of *repo* at an arbitrary path."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "worktree", "add", "--detach", str(path), "HEAD"],
+                   cwd=repo.root, capture_output=True, check=True)
+    return path
+
+
+def _events(repo) -> list[dict]:
+    events: list[dict] = []
+    for log in sorted((repo.root / ".pm" / "events").glob("*.jsonl")):
+        for line in log.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                events.append(json.loads(line))
+    return events
+
+
+def test_reclaim_path_dry_run_plans_and_touches_nothing(kernel, repo, tmp_path):
+    tree = _make_worktree_at(repo, tmp_path / "one-off")
+
+    result = worktrees.reclaim_path(repo, kernel.state(), tree)
+
+    assert result["reclaimed"] is False
+    assert result["dry_run"] is True
+    assert "would capture" in result["plan"]
+    assert tree.is_dir()
+    assert not (repo.root / "stranded").exists()
+
+
+def test_reclaim_path_captures_then_removes(kernel, repo, tmp_path):
+    tree = _make_worktree_at(repo, tmp_path / "one-off")
+    (tree / "README.md").write_text("# one-off\n", encoding="utf-8")
+    (tree / "leftover.py").write_text("print(1)\n", encoding="utf-8")
+
+    result = worktrees.reclaim_path(repo, kernel.state(), tree, dry_run=False)
+
+    assert result["reclaimed"] is True
+    assert not tree.exists()
+    dest = repo.root / "stranded" / "one-off"
+    ok, problems = worktrees.verify_archive(dest)
+    assert ok, problems
+
+
+def test_reclaim_path_refuses_a_plain_directory(kernel, repo, tmp_path):
+    plain = tmp_path / "not-a-worktree"
+    plain.mkdir()
+    (plain / "data.txt").write_text("bytes\n", encoding="utf-8")
+
+    result = worktrees.reclaim_path(repo, kernel.state(), plain, dry_run=False)
+
+    assert result["reclaimed"] is False
+    assert result["reason"] == "not a git worktree"
+    assert plain.is_dir()
+
+
+def test_reclaim_path_refuses_the_main_checkout(kernel, repo):
+    result = worktrees.reclaim_path(repo, kernel.state(), repo.root,
+                                    dry_run=False)
+    assert result["reclaimed"] is False
+    assert "main checkout" in result["reason"]
+    assert repo.root.is_dir()
+
+
+def test_reclaim_path_refuses_another_repositorys_worktree(kernel, repo,
+                                                           tmp_path):
+    other = tmp_path / "other-repo"
+    other.mkdir()
+    for args in (["init"], ["config", "user.email", "o@e.com"],
+                 ["config", "user.name", "O"]):
+        subprocess.run(["git", *args], cwd=other, capture_output=True)
+    (other / "README.md").write_text("# other\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=other, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=other,
+                   capture_output=True)
+    theirs = other / "tree"
+    subprocess.run(["git", "worktree", "add", "--detach", str(theirs), "HEAD"],
+                   cwd=other, capture_output=True, check=True)
+
+    assert worktrees.belongs_to_repo(repo, theirs) is False
+    result = worktrees.reclaim_path(repo, kernel.state(), theirs, dry_run=False)
+
+    assert result["reclaimed"] is False
+    assert result["reason"] == "not a worktree of this repository"
+    assert theirs.is_dir()
+
+
+def test_cli_reclaim_dry_run_then_apply_records_an_event(kernel, repo,
+                                                          tmp_path, capsys):
+    """R-12: a one-off reclaim is visible to the log, not just to git."""
+    from pmk import cli
+
+    tree = _make_worktree_at(repo, tmp_path / "one-off-cli")
+    (tree / "README.md").write_text("# one-off\n", encoding="utf-8")
+
+    code = cli.main(["--root", str(repo.root), "worktree", "reclaim",
+                     str(tree)])
+    assert code == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["dry_run"] is True
+    assert out["reclaimed"] is False
+    assert tree.is_dir()
+    assert not any(e["type"] == "WORKTREE_SCRATCH_PRUNED"
+                   for e in _events(repo))
+
+    code = cli.main(["--root", str(repo.root), "worktree", "reclaim",
+                     str(tree), "--yes"])
+    assert code == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["reclaimed"] is True
+    assert not tree.exists()
+
+    recorded = [e for e in _events(repo)
+                if e["type"] == "WORKTREE_SCRATCH_PRUNED"
+                and e["payload"].get("kind") == "path"]
+    assert len(recorded) == 1
+    assert recorded[0]["payload"]["path"] == str(tree)

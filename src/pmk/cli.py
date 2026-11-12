@@ -506,6 +506,35 @@ def cmd_worktree_prune(args) -> int:
     return 0
 
 
+def cmd_worktree_reclaim(args) -> int:
+    """Capture-first reclaim of one named worktree (R-12).
+
+    Dry run unless ``--yes``: without it the plan is printed and nothing is
+    written.  With it the reclaim goes through
+    :func:`worktrees.reclaim_after_capture` and the run is recorded as a
+    ``WORKTREE_SCRATCH_PRUNED`` event, so a one-off reclaim is no longer
+    invisible to the log.
+    """
+    kernel = _kernel(args)
+    state = kernel.state()
+    from . import worktrees as wts
+    result = wts.reclaim_path(kernel.repo, state, Path(args.path),
+                              dry_run=not args.yes)
+    if args.yes and result.get("reclaimed"):
+        from .events import Actor
+        kernel.record_event(
+            "WORKTREE_SCRATCH_PRUNED", actor=Actor.kernel(),
+            payload={"include_work": False, "include_merge": False,
+                     "include_precheck": False, "kind": "path",
+                     "path": result["path"],
+                     "removed": [result["name"]],
+                     "archives": [result.get("archive", "")],
+                     "skipped": [],
+                     "counts": {"candidates": 1, "removed": 1, "skipped": 0}})
+    _out(result)
+    return 0
+
+
 def cmd_worktree_archive(args) -> int:
     """Capture a worktree's uncommitted work (REC-02).
 
@@ -1148,6 +1177,15 @@ def build_parser() -> argparse.ArgumentParser:
                                "trees (their base/ and scratch/ worktrees), "
                                "capture-first")
     wt_prune.set_defaults(func=cmd_worktree_prune)
+    wt_reclaim = worktree.add_parser(
+        "reclaim",
+        help="capture-first reclaim of one named worktree (dry-run by "
+             "default); an applied run records a WORKTREE_SCRATCH_PRUNED "
+             "event")
+    wt_reclaim.add_argument("path", help="the worktree directory to reclaim")
+    wt_reclaim.add_argument("--yes", action="store_true",
+                            help="actually reclaim (without it, a dry run)")
+    wt_reclaim.set_defaults(func=cmd_worktree_reclaim)
     wt_archive = worktree.add_parser(
         "archive", help="capture a worktree's uncommitted work (REC-02)")
     archive_group = wt_archive.add_mutually_exclusive_group(required=True)

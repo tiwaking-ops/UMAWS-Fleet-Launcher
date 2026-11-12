@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import sys
-import tempfile
 import subprocess
 from pathlib import Path
 
@@ -27,10 +26,15 @@ def _git(repo: Repo, *args: str) -> tuple[int, str, str]:
     return repo.git(*args)
 
 
-def _make_kernel_with_git() -> tuple[Kernel, Repo]:
-    """Create a kernel with a git repo that has an initial commit."""
-    tmp = Path(tempfile.mkdtemp())
-    r = Repo(tmp / "repo")
+def _make_kernel_with_git(root: Path) -> tuple[Kernel, Repo]:
+    """Create a kernel with a git repo that has an initial commit.
+
+    *root* is a pytest-managed directory (``tmp_path``).  This used to call
+    ``tempfile.mkdtemp()`` and leave an unprefixed directory in the global
+    temp on every call -- the same "no owner for the scratch" defect class
+    as the fleet's own scratch, so it is fixed the same way (R-09).
+    """
+    r = Repo(root / "repo")
     r.ensure_layout()
 
     subprocess.run(["git", "init"], cwd=r.root, capture_output=True)
@@ -94,9 +98,9 @@ def _create_uncommitted_file_in_main(repo: Repo, filename: str, content: str = "
     f.write_text(content, encoding="utf-8")
 
 
-def test_gate_fails_main_unchanged():
+def test_gate_fails_main_unchanged(tmp_path):
     """Gate fails -> main HEAD unchanged, git status identical, unrelated file untouched."""
-    kernel, repo = _make_kernel_with_git()
+    kernel, repo = _make_kernel_with_git(tmp_path)
 
     # Create unrelated uncommitted file in main
     _create_uncommitted_file_in_main(repo, "unrelated.txt")
@@ -124,9 +128,9 @@ def test_gate_fails_main_unchanged():
     assert (repo.root / "unrelated.txt").exists()
 
 
-def test_gate_passes_main_head_is_merge_commit():
+def test_gate_passes_main_head_is_merge_commit(tmp_path):
     """Gate passes -> main HEAD == merge commit == result.commit."""
-    kernel, repo = _make_kernel_with_git()
+    kernel, repo = _make_kernel_with_git(tmp_path)
 
     _create_uncommitted_file_in_main(repo, "unrelated.txt")
 
@@ -148,7 +152,7 @@ def test_gate_passes_main_head_is_merge_commit():
 @pytest.mark.parametrize("exit_code,expected_ok", [(0, True), (7, False)])
 def test_gate_output_is_persisted_in_the_bundle(tmp_path, exit_code, expected_ok):
     """H6: the gate verdict and its tails survive both outcomes."""
-    kernel, repo = _make_kernel_with_git()
+    kernel, repo = _make_kernel_with_git(tmp_path)
     card, lease, worktree = _create_task_and_bundle(kernel, ["src/thing.py"])
     gate_script = tmp_path / "gate_output.py"
     gate_script.write_text(
@@ -176,12 +180,9 @@ def test_gate_output_is_persisted_in_the_bundle(tmp_path, exit_code, expected_ok
         _git(repo, "worktree", "remove", "--force", str(worktree))
 
 
-def test_main_moves_mid_run_retry_and_success():
+def test_main_moves_mid_run_retry_and_success(tmp_path):
     """Main moves mid-run -> retry and success."""
-    import tempfile
-    from pathlib import Path
-    
-    kernel, repo = _make_kernel_with_git()
+    kernel, repo = _make_kernel_with_git(tmp_path)
 
     _create_uncommitted_file_in_main(repo, "unrelated.txt")
 
@@ -197,7 +198,7 @@ if not marker.exists():
     marker.write_text("moved")
     subprocess.run(["git", "-C", r"{repo.root}", "commit", "--allow-empty", "-m", "main moved by gate"], capture_output=True)
 '''
-    gate_script_path = Path(tempfile.mktemp(suffix=".py"))
+    gate_script_path = tmp_path / "gate.py"
     gate_script_path.write_text(gate_script, encoding="utf-8")
     
     # Get main's HEAD before
@@ -229,12 +230,9 @@ if not marker.exists():
     assert "main moved by gate" in log_out
 
 
-def test_main_moves_on_every_try_infrastructure_failed():
+def test_main_moves_on_every_try_infrastructure_failed(tmp_path):
     """Main moves on every try -> INFRASTRUCTURE_FAILED stage main-moved after 2 retries."""
-    import tempfile
-    from pathlib import Path
-    
-    kernel, repo = _make_kernel_with_git()
+    kernel, repo = _make_kernel_with_git(tmp_path)
 
     _create_uncommitted_file_in_main(repo, "unrelated.txt")
 
@@ -245,7 +243,7 @@ def test_main_moves_on_every_try_infrastructure_failed():
     gate_script = f'''import subprocess
 subprocess.run(["git", "-C", r"{repo.root}", "commit", "--allow-empty", "-m", "main moved by concurrent process"], capture_output=True)
 '''
-    gate_script_path = Path(tempfile.mktemp(suffix=".py"))
+    gate_script_path = tmp_path / "gate.py"
     gate_script_path.write_text(gate_script, encoding="utf-8")
     
     # Get main's HEAD before
@@ -282,9 +280,9 @@ subprocess.run(["git", "-C", r"{repo.root}", "commit", "--allow-empty", "-m", "m
     assert not merge_head.exists(), "MERGE_HEAD exists - merge was not aborted properly"
 
 
-def test_dirt_overlapping_merge_refusal():
+def test_dirt_overlapping_merge_refusal(tmp_path):
     """Dirt overlapping the merge -> refusal, main untouched."""
-    kernel, repo = _make_kernel_with_git()
+    kernel, repo = _make_kernel_with_git(tmp_path)
 
     # Create a file in main that overlaps with the task's write scope
     f = repo.root / "src" / "thing.py"
@@ -311,9 +309,9 @@ def test_dirt_overlapping_merge_refusal():
     assert f.read_text(encoding="utf-8") == "main version\n", "overlapping file content was modified"
 
 
-def test_merge_conflict_clean():
+def test_merge_conflict_clean(tmp_path):
     """Merge conflict -> clean."""
-    kernel, repo = _make_kernel_with_git()
+    kernel, repo = _make_kernel_with_git(tmp_path)
 
     # Create a file in main that the task will also modify
     conflict_file = repo.root / "conflict.txt"
@@ -383,9 +381,9 @@ def test_merge_conflict_clean():
     assert status_after == status_before, f"main working tree changed despite conflict: {status_after}"
 
 
-def test_gate_event_records_duration_and_both_heads():
+def test_gate_event_records_duration_and_both_heads(tmp_path):
     """A green gate event must carry the timing and the two tree identities."""
-    kernel, repo = _make_kernel_with_git()
+    kernel, repo = _make_kernel_with_git(tmp_path)
     _create_uncommitted_file_in_main(repo, "unrelated.txt")
     card, lease, worktree = _create_task_and_bundle(kernel, ["src/thing.py"])
     _, before, _ = _git(repo, "rev-parse", "HEAD")

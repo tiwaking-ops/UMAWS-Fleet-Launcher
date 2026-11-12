@@ -134,6 +134,44 @@ def test_default_scratch_never_lands_in_the_global_temp(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# R-08 -- the static guard: no fleet module may scratch on its own
+# ---------------------------------------------------------------------------
+
+#: The one deliberate exception.  The Console's manual launcher writes a
+#: .ps1 that a spawned console reads *after* launch_legacy returns, so its
+#: directory must outlive the call (see legacy.launch_legacy's docstring).
+#: Its accumulation is handled by the documented hygiene policy, not by
+#: deleting the script early.
+GUARD_EXCEPTIONS = {"legacy.py"}
+
+
+def test_no_fleet_module_creates_or_deletes_scratch_on_its_own():
+    """R-08: every throwaway directory in src/fleet goes through fleet.scratch.
+
+    This incident existed because three modules each called
+    ``tempfile.mkdtemp`` directly and cleaned up with
+    ``rmtree(..., ignore_errors=True)``.  A new site must fail here, in
+    the test suite, rather than leak in production -- so the rule is
+    enforced by reading the source rather than by trusting review.
+    """
+    fleet_src = Path(__file__).resolve().parents[2] / "src" / "fleet"
+    offenders: list[str] = []
+    for path in sorted(fleet_src.glob("*.py")):
+        if path.name == "scratch.py" or path.name in GUARD_EXCEPTIONS:
+            continue
+        for number, line in enumerate(
+                path.read_text(encoding="utf-8").splitlines(), 1):
+            stripped = line.strip()
+            if "mkdtemp" in stripped or "mktemp(" in stripped:
+                offenders.append(f"{path.name}:{number}: {stripped}")
+            if "rmtree" in stripped and "ignore_errors=True" in stripped:
+                offenders.append(f"{path.name}:{number}: {stripped}")
+    assert offenders == [], (
+        "these fleet modules must use fleet.scratch (see its docstring): "
+        + "; ".join(offenders))
+
+
+# ---------------------------------------------------------------------------
 # the merge queue
 # ---------------------------------------------------------------------------
 

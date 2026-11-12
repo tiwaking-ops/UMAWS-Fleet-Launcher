@@ -284,17 +284,15 @@ def test_lint_percent_modulo_rejected():
     assert "percent sign" in result.error
 
 
-def test_task_admit_refuses_bad_oracle():
+def test_task_admit_refuses_bad_oracle(tmp_path):
     """task_admit refuses a card with a bad oracle."""
-    import tempfile
     import subprocess
     from pathlib import Path
     from pmk.api import Kernel, KernelError
     from pmk.clock import FakeClock
     from pmk.store import Repo
 
-    tmp = Path(tempfile.mkdtemp())
-    r = Repo(tmp / 'repo')
+    r = Repo(tmp_path / 'repo')
     r.ensure_layout()
 
     subprocess.run(['git', 'init'], cwd=r.root, capture_output=True)

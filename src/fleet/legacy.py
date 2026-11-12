@@ -216,6 +216,14 @@ def launch_legacy(entry: LauncherEntry, *, keep_open: bool = True,
 
     Opens a PowerShell window.  This is the *unmanaged* path: it touches
     no task state.
+
+    ``script_dir`` (or a fresh ``llm_launcher_*`` directory) holds the
+    ``.ps1`` the new console reads, so it deliberately **outlives this
+    call** -- deleting it in a ``finally`` would break the window it just
+    opened.  It is therefore the one fleet directory that is not
+    ``fleet.scratch`` scratch: merge/precheck scratch is gone when the work
+    is done, while a launcher script is only done when the operator closes
+    the window.  A caller that wants its own location passes ``script_dir``.
     """
     shell = find_shell()
     if shell is None:

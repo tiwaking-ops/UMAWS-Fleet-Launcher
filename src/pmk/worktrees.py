@@ -1308,3 +1308,61 @@ def prune_scratch(repo, state, *, dry_run: bool = True,
         "counts": {"candidates": len(candidates), "removed": len(removed),
                    "skipped": len(skipped)},
     }
+
+
+def reclaim_path(repo, state, path: Path, *, dry_run: bool = True,
+                 target_root: Path | None = None) -> dict:
+    """Plan, then perform, the capture-first reclaim of **one named path**.
+
+    The scratch classes discover their own candidates; this is the surface
+    for a path an operator names -- the traceability gap this incident
+    found, where reclaiming six worktrees had to be scripted and so
+    recorded no event.
+
+    Dry-run by default: the plan says what would happen and writes nothing.
+    The applied path goes through :func:`reclaim_after_capture`, so the
+    tree is still captured, verified, restore-proved and re-digested
+    before git removes it.
+
+    A path is reclaimable only when it is provably a worktree **of this
+    repository**: a plain directory, another project's worktree, the main
+    checkout and a protected name are all refused, with the reason
+    reported rather than acted on.
+    """
+    path = Path(path)
+    root = Path(target_root) if target_root else archive_root(repo)
+    result: dict = {"path": str(path), "name": path.name,
+                    "reclaimed": False, "dry_run": dry_run}
+    if not path.is_dir():
+        result["reason"] = "not on disk"
+        return result
+    try:
+        if path.resolve() == Path(repo.root).resolve():
+            result["reason"] = "the main checkout is never reclaimed"
+            return result
+    except OSError as exc:
+        result["reason"] = f"cannot resolve the path: {exc}"
+        return result
+    if path.name in PROTECTED:
+        result["reason"] = f"{path.name} is protected; refusing to delete it"
+        return result
+    if not is_git_worktree(repo, path):
+        result["reason"] = "not a git worktree"
+        return result
+    if not belongs_to_repo(repo, path):
+        result["reason"] = "not a worktree of this repository"
+        return result
+    result["bytes"] = dir_bytes(path)
+    result["dirty"] = _dirty(repo, path)[0]
+    if dry_run:
+        result["plan"] = (f"would capture {path.name} into {root} and remove "
+                          "it if the capture verifies")
+        return result
+
+    outcome = reclaim_after_capture(repo, state, path, target_root=root,
+                                    allow_scratch=True, root=path.parent,
+                                    stem=path.name)
+    result["reclaimed"] = bool(outcome.get("reclaimed"))
+    result["archive"] = outcome.get("archive", "")
+    result["reason"] = outcome.get("reason", "")
+    return result
