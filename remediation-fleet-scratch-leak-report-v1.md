@@ -4,9 +4,16 @@ version: "1.1.0"
 date: "2026-11-12"
 author_llm: "Step 5 Preview (stepfun-ai/step-5-preview, nvidia)"
 scope: "the fleet's throwaway directories in the global %TEMP% (pmk-merge-*, pmk-precheck-*, pmk-precheck-dry-*): measurement, root cause, fix, the two operator-approved reclaim runs, and what is deliberately left alone"
+status: "SUPERSEDED 2026-11-12 by incident-report-fleet-scratch-leak-v1.md (the R-12 formal report); retained as the working record of the session"
 ---
 
-# Fleet scratch leak — root-cause fix report
+# Fleet scratch leak — working note (SUPERSEDED)
+
+> **Superseded 2026-11-12** by the formal report
+> [`incident-report-fleet-scratch-leak-v1.md`](incident-report-fleet-scratch-leak-v1.md),
+> which follows the project's R-12 incident-report standard and absorbs this
+> note's findings, measurements and run outcomes. This file is retained as the
+> working record of the session; where the two differ, the formal report wins.
 
 Operator instruction (next-move items after the scratch-prune run): *"Consider the
 root-cause fix for orphan merge dirs: `src/fleet/merge.py` uses

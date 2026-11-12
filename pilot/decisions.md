@@ -801,3 +801,19 @@ At checkpoint **CP-4** the operator ratified **D-72 together with its 2026-11-11
 - **`T-0189`.** `VOID` (seq 3505 `REVOKED` fence 157; seq 3506 `TASK_VOIDED`), reason "Superseded by T-0190" — **superseded, not exonerated**; its `ORACLE_FAILED` under D-69 stands.
 - **A10 / checklist item 16.** Dispatch is **unpaused** (`dispatch_paused: false`) and `project_state: RUNNING`; A10 was the operator's authorisation and it is applied. Item 16's "remains `PAUSED`" note is stale and is corrected here, not in the checklist.
 - **Reserved to the operator, not done here:** the remote push.
+
+---
+
+## Fleet scratch-leak decisions (2026-11-11/12; report-local D-1…D-5, recorded here as D-76…D-80)
+
+These are the five decision records embedded in `incident-report-fleet-scratch-leak-v1.md` §9. The report labels them D-1…D-5 for readability; the project register assigns the next free global IDs. The final system report is not published yet because the system is not complete; the incident report remains open.
+
+D-76 | 2026-11-11 | operator (report D-1) | **Extend the sanctioned path, then run it.** The residual non-lease `work/` cleanup went through `reclaim_after_capture` + `verify_archive`, not a one-off `git worktree remove`; this is the precedent for D-77…D-79. | One-off `git worktree remove` (rejected: bypasses capture/verify); leave the trees (rejected: the operator wanted the stale non-lease trees reclaimed). | Every removal in this incident is captured, verified, restore-proved and re-digested first. |
+
+D-77 | 2026-11-12 | operator (report D-2) | **Extend prune --precheck-trees, then run.** The stale `%TEMP%/pmk-precheck-dry-*` directory was reclaimed through a scoped, capture-first collector, not deleted outside the sanctioned path. | Delete the directory directly (rejected: no capture/verify); leave it (rejected: 29.85 MiB stale tree). | Run seq 3655: 2/2 worktrees reclaimed, both archives verify. |
+
+D-78 | 2026-11-12 | operator (report D-3) | **Only the 6 registered canary worktrees under `tmp/`.** The reviewer-agent trees, the 5 tracked files and the rest of `tmp/` stayed. | Reclaim all of `tmp/` (rejected: other agents' work); reclaim nothing (rejected: 97.91 MiB stale). | 6/6 reclaimed capture-first; all six archives verify; `tmp/` 172.18 → 74.27 MiB. |
+
+D-79 | 2026-11-12 | operator (report D-4) | **The unprovable families are reported, deliberately left alone.** The husk family and the orphan merge shells are not deleted; they are reported. | Delete them (rejected: no ownership proof); add a repo collector (rejected: the repo cannot prove ownership of a global namespace). | The residual is U-1/U-2/U-3; machine hygiene (R-13) owns the accumulation. |
+
+D-80 | 2026-11-12 | operator (report D-5) | **Produce a formal R-12 report, comprehensive, with an Author field, fit for integration into the final system report, with clarification questions.** | A short note (rejected: the incident needs a traceable record); no report (rejected: the deferred items would be lost). | `incident-report-fleet-scratch-leak-v1.md` (v1.2.0) and the second-pass assessment. |

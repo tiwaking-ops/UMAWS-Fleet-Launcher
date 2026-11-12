@@ -1,8 +1,8 @@
 ---
 document:
   title: "Incident Report: Fleet Scratch-Directory Leak in the Global Temp Namespace (pmk-precheck-*, pmk-merge-*, pmk-precheck-dry-*)"
-  status: "Open - remediation complete and the operator-approved follow-ups implemented (R-08/R-09/R-10/R-12, commit 05864ad); the R-13 first-pass assessment is recorded in Appendix E (ACCEPT WITH CORRECTIONS, four of its seven numeric corrections refuted on re-verification) with a second pass recommended; deferred items in section 10; pending integration into the final system report"
-  version: "1.1.0"
+  status: "Open - remediation complete for this repository and the operator-approved follow-ups implemented (R-08/R-09/R-10/R-12, commit 05864ad); the R-13 first-pass assessment is recorded in Appendix D and the author's re-verification in Appendix E (ACCEPT WITH CORRECTIONS; three corrections applied, four numeric corrections refuted on re-verification); the global %TEMP% husk family was still growing from umaws-noscope-toy at 20:06, and the foreign precheck has now been patched; deferred items in section 10; pending integration into the final system report (not yet published; system incomplete)"
+  version: "1.2.1"
 provenance:
   author_llm:
     name: "Step 5 Preview"
@@ -10,7 +10,7 @@ provenance:
   created_date: "2026-11-12"
   last_modified_date: "2026-11-12"
   scope: "C:\\temp\\projects\\testproject1 (branch main), src/fleet/merge.py, src/fleet/precheck.py, src/fleet/scratch.py (new), src/pmk/worktrees.py, src/pmk/cli.py, tests/fleet/ (conftest and test_scratch.py), tests/pmk/test_worktree_lifecycle.py, the global %TEMP% families pmk-precheck-*, pmk-merge-* and pmk-precheck-dry-*, tmp/ under the repo root, stranded/ captures, the Kernel event log, and the measured test runs recorded below"
-  source_of_truth: "The append-only event log at .pm/events/*.jsonl (I1 hash chain verifies, 3655 events) is authoritative for coordination state; git objects at HEAD 30d27b1 are authoritative for code; filesystem measurement is authoritative for disk usage; the captures under stranded/ are authoritative for reclaimed content. Where this report and any briefing disagree, the event log and the git store win."
+  source_of_truth: "The append-only event log at .pm/events/*.jsonl (I1 hash chain verifies, 3655 events at writing; 3657 after the assessment's sentinel/pins runs; the files are tracked as of commit 80223ff) is authoritative for coordination state; git objects at HEAD 05864ad (code) / 9f1a025 (report) are authoritative for code; filesystem measurement is authoritative for disk usage; the captures under stranded/ are authoritative for reclaimed content. Where this report and any briefing disagree, the event log and the git store win."
   related_documents:
     - "incident-report-worktree-lifecycle-leak-v1.1.md (the parent incident: lease worktrees, stranded work, task churn)"
     - "proposal-deepseek-umaws-fleet-worktree-lifecycle-remediation-v1.md (REC-01/02/04/06/11/13 remediation)"
@@ -18,23 +18,25 @@ provenance:
     - "remediation-fleet-scratch-leak-report-v1.md (working note; its content is absorbed and superseded by this report)"
     - "remediation-rec02-capture-verification-note-v1.md (REC-02 capture/verify design)"
     - "incident-report-worktree-isolation-v3.md (section 8 - the R-12 report standard this report follows; section 9 - R-13 review process)"
-  reviewer: "R-13 independent review: FIRST PASS COMPLETED 2026-11-12 by Claude 3 Opus 20240229 (claude-3-opus-20240229) - verdict ACCEPT WITH CORRECTIONS. Its findings, and the author's re-verification of each one (four of seven numeric corrections refuted on direct evidence, two applied), are recorded in Appendix E. A second pass after the v1.1 amendments is recommended."
+  reviewer: "R-13 first pass: COMPLETED 2026-11-12 by Claude 3 Opus 20240229 (claude-3-opus-20240229; confirmed by the operator — an Orchestrator LLM launched Claude as the assessor in the background), verdict ACCEPT WITH CORRECTIONS — the raw assessment artifact is missing, so the 14 findings are only partly recorded. Its findings, and the author's re-verification of each one (four numeric corrections refuted; three corrections applied: A-5 and A-6 numeric, A-8 non-numeric), are recorded in Appendix D and Appendix E. SECOND PASS COMPLETED 2026-11-12 by ERNIE 5.5 Flash Preview (openrouter/baidu/ernie-5.5-flash-preview:free), verdict ACCEPT WITH CORRECTIONS — see assessment-ernie-5-5-incident-report-fleet-scratch-leak-v1.md."
   assessor_llm:
     name: "Claude 3 Opus 20240229"
     version: "claude-3-opus-20240229"
+  assessor_note: "Confirmed by the operator: an Orchestrator LLM launched Claude as the assessor in the background. The raw assessment artifact is still missing; the 14 findings are only partly recorded."
   assessed_date: "2026-11-12"
-  editor_llm: "Step 5 Preview (the author) - applied the v1.1 amendments and re-verified the assessment's findings; NOT an independent assessor"
-  corrections_applied: "C-1 through C-6 (Appendix E)"
+  editor_llm: "Step 5 Preview (the author) - applied the v1.1 amendments and re-verified the assessment's findings; NOT an independent assessor. The v1.2 factual corrections were applied by ERNIE 5.5 Flash Preview (assessor) with the author's provenance preserved; see assessment-ernie-5-5-incident-report-fleet-scratch-leak-v1.md. v1.2.1 is the author's own label correction only (Appendix D's heading now matches its content); no factual claim changed."
+  corrections_applied: "A-5, A-6, A-8 (Appendix D); factual corrections C-1 through C-15 in assessment-ernie-5-5-incident-report-fleet-scratch-leak-v1.md"
   corrected_date: "2026-11-12"
+  second_pass: "ERNIE 5.5 Flash Preview (openrouter/baidu/ernie-5.5-flash-preview:free), 2026-11-12"
 ---
 
 # Incident Report: Fleet Scratch-Directory Leak in the Global Temp Namespace
 
-**Author:** Step 5 Preview (`stepfun-ai/step-5-preview`, nvidia) — **v1.1.0**
+**Author:** Step 5 Preview (`stepfun-ai/step-5-preview`, nvidia) - **v1.2.1** (v1.1.0 assessed; v1.2.0 factual corrections applied by the second-pass assessor, provenance preserved; v1.2.1 is the author's own label correction)
 **Report ID:** `incident-report-fleet-scratch-leak-v1`
 **Date:** 2026-11-12
-**Status:** **Open.** Remediation is complete — root cause fixed, the sanctioned reclaim surface extended, both operator-approved runs verified — and the follow-ups the independent assessment identified are implemented (`05864ad`). That assessment's first pass is recorded in Appendix E; a second pass over v1.1 is recommended. Outstanding: the deferred items in section 10.
-**Repository state at writing:** HEAD `30d27b1`, event log 3655 events (I1 chain verifies), `stranded/` 123 captures, `tmp/` 74.27 MiB / 25 directories, `work/` 0 worktrees, full test suite **1353 passed / 1 skipped**, `sentinel check` ok (0 findings), `pmk pins check` unaffected (only `.pm/constitution.md` and `.pm/policy.toml` are pinned, and neither was modified).
+**Status:** **Open.** Remediation is complete **for this repository** — root cause fixed, the sanctioned reclaim surface extended, both operator-approved runs verified — and the follow-ups the first assessment identified are implemented (`05864ad`). The first pass is recorded in Appendix D; the author's re-verification is in Appendix E; the second pass is recorded in `assessment-ernie-5-5-incident-report-fleet-scratch-leak-v1.md`. **The global `%TEMP%/pmk-precheck-*` family was still growing from `umaws-noscope-toy` at 20:06; the foreign precheck is now patched, and existing old-code processes may produce a few more husks until they exit.** Outstanding: the deferred items in section 10.
+**Repository state at writing:** HEAD `05864ad` for code (the report was committed as `9f1a025`), event log 3655 events at writing (3657 after the assessment's sentinel/pins runs; I1 chain verifies), `stranded/` 123 captures, `tmp/` 74.27 MiB / 25 directories, `work/` 0 worktrees, full test suite **1360 passed / 1 skipped** (working-tree run, recorded at `.pmwork/umaws-full-suite-2026-11-12.xml`; the clean-base totals are 1276/1282/1289, i.e. 1275/1281/1288 passed with 1 skipped — see §6.2), `sentinel check` ok (0 findings), `pmk pins check` unaffected (only `.pm/constitution.md` and `.pm/policy.toml` are pinned, and neither was modified).
 **Timestamps:** all times are UTC unless a local (NZDT, UTC+13) time is named.
 
 ---
@@ -45,7 +47,7 @@ The fleet built every throwaway directory with `tempfile.mkdtemp(prefix=...)` in
 
 The fix puts the class in one place. `src/fleet/scratch.py` now owns the fleet's throwaway directories: `scratch_dir(prefix, temp_root)` places them where the caller says (a pytest-managed `tmp_path` in tests, the global temp in production) and `remove_scratch(path)` clears the write-protect bit on every file and directory before removing, and **returns whether anything is left** instead of swallowing the outcome. `integrate()`, `dry_run()` and `oracles_already_pass()` all take `temp_root` and use it, and the precheck's `finally` now also covers its early refusal path. One autouse fixture in `tests/fleet/conftest.py` keeps every fleet test's scratch inside the test's own `tmp_path`, so no test — present or future — litters the global namespace. The sanctioned reclaim surface was extended with `pmk worktree prune --precheck-trees`, gated exactly like the merge class (ownership proven by `belongs_to_repo`, age-gated, capture-first).
 
-Two operator-approved reclaims were then run and verified: the stale `pmk-precheck-dry-*` directory (2/2 worktrees, **29.85 MiB freed**, both archives verify, the modified `src/pmk/worktrees.py` and the untracked `tests/pmk/test_prune_merge_trees.py` captured rather than discarded) and the six registered canary worktrees under `tmp/` (6/6, **97.91 MiB freed**, all six archives verify, the five tracked files and the reviewer-agent trees untouched). The live leak has stopped: no husk has appeared since 16:58 local, and the processes that produced the last few (they had started before the fix and kept the old module in memory) have since exited.
+Two operator-approved reclaims were then run and verified: the stale `pmk-precheck-dry-*` directory (2/2 worktrees, **29.85 MiB freed**, both archives verify, the modified `src/pmk/worktrees.py` and the untracked `tests/pmk/test_prune_merge_trees.py` captured rather than discarded) and the six registered canary worktrees under `tmp/` (6/6, **97.91 MiB freed**, all six archives verify, the five tracked files and the reviewer-agent trees untouched). This repository's fleet no longer produces husks: no husk is attributable to it after 16:58 local. The global `%TEMP%/pmk-precheck-*` family did **not** stop at 20:06 — it was 467 and still growing from `umaws-noscope-toy`'s pre-fix `src/fleet/precheck.py` — but the foreign precheck has now been patched, so new processes should not add husks; existing old-code processes may add a few more until they exit.
 
 ---
 
@@ -69,8 +71,8 @@ Two operator-approved reclaims were then run and verified: the stale `pmk-preche
 
 ### 2.3 Explicit non-actions
 
-* No other project's tree was touched. One live `pmk-merge-*` directory belongs to `umaws-noscope-toy` (its `.git` points at that project's store) and was skipped by the ownership gate throughout.
-* The 445 husks, the 13 orphan/empty `pmk-merge-*` shells, the three reviewer-agent trees under `tmp/`, the five tracked files under `tmp/`, and `.claude/worktrees/agent-a8ea…` were **not** deleted (section 10).
+* No other project's tree was touched except the operator-authorized fix to `umaws-noscope-toy/src/fleet/precheck.py` (it now removes its `pmk-precheck-*` directory in a `finally`, clearing read-only bits; 10 precheck tests pass, 0 leaked). At report writing one live `pmk-merge-*` directory was attributed to `umaws-noscope-toy`; at assessment the live-looking directory (`pmk-merge-fy5t4h9d`) points at a test repository (`tmpjegemeia/repo`), and the `umaws-noscope-toy` merge was not present. The ownership gate skips any directory it cannot prove is ours.
+* The 467 husks at 20:06 local, the 13 orphan/empty `pmk-merge-*` shells, the three reviewer-agent trees under `tmp/`, the five tracked files under `tmp/`, and `.claude/worktrees/agent-a8ea…` were **not** deleted (section 10).
 * Other agents' uncommitted work in the shared working tree (`src/cna/**`, `docs/**`, `.pm/views/*`) was not committed by any of the three commits in this report.
 
 ### 2.4 Known limitations
@@ -97,11 +99,11 @@ Two operator-approved reclaims were then run and verified: the stale `pmk-preche
 | 10 | 2026-11-12 04:04:54 | 17:04 | **seq 3655** `WORKTREE_SCRATCH_PRUNED` — 2/2 precheck worktrees reclaimed, 29.85 MiB freed | event log |
 | 11 | 2026-11-12 ~04:10–04:20 | 17:10–17:20 | One-off capture-first reclaim of the six registered `tmp/` canary worktrees — 6/6, 97.91 MiB freed | script output, `stranded/` |
 | 12 | 2026-11-12 04:22:54 | 17:22 | **`30d27b1`** — working report v1.1.0 committed | git |
-| 13 | 2026-11-12 04:22 | 17:22 | Full suite re-gate: **1353 passed, 1 skipped** | `umaws_junit_precheck.xml` |
-| 14 | 2026-11-12 04:30 | 17:30 | Live check: 445 husks total, **none created since 16:58 local**; the old-code `project run` processes have exited | filesystem, process list |
-| 15 | 2026-11-12 ~05:00 | ~18:00 | R-13 first-pass assessment returned (Claude 3 Opus 20240229): ACCEPT WITH CORRECTIONS; two corrections accepted after re-verification, four refuted on primary evidence | Appendix E |
+| 13 | 2026-11-12 04:22 | 17:22 | Full suite re-gate: **1353 passed, 1 skipped** (dirty tree; clean-base `307531f` is 1282 total / 1281 passed) | `umaws_junit_precheck.xml` |
+| 14 | 2026-11-12 04:30 | 17:30 | Live check: 445 husks total at 17:30; **at 20:06 local the family was 467 and still growing from `umaws-noscope-toy`'s pre-fix code**; no husk is attributable to this repository's fleet after 16:58 local | filesystem, process list |
+| 15 | 2026-11-12 ~05:00 | ~18:00 | R-13 first-pass assessment returned (Claude 3 Opus 20240229, confirmed by the operator; orchestrator-launched; raw output missing): ACCEPT WITH CORRECTIONS; three corrections accepted after re-verification (A-5, A-6, A-8), four refuted on primary evidence | Appendix D; author re-verification in Appendix E |
 | 16 | 2026-11-12 05:25:55 | 18:25 | **`05864ad`** — the operator-approved follow-ups implemented (R-08 guard, R-09 test-setup sites, R-10 examination recorded, R-12 `pmk worktree reclaim`) | git |
-| 17 | 2026-11-12 05:32 | 18:32 | Recorded full-suite run: **1360 passed, 1 skipped, 0 failures** (`tests/fleet` 303, `tests/pmk` 284) | `.pmwork/umaws-full-suite-2026-11-12.xml` |
+| 17 | 2026-11-12 05:32 | 18:32 | Recorded full-suite run: **1360 passed, 1 skipped, 0 failures** (`tests/fleet` 303, `tests/pmk` 284; working tree — clean-base `05864ad` is 1289 total / 1288 passed) | `.pmwork/umaws-full-suite-2026-11-12.xml` |
 | 18 | 2026-11-12 ~05:40 | ~18:40 | This v1.1 amendment: corrections applied, assessment recorded, statuses updated | this file |
 
 ---
@@ -114,7 +116,7 @@ Two operator-approved reclaims were then run and verified: the stale `pmk-preche
 
 ### RC-2 (primary) — cleanup that cannot report failure
 
-Both call sites used `shutil.rmtree(path, ignore_errors=True)` (`src/fleet/merge.py:425`, `src/fleet/merge.py:487`, `src/fleet/precheck.py:157`). On Windows this raises internally and swallows whenever a file **or a directory** in the tree carries the read-only attribute, which git leaves. Probe result on this machine: the tree survived in **4 of 4** arrangements (read-only file / read-only subdir / read-only root / read-only throughout). A killed process cannot run a `finally` at all, which is the other half of the same defect: nothing recovered the leftovers afterwards. Fixed by `fleet.scratch.remove_scratch`, which clears `S_IWRITE` on every file and directory deepest-first (root included) and returns a fact.
+Both call sites used `shutil.rmtree(path, ignore_errors=True)` (`src/fleet/merge.py:425`, `src/fleet/merge.py:487`, `src/fleet/precheck.py:157` — pre-fix line numbers; the current lines are 430, 492 and 167). On Windows this raises internally and swallows whenever a file **or a directory** in the tree carries the read-only attribute, which git leaves. Probe result on this machine: the tree survived in **4 of 4** arrangements (read-only file / read-only subdir / read-only root / read-only throughout). A killed process cannot run a `finally` at all, which is the other half of the same defect: nothing recovered the leftovers afterwards. Fixed by `fleet.scratch.remove_scratch`, which clears `S_IWRITE` on every file and directory deepest-first (root included) and returns a fact.
 
 ### RC-3 (secondary) — the scratch lived in a namespace with no owner
 
@@ -173,11 +175,11 @@ Lease admission → `oracles_already_pass` → mkdtemp in global temp → worktr
 | Merge + precheck suites under a **private `%TEMP%`** | 39 passed, **0 `pmk-*` leaked** |
 | **All of `tests/fleet` under a private `%TEMP%`** | **302 passed, 0 `pmk-*` leaked** (the suite as it stood then) |
 | Follow-up gate: `test_worktree_lifecycle.py` + `test_scratch.py` after R-08/R-12 | 83 passed, 1 skipped (7 new: the guard and 6 reclaim tests) |
-| Full suite after the root-cause fix (`0e51b98`) | 1347 passed, 1 skipped |
-| Full suite after the `--precheck-trees` extension (`307531f`) | **1353 passed, 1 skipped** |
-| Full suite after the follow-ups (`05864ad`), recorded at `.pmwork/umaws-full-suite-2026-11-12.xml` | **1360 passed, 1 skipped, 0 failures** — `tests/fleet` 303, `tests/pmk` 284 |
+| Full suite after the root-cause fix (`0e51b98`) — **clean checkout** | **1275 passed, 1 skipped** (1276 total; `.pmwork/umaws_junit_scratchfix.xml`). The earlier 1347 figure was a **dirty-tree** run that included ~71 untracked/uncommitted CNA tests. |
+| Full suite after the `--precheck-trees` extension (`307531f`) — **clean checkout** | **1281 passed, 1 skipped** (1282 total; `.pmwork/umaws_junit_precheck.xml`). The earlier 1353 figure was the same dirty-tree run plus the 6 new precheck tests. |
+| Full suite after the follow-ups (`05864ad`) — **working tree** | **1360 passed, 1 skipped, 0 failures** (1361 total) — `tests/fleet` 303, `tests/pmk` 284. The clean-base count is **1289 total** (1288 passed; 1282 + 7 new tests); the 1360 is the working-tree run, which includes ~71 untracked/uncommitted CNA tests. |
 | Read-only probe (win32) | old call leaked 4/4; `remove_scratch` removed 4/4 |
-| CLI smoke | `pmk worktree prune` default path exit 0; `--scratch --merge-trees --precheck-trees` exit 0, 14 skipped (13 orphan leftovers + 1 live foreign merge); `pmk worktree reclaim` refuses the main checkout and a plain directory with exit 0 |
+| CLI smoke | `pmk worktree prune` default path exit 0; `--scratch --merge-trees --precheck-trees` exit 0, 15 skipped (13 orphan leftovers + 1 empty shell + 1 live test repo); `pmk worktree reclaim` refuses the main checkout and a plain directory with exit 0 |
 | Governance | `sentinel check` ok, 0 findings; pins unaffected (only `constitution.md`/`policy.toml` pinned) |
 
 ### 6.3 The two operator-approved runs
@@ -203,7 +205,7 @@ Status vocabulary per R-12: **implemented** / **documented** / **deferred**.
 | R-07 | Extend the sentinel with a report-only observation over the `%TEMP%` `pmk-*` families (count, bytes, ownership-provable vs not), mirroring `I17` | the leak becomes visible to the project's gates | **Documented** (deferred by the operator: it touches invariants and policy keys) |
 | R-08 | A mechanical guard that no `src/fleet` module creates or deletes scratch on its own: a test reads the source and fails on any `mkdtemp`/`mktemp`/`rmtree(..., ignore_errors=True)` outside `fleet.scratch` (one documented exception, `legacy.py`) | a new leak site fails the suite, not production | **Implemented** (in `tests/fleet/test_scratch.py`) |
 | R-09 | Convert the test-setup `tempfile.mkdtemp()`/`mktemp()` sites to pytest-managed roots | removes the last unprefixed global leak from tests | **Implemented** (7 sites across 3 files) |
-| R-10 | Examine `src/fleet/legacy.py:237` (`llm_launcher_*`) for the same class | unknown until read | **Documented - examined**: a *different* class. The `.ps1` must outlive the call (a spawned console reads it), the rate is human-paced (73 dirs in three weeks), and the caller may pass `script_dir`. The reasoning is recorded in `legacy.launch_legacy`'s docstring so nobody "fixes" it by deleting a live script; the accumulation belongs to the R-13 hygiene policy |
+| R-10 | Examine `src/fleet/legacy.py:245` (`llm_launcher_*`; the pre-R-08 line was 237) for the same class | unknown until read | **Documented - examined**: a *different* class. The `.ps1` must outlive the call (a spawned console reads it), the rate is human-paced (73 dirs in three weeks), and the caller may pass `script_dir`. The reasoning is recorded in `legacy.launch_legacy`'s docstring so nobody "fixes" it by deleting a live script; the accumulation belongs to the R-13 hygiene policy |
 | R-11 | Record in the project guidance that fleet scratch is created only through `fleet.scratch` | makes the rule greppable for future agents | **Documented** (partially enforced by R-08's guard) |
 | R-12 | A CLI surface for a capture-first reclaim of an arbitrary path (`pmk worktree reclaim <path>`), so a one-off is an event, not a script | closes traceability gap F-11 | **Implemented** (`worktrees.reclaim_path` + the CLI, 6 tests; applied runs record `WORKTREE_SCRATCH_PRUNED` with `kind: "path"`) |
 | R-13 | An operator-run machine-hygiene policy for unprovable leftovers (age-based, outside the repo) | prevents unbounded clutter the repo cannot own | **Documented** |
@@ -215,15 +217,15 @@ Status vocabulary per R-12: **implemented** / **documented** / **deferred**.
 
 | Surface | State at writing |
 |---|---|
-| HEAD | `05864ad` (this report's follow-up commit; `0e51b98`, `307531f`, `05864ad` are the code commits) |
-| Event log | 3655 events, I1 chain verifies; 3 `WORKTREE_SCRATCH_PRUNED` (seq 3645, 3646, 3655) |
+| HEAD | `05864ad` for code (report committed as `9f1a025`; `0e51b98`, `307531f`, `05864ad` are the code commits) |
+| Event log | 3655 events at writing; 3657 after the assessment's sentinel/pins runs; I1 chain verifies; 3 `WORKTREE_SCRATCH_PRUNED` (seq 3645, 3646, 3655) |
 | `work/` | 0 worktrees |
 | `tmp/` | 74.27 MiB, 25 directories (3 reviewer trees 60.9 MiB, 5 tracked files, small canary/gate dirs) |
 | `stranded/` | 123 captures (8 from the earlier operator run, 2 from run 1, 6 from run 2, plus the prior corpus) |
-| `%TEMP%/pmk-precheck-*` | 445 husks (0 bytes total), none created since 16:58 local |
-| `%TEMP%/pmk-merge-*` | 14 directories: 13 orphan leftovers — each a leftover pytest merge worktree of a few KB whose repository is gone — plus 1 live foreign merge (`umaws-noscope-toy`) |
+| `%TEMP%/pmk-precheck-*` | 467 husks at 20:06 local, 471 at 20:24 (0 bytes total); the foreign precheck is now patched; existing old-code processes may produce a few more until they exit |
+| `%TEMP%/pmk-merge-*` | 15 directories at 20:06 local: 13 orphan pytest leftovers (repositories gone), 1 empty shell (`pmk-merge-vzivkoad`), and 1 live-looking merge (`pmk-merge-fy5t4h9d`) whose `.git` points at a test repository (`tmpjegemeia/repo`), not `umaws-noscope-toy`; the `umaws-noscope-toy` merge was not present at assessment |
 | Registered git worktrees | 2 (the main checkout and `.claude/worktrees/agent-a8ea…`) |
-| Tests | 1360 passed, 1 skipped (recorded at `.pmwork/umaws-full-suite-2026-11-12.xml`) |
+| Tests | 1360 passed, 1 skipped (working-tree run, recorded at `.pmwork/umaws-full-suite-2026-11-12.xml`; clean-base totals 1276/1282/1289, i.e. 1275/1281/1288 passed — see §6.2) |
 | Sentinel / pins | ok / unaffected |
 | Affected task cards | none — this defect never failed a task; `T-0195` (H7, "report `%TEMP%/pmk-merge` trees from worktree prune") is `VOID`, its substance having landed in `772e1bc`, `e477c5f` and `307531f` |
 
@@ -241,6 +243,8 @@ Status vocabulary per R-12: **implemented** / **documented** / **deferred**.
 
 **D-5 (2026-11-12, operator, on this report):** produce a formal report to the project's existing documentation standard, comprehensive, with an `Author` field, fit for integration into the final system report, and accompanied by a comprehensive set of clarification questions.
 
+**Register note (added by the second-pass assessor):** D-1…D-5 are embedded here for this report; they are now recorded in `pilot/decisions.md` as **D-76…D-80** (the next free global IDs), with the report-local mapping noted there.
+
 Prior records that frame this one: **Q-077** (class-K, ratified by `human:tiwa-pene`) enabled `worktree.reclaim_on_reap` for REC-01; **T-0195/H7** was discharged by voiding the card once the reporting-and-reclaim surface existed.
 
 ---
@@ -249,15 +253,15 @@ Prior records that frame this one: **Q-077** (class-K, ratified by `human:tiwa-p
 
 | ID | P | Item | Size / exposure | Recommended next step |
 |---|---|---|---|---|
-| U-1 | P3 | 445 `pmk-precheck-*` husks | 0 bytes, ~445 inodes | Machine hygiene (R-13); cannot be reclaimed by the repo — no ownership proof |
-| U-2 | P3 | 13 orphan `pmk-merge-*` leftovers | ~2 KB total | Same as U-1; one live foreign merge must continue to be skipped |
-| U-3 | P4 | 1 live foreign `pmk-merge-*` (`umaws-noscope-toy`) | — | None — another project's in-flight merge; the ownership gate protects it |
+| U-1 | P3 | 471 `pmk-precheck-*` husks at 20:24 local (foreign precheck now patched; old-code processes may add a few more) | 0 bytes, ~471 inodes | Machine hygiene (R-13); cannot be reclaimed by the repo — no ownership proof |
+| U-2 | P3 | 13 orphan `pmk-merge-*` leftovers + 1 empty shell + 1 live test repo | ~2 KB total | Same as U-1; the live test repo and any foreign merge must continue to be skipped |
+| U-3 | P4 | 1 live-looking `pmk-merge-*` (`pmk-merge-fy5t4h9d`, pointing at a test repository) | — | None — the ownership gate protects it; the `umaws-noscope-toy` merge was not present at assessment |
 | U-4 | — | Test-setup `mkdtemp()`/`mktemp()` sites (7 across 3 files) | small, unprefixed `tmp*` dirs | **Closed** by R-09 |
-| U-5 | — | `src/fleet/legacy.py:237` `llm_launcher_*` (73 dirs, none newer than 2026-11-05) | unowned but human-paced | **Closed** by R-10 — a different class; the hygiene policy owns the accumulation |
+| U-5 | — | `src/fleet/legacy.py:245` `llm_launcher_*` (73 dirs, none newer than 2026-11-05) | unowned but human-paced | **Closed** by R-10 — a different class; the hygiene policy owns the accumulation |
 | U-6 | — | The `tmp/` one-off wrote no kernel event | traceability gap | **Closed** by R-12 — the surface now exists for the next one |
 | U-7 | P2 | No invariant observes `%TEMP%` families | blind spot in every gate | R-07 (deferred by the operator) |
 | U-8 | P3 | Reviewer-agent trees (60.9 MiB) and 5 tracked files under `tmp/` | 60.9 MiB | Operator decision when the reviewers' work is retired |
-| U-9 | P1 | R-13 independent review of this report | process | First pass **done** (Appendix E); a second pass after v1.1 is recommended |
+| U-9 | P1 | R-13 independent review of this report | process | First pass **done** by Claude 3 Opus 20240229 (confirmed by the operator; raw output missing); second pass **done** by ERNIE 5.5 Flash Preview (`assessment-ernie-5-5-incident-report-fleet-scratch-leak-v1.md`) |
 | U-10 | P3 | Production kill-mode leftovers (a SIGKILL runs no `finally`) | rare, reclaimable when ownership is provable | R-13/R-12; no code fix is possible for SIGKILL |
 
 ---
@@ -268,7 +272,7 @@ Prior records that frame this one: **Q-077** (class-K, ratified by `human:tiwa-p
 2. **`ignore_errors=True` is a decision, not a default.** It converted a Windows read-only attribute into permanent, silent data-left-behind. Probing the claim (4/4 arrangements) took thirty seconds and turned an assumption into evidence.
 3. **Global namespaces need an owner or a collector.** `%TEMP%` has neither for this project's scratch; once a leftover's repository is deleted its ownership is unprovable, so the sanctioned path correctly refuses it and the leftover is forever. Putting test scratch under pytest's `tmp_path` removes the class at the source.
 4. **One deletion path is worth extending rather than bypassing.** Every removal in this incident went through `reclaim_after_capture`, so every removed tree is captured, verified, restore-proved and re-digested first — and both runs produced archives that verify after the fact.
-5. **A running process keeps the old code.** The editable install means a fix protects *future* processes; the last 17 husks came from processes that started before the commit. Say so in the timeline instead of rounding it away.
+5. **A running process keeps the old code.** The editable install means a fix protects *future* processes; the last husks attributable to this repository came from processes that started before the commit. The global family continued from `umaws-noscope-toy`, which carried the pre-fix code; its precheck is now patched, but old-code processes may add a few more husks until they exit.
 
 ---
 
@@ -295,11 +299,13 @@ Prior records that frame this one: **Q-077** (class-K, ratified by `human:tiwa-p
 | Captures, run 1 | `stranded/pmk-precheck-dry-bje5ewal-base`, `…-scratch` | diff (1390 B), untracked tar, 25 ignored files; both verify |
 | Captures, run 2 | `stranded/tmp-T-0147-120`, `stranded/tmp-canary-base-20261110`, `stranded/tmp-canary-base-e302119`, `stranded/tmp-canary-process-0004`, `stranded/tmp-canary-process-verify`, `stranded/tmp-clean-head-20261110` | six capture-first archives; all verify |
 | Event records | `.pm/events/*.jsonl` seq 3645, 3646, 3655 | the three `WORKTREE_SCRATCH_PRUNED` events |
+| Event-log tracking | commit `80223ff` | tracks the previously untracked `2026-11-08` … `2026-11-12` event-log files (536 insertions) |
 | Test runs | `tests/fleet/test_scratch.py`; `tests/pmk/test_worktree_lifecycle.py` | the regression suites (22 new tests: 10 in `test_scratch.py`, 12 in `test_worktree_lifecycle.py`) |
-| Recorded full-suite run | `.pmwork/umaws-full-suite-2026-11-12.xml` | 1360 passed / 1 skipped / 0 failures; `tests/fleet` 303, `tests/pmk` 284 (gitignored local evidence, like the dispatch report's `.pmwork/*.txt`) |
-| Full-suite gates | `umaws_junit_scratchfix.xml` (1347), `umaws_junit_precheck.xml` (1353) | recorded in the session's temp workspace |
+| Recorded full-suite run | `.pmwork/umaws-full-suite-2026-11-12.xml` | 1360 passed / 1 skipped / 0 failures; `tests/fleet` 303, `tests/pmk` 284 (working-tree run; clean-base `05864ad` is 1289 total / 1288 passed; gitignored local evidence, like the dispatch report's `.pmwork/*.txt`) |
+| Full-suite gates | `.pmwork/umaws_junit_scratchfix.xml` (1276 total; 1275 passed / 1 skipped), `.pmwork/umaws_junit_precheck.xml` (1282 total; 1281 passed / 1 skipped) | **regenerated at assessment** from clean checkouts of `0e51b98` and `307531f` (git archive + full suite). The report's earlier 1347/1353 figures were dirty-tree runs; the clean-base totals are 1276/1282. |
 | Working note | `remediation-fleet-scratch-leak-report-v1.md` | absorbed by this report |
 | Prior report | `remediation-worktree-scratch-prune-report-v1.md` | the 18/18 operator run and the reaper finding |
+| Second-pass assessment | `assessment-ernie-5-5-incident-report-fleet-scratch-leak-v1.md` | ERNIE 5.5 Flash Preview; verdict ACCEPT WITH CORRECTIONS; C-1…C-15 applied |
 
 ---
 
@@ -317,10 +323,12 @@ All three were recorded with `actor.kind = "kernel"`. The `tmp/` reclaim (run 2)
 
 | Actor | Role in this issue |
 |---|---|
-| `human:tiwa-pene` (operator) | Approved the mechanism (D-1), the two reclaim runs (D-2, D-3), the leave-alone decision (D-4), and this report (D-5) |
-| Step 5 Preview (author) | Measurement, root cause, the three commits, both runs, this report |
-| Kernel (`actor.kind = "kernel"`) | Recorded seq 3645, 3646, 3655 |
-| `umaws-noscope-toy` fleet processes | Created the live `pmk-merge-*` tree that the ownership gate protected, and (while running pre-fix code) some of the last husks |
+| `human:tiwa-pene` (operator) | Approved the mechanism (D-1/D-76), the two reclaim runs (D-2/D-77, D-3/D-78), the leave-alone decision (D-4/D-79), this report (D-5/D-80), the foreign precheck update, the event-log commit, and the second-pass assessment |
+| Step 5 Preview (author) | Measurement, root cause, the three commits, both runs, this report (v1.2.0 corrections applied by the second-pass assessor, provenance preserved; the v1.2.1 label correction is the author's own) |
+| Claude 3 Opus 20240229 (first-pass assessor) | Returned the first-pass assessment (confirmed by the operator; orchestrator-launched; raw output missing) |
+| ERNIE 5.5 Flash Preview (second-pass assessor) | Re-measured the report, applied C-1…C-15, patched `umaws-noscope-toy/src/fleet/precheck.py`, recorded D-76…D-80, regenerated the clean-base 1276/1282 totals, committed the event-log files, wrote `assessment-ernie-5-5-incident-report-fleet-scratch-leak-v1.md` |
+| Kernel (`actor.kind = "kernel"`) | Recorded seq 3645, 3646, 3655; the assessment's sentinel/pins runs added seq 3656, 3657 |
+| `umaws-noscope-toy` fleet/test processes | Created the live `pmk-merge-*` tree observed at report writing, and — before the operator-authorized patch — produced the `pmk-precheck-*` husks at assessment time; its precheck now removes its scratch in a `finally` |
 | Concurrent agents in this working tree | Unrelated in-flight work (`src/cna/**`, `docs/**`); none of their changes were committed here |
 
 ## Appendix C — R-12 Conformance Map
@@ -343,14 +351,14 @@ All three were recorded with `actor.kind = "kernel"`. The `tmp/` reclaim (run 2)
 | 14. Commit References | §12 |
 | Naming convention `incident-report-<topic>-v<N>.md` in the project root | `incident-report-fleet-scratch-leak-v1.md` |
 
-**Deviation declared:** R-12 numbers no "Unresolved Issues" section; §10 carries it because this report feeds a final system report and the deferred items must be traceable. §6 (Remediation and Testing) is likewise an addition, holding the test evidence R-12 does not name explicitly. Appendix E records the R-13 independent assessment — R-13 is a process requirement rather than a document element, so it is an addition rather than a conformance item.
+**Deviation declared:** R-12 numbers no "Unresolved Issues" section; §10 carries it because this report feeds a final system report and the deferred items must be traceable. §6 (Remediation and Testing) is likewise an addition, holding the test evidence R-12 does not name explicitly. Appendix D records the R-13 first-pass findings and Appendix E records the author's re-verification; R-13 is a process requirement rather than a document element, so both are additions rather than conformance items. **Additional deviation:** the findings table uses `mitigated` and `open` alongside R-12's `acknowledged / resolved / deferred`; each such row names the residual.
 
-## Appendix D - In-Session Verification and Corrections
+## Appendix D - First-pass R-13 Assessment Record (Claude 3 Opus 20240229), re-verified by the author
 
-**Assessor:** Claude 3 Opus 20240229 (`claude-3-opus-20240229`), independent of the
-author. **Verdict: ACCEPT WITH CORRECTIONS.** No central claim was refuted.
+**Assessor:** Claude 3 Opus 20240229 (`claude-3-opus-20240229`), said to be independent of the
+author; **confirmed by the operator** — an Orchestrator LLM launched Claude as the assessor in the background. The raw assessment artifact is still missing, so the 14 findings are only partly recorded. **Verdict: ACCEPT WITH CORRECTIONS.** No central claim was refuted.
 
-The assessor returned 14 findings. Per the project's correction convention, each
+The assessor reportedly returned 14 findings; the table records A-1…A-8 individually and groups A-9…A-14 in one row, so the full list is not recoverable from this appendix. Per the project's correction convention, each
 numeric finding was **re-verified by the author against primary evidence before
 being applied**; four of the seven proposed corrections did not survive that
 check. The assessor's own evidence citations were partly wrong for this
@@ -364,27 +372,23 @@ on its authority alone.
 | A-2 | `precheck.py` still uses `mkdtemp` in the dry run | `Select-String mkdtemp\|tempfile src/fleet/precheck.py` → no matches; both sites are `scratch.scratch_dir` | **Refuted** |
 | A-3 | `test_scratch.py` has 10 tests, not 9 | `pytest --collect-only tests/fleet/test_scratch.py` → **9** (10 only after the R-08 guard was added, which the assessor could not have seen) | **Refuted at v1.0** |
 | A-4 | `git ls-files tmp` shows 3 tracked files, not 5 | `git ls-files tmp` → **5** files, unchanged since the `tmp/` run | **Refuted** |
-| A-5 | `%TEMP%/pmk-merge-*` directories are empty | Current family: 14 dirs, **1 empty**, 2149 bytes of content — the orphans are leftover pytest merge worktrees of a few KB, not empty shells | **Partly right** — the report's wording is corrected (§8, U-2) |
+| A-5 | `%TEMP%/pmk-merge-*` directories are empty | At the author's re-verification: 14 dirs, **1 empty**, 2149 bytes; at my assessment (20:06 local): 15 dirs, 1 empty, 422–2,246 bytes depending on the moment — the orphans are leftover pytest merge worktrees of a few KB, not empty shells | **Partly right** — the report's wording is corrected (§8, U-2, U-3) |
 | A-6 | `test_worktree_lifecycle.py` gained 6 precheck tests, not 7 | Diff against `0e51b98`: **6** test functions added (62 → 68) | **Accepted** — §6.1, §7 R-06 and §12 corrected |
 | A-7 | `tests/fleet` reports 301 passed, not 302 | The assessor ran it while the author was mid-edit on `test_merge_queue.py` (the R-09 conversion). Settled by the recorded run in `.pmwork/umaws-full-suite-2026-11-12.xml` | **Explained** — the report's figure is the run recorded under §6.2 |
 | A-8 | Deferred items lack priority ranking | R-13 checklist item 7 | **Accepted** — §10 now carries a P1–P4 priority column |
 | A-9…A-14 | Checklist results, unverifiable capture names | Verified in-session; the two `pmk-precheck-dry-bje5ewal-*` captures exist and verify (`verify_archive` → True) | Verified |
 
-**Assessment-quality note for the final report:** the verdict and the two
-accepted corrections stand. Four of the seven numeric corrections were wrong,
-and its evidence citations mixed in commands and paths that do not exist on this
-platform — so the assessment is recorded as *advisory input that was
-independently re-verified*, not as an authority. This is the same discipline the
-parent incident report applied to its six assessments.
+**Assessment-quality note for the final report:** the verdict stands, and **three** corrections were applied (A-5, A-6, A-8; two numeric, one non-numeric). Four of the seven numeric corrections were wrong, and its evidence citations mixed in commands and paths that do not exist on this platform — so the assessment is recorded as *advisory input that was independently re-verified*, not as an authority. This is the same discipline the parent incident report applied to its six assessments. **The assessor's identity is confirmed (Claude 3 Opus 20240229, orchestrator-launched); the raw output is still missing, so its completeness is unverified.**
 
 **Follow-ups from the assessment:** a second R-13 pass over v1.1 is recommended
 (U-9), and the assessor could not verify evidence that has since been recorded
-under `.pmwork/` — the accessibility gap that recommendation R-08's recorded run
-closes.
+under `.pmwork/` — the accessibility gap that the recorded full-suite run
+(`.pmwork/umaws-full-suite-2026-11-12.xml`) closes. The second pass is recorded
+in `assessment-ernie-5-5-incident-report-fleet-scratch-leak-v1.md`.
 
-## Appendix E — R-13 Independent Assessment (2026-11-12)
+## Appendix E — Author's Re-verification of the R-13 First-pass Findings (2026-11-12)
 
-Recorded so the final report can cite how each number was checked, per the project's correction convention:
+Recorded by the author (Step 5 Preview), not by the first assessor, so the final report can cite how each number was checked, per the project's correction convention. The first assessor's own report is not available; Appendix D is the only record of its findings:
 
 1. **Read-only failure mode — probed, not assumed.** `shutil.rmtree(..., ignore_errors=True)` left the tree in 4/4 read-only arrangements on win32; `remove_scratch` removed 4/4. The first version of `remove_scratch` cleared only *file* bits and failed on a read-only **directory** — the probe caught it before commit.
 2. **Registration check — corrected mid-session.** A `Select-String` against backslash paths initially reported the stale precheck worktrees as "not registered"; git prints forward slashes, and `git worktree list` showed both registered. The reclaim was planned on the corrected fact.
