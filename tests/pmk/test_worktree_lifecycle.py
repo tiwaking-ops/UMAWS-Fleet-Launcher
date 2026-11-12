@@ -13,6 +13,8 @@ import os
 import subprocess
 import sys
 import tarfile
+import tempfile
+import time
 from pathlib import Path
 
 import pytest
@@ -1097,3 +1099,131 @@ def test_cli_scratch_prune_dry_run_then_apply(kernel, repo, capsys):
     out = json.loads(capsys.readouterr().out)
     assert [r["name"] for r in out["removed"]] == ["gate-cli"]
     assert not tree.exists()
+
+
+# ---------------------------------------------------------------------------
+# Precheck dry-run scratch -- the base/ + scratch/ pair
+# ---------------------------------------------------------------------------
+
+def _make_precheck_tree(repo, parent: Path):
+    """A pmk-precheck-dry-* directory with this repo's base/ and scratch/."""
+    parent.mkdir(parents=True)
+    for sub in ("base", "scratch"):
+        subprocess.run(["git", "worktree", "add", "--detach",
+                        str(parent / sub), "HEAD"],
+                       cwd=repo.root, capture_output=True, check=True)
+    return parent
+
+
+def test_discover_precheck_trees_lists_both_worktrees(tmp_path):
+    parent = tmp_path / "pmk-precheck-dry-abc"
+    (parent / "base").mkdir(parents=True)
+    (parent / "scratch").mkdir()
+
+    recs = worktrees.discover_precheck_trees(tmp_path)
+
+    assert [r["name"] for r in recs] == ["pmk-precheck-dry-abc"]
+    assert recs[0]["worktrees"] == ["base", "scratch"]
+
+
+def test_scratch_prune_reclaims_a_precheck_tree(kernel, repo, tmp_path):
+    parent = _make_precheck_tree(repo, tmp_path / "pmk-precheck-dry-abc")
+    (parent / "base" / "README.md").write_text("# base\n", encoding="utf-8")
+    (parent / "scratch" / "README.md").write_text("# scratch\n",
+                                                  encoding="utf-8")
+
+    result = worktrees.prune_scratch(repo, kernel.state(), dry_run=False,
+                                     temp_root=tmp_path, include_work=False,
+                                     include_merge=False, include_precheck=True,
+                                     min_precheck_age_days=0.0)
+
+    assert {r["worktree"] for r in result["removed"]} == {"base", "scratch"}
+    assert not parent.exists()               # the directory goes once empty
+    for sub in ("base", "scratch"):
+        dest = repo.root / "stranded" / f"pmk-precheck-dry-abc-{sub}"
+        ok, problems = worktrees.verify_archive(dest)
+        assert ok, problems
+
+
+def test_scratch_prune_refuses_a_precheck_tree_that_is_not_ours(
+        kernel, repo, tmp_path):
+    # %TEMP% is global: another project's precheck dry run lives there too.
+    other = tmp_path / "other-repo"
+    other.mkdir()
+    for args in (["init"], ["config", "user.email", "o@e.com"],
+                 ["config", "user.name", "O"]):
+        subprocess.run(["git", *args], cwd=other, capture_output=True)
+    (other / "README.md").write_text("# other\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=other, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=other,
+                   capture_output=True)
+
+    parent = tmp_path / "pmk-precheck-dry-theirs"
+    (parent / "base").mkdir(parents=True)
+    subprocess.run(["git", "worktree", "add", "--detach",
+                    str(parent / "base"), "HEAD"],
+                   cwd=other, capture_output=True, check=True)
+
+    assert worktrees.belongs_to_repo(repo, parent / "base") is False
+    result = worktrees.prune_scratch(repo, kernel.state(), dry_run=False,
+                                     temp_root=tmp_path, include_work=False,
+                                     include_merge=False, include_precheck=True,
+                                     min_precheck_age_days=0.0)
+
+    assert result["removed"] == []
+    skip = [s for s in result["skipped"] if s["name"] == "pmk-precheck-dry-theirs"]
+    assert skip and "not a worktree of this repository" in skip[0]["reason"]
+    assert (parent / "base").is_dir()
+
+
+def test_scratch_prune_refuses_a_precheck_tree_that_is_too_recent(
+        kernel, repo, tmp_path):
+    parent = _make_precheck_tree(repo, tmp_path / "pmk-precheck-dry-fresh")
+
+    result = worktrees.prune_scratch(repo, kernel.state(), dry_run=False,
+                                     temp_root=tmp_path, include_work=False,
+                                     include_merge=False, include_precheck=True,
+                                     min_precheck_age_days=1.0)
+
+    assert result["removed"] == []
+    assert result["candidates"] == []
+    assert "younger than 1.0 d" in result["skipped"][0]["reason"]
+    assert parent.is_dir()
+
+
+def test_scratch_prune_skips_a_precheck_directory_with_no_worktree(
+        kernel, repo, tmp_path):
+    parent = tmp_path / "pmk-precheck-dry-empty"
+    parent.mkdir()
+
+    result = worktrees.prune_scratch(repo, kernel.state(), dry_run=False,
+                                     temp_root=tmp_path, include_work=False,
+                                     include_merge=False, include_precheck=True)
+
+    assert result["removed"] == []
+    assert result["skipped"][0]["reason"].startswith("no precheck worktree")
+    assert parent.is_dir()
+
+
+def test_cli_precheck_prune_dry_run_lists_both_worktrees(kernel, repo, tmp_path,
+                                                          capsys, monkeypatch):
+    from pmk import cli
+
+    # The CLI discovers the global %TEMP%; point discovery at this test's
+    # directory so the assertion is about the fixture, not the machine.
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+    parent = _make_precheck_tree(repo, tmp_path / "pmk-precheck-dry-cli")
+    # The default gate refuses a tree younger than a day, so age the fixture
+    # past it rather than weakening the gate for the test.
+    old = time.time() - 2 * 86400
+    os.utime(parent, (old, old))
+
+    code = cli.main(["--root", str(repo.root), "worktree", "prune",
+                     "--precheck-trees"])
+    assert code == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["include_precheck"] is True
+    assert out["candidates"] == ["pmk-precheck-dry-cli",
+                                 "pmk-precheck-dry-cli"]
+    assert out["removed"] == []
+    assert parent.is_dir()

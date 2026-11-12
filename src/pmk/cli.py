@@ -468,17 +468,19 @@ def cmd_worktree_list(args) -> int:
 def cmd_worktree_prune(args) -> int:
     """Reclaim worktrees.  Dry run unless ``--yes``.
 
-    Without ``--scratch``/``--merge-trees`` this reclaims clean *lease*
-    worktrees (REC-04).  With either flag it reclaims the non-lease scratch
-    trees instead -- still capture-first, and still through the one deletion
-    path (:func:`worktrees.reclaim_after_capture`).
+    Without ``--scratch``/``--merge-trees``/``--precheck-trees`` this
+    reclaims clean *lease* worktrees (REC-04).  With any of those flags it
+    reclaims the non-lease scratch trees instead -- still capture-first, and
+    still through the one deletion path
+    (:func:`worktrees.reclaim_after_capture`).
     """
     kernel = _kernel(args)
     state = kernel.state()
     from . import worktrees as wts
     scratch = bool(getattr(args, "scratch", False))
     merge = bool(getattr(args, "merge_trees", False))
-    if not scratch and not merge:
+    precheck = bool(getattr(args, "precheck_trees", False))
+    if not scratch and not merge and not precheck:
         result = wts.prune(kernel.repo, state,
                            dry_run=not args.yes,
                            older_than_days=args.void_older_than,
@@ -487,12 +489,14 @@ def cmd_worktree_prune(args) -> int:
         _out(result)
         return 0
     result = wts.prune_scratch(kernel.repo, state, dry_run=not args.yes,
-                               include_work=scratch, include_merge=merge)
+                               include_work=scratch, include_merge=merge,
+                               include_precheck=precheck)
     if args.yes:
         from .events import Actor
         kernel.record_event(
             "WORKTREE_SCRATCH_PRUNED", actor=Actor.kernel(),
             payload={"include_work": scratch, "include_merge": merge,
+                     "include_precheck": precheck,
                      "removed": [r["name"] for r in result["removed"]],
                      "archives": [r["archive"] for r in result["removed"]
                                   if r["archive"]],
@@ -1137,6 +1141,11 @@ def build_parser() -> argparse.ArgumentParser:
     wt_prune.add_argument("--merge-trees", dest="merge_trees",
                           action="store_true",
                           help="reclaim %%TEMP%%/pmk-merge-* scratch trees, "
+                               "capture-first")
+    wt_prune.add_argument("--precheck-trees", dest="precheck_trees",
+                          action="store_true",
+                          help="reclaim %%TEMP%%/pmk-precheck-dry-* scratch "
+                               "trees (their base/ and scratch/ worktrees), "
                                "capture-first")
     wt_prune.set_defaults(func=cmd_worktree_prune)
     wt_archive = worktree.add_parser(

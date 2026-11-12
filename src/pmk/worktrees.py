@@ -1139,34 +1139,66 @@ def merge_tree_records(temp_root: Path | str | None = None) -> list[dict]:
     return out
 
 
+def discover_precheck_trees(temp_root: Path | str | None = None) -> list[dict]:
+    """Report ``%TEMP%/pmk-precheck-dry-*`` directories and their worktrees.
+
+    A precheck dry run adds **two** worktrees -- ``base`` and ``scratch`` --
+    inside one throwaway directory, so this class is reported per directory
+    with the worktrees it still holds.  ``age_days`` is the directory's
+    mtime, so a prune can refuse to race a precheck that is still running.
+    """
+    root = Path(temp_root) if temp_root is not None else Path(tempfile.gettempdir())
+    if not root.is_dir():
+        return []
+    out: list[dict] = []
+    for parent in sorted(root.glob("pmk-precheck-dry-*")):
+        try:
+            if not parent.is_dir():
+                continue
+            age = (time.time() - parent.stat().st_mtime) / 86400.0
+        except OSError:
+            continue
+        out.append({"name": parent.name,
+                    "path": str(parent),
+                    "worktrees": [sub for sub in ("base", "scratch")
+                                  if (parent / sub).is_dir()],
+                    "age_days": round(age, 3),
+                    "bytes": dir_bytes(parent)})
+    return out
+
+
 def prune_scratch(repo, state, *, dry_run: bool = True,
                   target_root: Path | None = None,
                   temp_root: Path | str | None = None,
                   include_work: bool = True,
                   include_merge: bool = True,
-                  min_merge_age_days: float = 1.0) -> dict:
+                  include_precheck: bool = False,
+                  min_merge_age_days: float = 1.0,
+                  min_precheck_age_days: float = 1.0) -> dict:
     """Reclaim the non-lease scratch trees the fleet leaves behind.
 
-    Two classes, both of which the lease-only :func:`prune` refuses:
+    Three classes, all of which the lease-only :func:`prune` refuses:
 
     * a directory under ``work/`` whose name is not ``<task>-<fence>``
-      (a canary or gate tree); and
+      (a canary or gate tree);
     * a ``%TEMP%/pmk-merge-*`` tree **that is a worktree of this
-      repository**.
+      repository**; and
+    * a ``%TEMP%/pmk-precheck-dry-*`` directory **whose ``base`` and
+      ``scratch`` worktrees are worktrees of this repository**.
 
-    ``%TEMP%/pmk-merge-*`` is a global namespace -- every project using
-    ``pmk``, and every concurrent test run, creates its merge scratch there
-    -- so a merge tree is a candidate only when ``belongs_to_repo`` proves
-    the ``merge`` worktree is ours, and only when it is at least
-    *min_merge_age_days* old.  Everything else is reported in ``skipped``
-    and left alone: a stale-looking tree that is not provably ours is
-    another project's, and a fresh one may be a merge still in flight.
+    ``%TEMP%`` is a global namespace -- every project using ``pmk``, and
+    every concurrent test run, creates its scratch there -- so a merge or
+    precheck tree is a candidate only when ``belongs_to_repo`` proves the
+    worktree is ours, and only when it is at least the class's age
+    threshold old.  Everything else is reported in ``skipped`` and left
+    alone: a stale-looking tree that is not provably ours is another
+    project's, and a fresh one may still be in flight.
 
     Dry-run by default.  Every removal goes through
     :func:`reclaim_after_capture`, so each tree is captured (REC-02) and the
-    capture verified before anything is deleted.  A merge directory is
-    removed in full only once its worktree is gone and nothing else remains
-    in it.
+    capture verified before anything is deleted.  A scratch directory is
+    removed in full only once its worktrees are gone and nothing else
+    remains in it.
     """
     root = Path(target_root) if target_root else archive_root(repo)
     candidates: list[dict] = []
@@ -1206,17 +1238,58 @@ def prune_scratch(repo, state, *, dry_run: bool = True,
                                "path": parent / "merge",
                                "extra": {"root": parent, "remove_parent": True}})
 
+    if include_precheck:
+        for rec in discover_precheck_trees(temp_root):
+            parent = Path(rec["path"])
+            name = parent.name
+            subs = rec["worktrees"]
+            if not subs:
+                skipped.append({"name": name, "kind": "precheck",
+                                "reclaimed": False,
+                                "reason": "no precheck worktree; ownership "
+                                          "cannot be proven"})
+                continue
+            age = rec.get("age_days")
+            if age is not None and age < min_precheck_age_days:
+                skipped.append({"name": name, "kind": "precheck",
+                                "reclaimed": False,
+                                "reason": f"younger than "
+                                          f"{min_precheck_age_days} d; a "
+                                          "precheck may be in flight"})
+                continue
+            for index, sub in enumerate(subs):
+                worktree = parent / sub
+                if not belongs_to_repo(repo, worktree):
+                    skipped.append({"name": name, "worktree": sub,
+                                    "kind": "precheck", "reclaimed": False,
+                                    "reason": "not a worktree of this "
+                                              "repository"})
+                    continue
+                # The directory goes once its *last* worktree is gone, so a
+                # failed reclaim leaves the other one visible rather than
+                # deleting a directory that still holds it.
+                candidates.append({"name": name, "kind": "precheck",
+                                   "worktree": sub,
+                                   "stem": f"{name}-{sub}",
+                                   "path": worktree,
+                                   "extra": {
+                                       "root": parent,
+                                       "remove_parent": index == len(subs) - 1}})
+
     removed: list[dict] = []
     if not dry_run:
         for cand in candidates:
             outcome = reclaim_after_capture(repo, state, cand["path"],
                                             target_root=root, allow_scratch=True,
-                                            stem=cand["name"], **cand["extra"])
+                                            stem=cand.get("stem") or cand["name"],
+                                            **cand["extra"])
             entry = {"name": cand["name"], "kind": cand["kind"],
                      "path": str(cand["path"]),
                      "reclaimed": bool(outcome.get("reclaimed")),
                      "archive": outcome.get("archive", ""),
                      "reason": outcome.get("reason", "")}
+            if cand.get("worktree"):
+                entry["worktree"] = cand["worktree"]
             if outcome.get("reclaimed"):
                 removed.append(entry)
             else:
@@ -1226,7 +1299,9 @@ def prune_scratch(repo, state, *, dry_run: bool = True,
         "dry_run": dry_run,
         "include_work": include_work,
         "include_merge": include_merge,
+        "include_precheck": include_precheck,
         "min_merge_age_days": min_merge_age_days,
+        "min_precheck_age_days": min_precheck_age_days,
         "candidates": [c["name"] for c in candidates],
         "removed": removed,
         "skipped": skipped,
