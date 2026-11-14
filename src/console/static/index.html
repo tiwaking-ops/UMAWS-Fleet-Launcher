@@ -313,7 +313,7 @@ function updateSlots(slots) {
       <td class="mono">${esc(s.pid)}</td>
       <td class="mono">${s.runtime_s}s</td>
       <td class="mono">${s.last_output_age_s}s</td>
-      <td><button class="act" onclick="tail('${esc(s.task)}')">log</button></td>
+      <td><button class="act" data-action="tail" data-task="${esc(s.task)}">log</button></td>
     </tr>`).join("") + "</table>";
 }
 function updateProfiles(fleet) {
@@ -327,9 +327,9 @@ function updateProfiles(fleet) {
       <td class="mono">${p.cooldown_remaining_s}s</td>
       <td class="mono">${esc(p.last_failure_class || "-")}</td>
       <td>
-        <button class="act" onclick="fleetAct('enable','${esc(p.id)}')">on</button>
-        <button class="act" onclick="fleetAct('disable','${esc(p.id)}')">off</button>
-        <button class="act" onclick="fleetAct('cool','${esc(p.id)}')">cool</button>
+        <button class="act" data-action="fleet" data-act="enable" data-id="${esc(p.id)}">on</button>
+        <button class="act" data-action="fleet" data-act="disable" data-id="${esc(p.id)}">off</button>
+        <button class="act" data-action="fleet" data-act="cool" data-id="${esc(p.id)}">cool</button>
       </td></tr>`).join("") + "</table>";
 }
 
@@ -395,15 +395,15 @@ async function loadQueue() {
   const open = items.filter(i => i.state === "open");
   $("queue").innerHTML = open.length ? `<table><tr><th>id</th><th>kind</th>
     <th>topic</th><th>options</th><th>recommended</th><th>safe default</th><th></th></tr>` +
-    open.map(i => `<tr>
+    open.map(i => { const choice = i.recommended || (i.options || [])[0] || ""; return `<tr>
       <td class="mono">${esc(i.id)}</td>
       <td>${i.class_k ? "<span class='pill warn'>class K</span>" : "normal"}</td>
       <td>${esc(i.topic)}</td>
       <td class="small">${esc((i.options || []).join(", "))}</td>
       <td class="small">${esc(i.recommended)}</td>
       <td class="small">${esc(i.safe_default)}</td>
-      <td><button class="act" onclick="decide('${esc(i.id)}','${esc(i.recommended || (i.options||[])[0] || "")}')">decide</button></td>
-    </tr>`).join("") + "</table>" : '<p class="muted">nothing waiting</p>';
+      <td><button class="act" data-action="decide" data-id="${esc(i.id)}" data-choice="${esc(choice)}">decide</button></td>
+    </tr>`; }).join("") + "</table>" : '<p class="muted">nothing waiting</p>';
 }
 async function decide(id, choice) {
   await post(`/api/queue/decide?item_id=${encodeURIComponent(id)}&choice=${encodeURIComponent(choice)}`);
@@ -460,22 +460,22 @@ function renderLauncher() {
   $("launcher-table").innerHTML = `<table><tr><th></th><th>name</th><th>group</th>
     <th>prefix</th><th>cwd</th><th></th></tr>` + rows.map(e => `<tr>
     <td><input type="checkbox" style="width:auto" ${checked.has(e.id) ? "checked" : ""}
-      onchange="toggle('${esc(e.id)}', this.checked)"></td>
+      data-action="toggle" data-id="${esc(e.id)}"></td>
     <td>${esc(e.name)}</td><td>${esc(e.group)}</td>
     <td class="mono small">${esc(e.prefix)}</td>
     <td class="mono small">${esc(e.cwd)}</td>
-    <td><button class="act" onclick="editEntry('${esc(e.id)}')">edit</button></td>
+    <td><button class="act" data-action="edit-entry" data-id="${esc(e.id)}">edit</button></td>
   </tr>`).join("") + "</table>";
 }
 function toggle(id, on) { on ? checked.add(id) : checked.delete(id); }
 function lSelectVisible() {
   document.querySelectorAll("#launcher-table input[type=checkbox]").forEach(
-    c => { if (c.checked) checked.add(c.closest("tr").querySelector("button").getAttribute("onclick").match(/'([^']+)'/)[1]); });
+    c => { if (c.checked) checked.add(c.dataset.id); });
   renderLauncher();
 }
 function lClearVisible() {
   document.querySelectorAll("#launcher-table input[type=checkbox]").forEach(
-    c => { if (c.checked) checked.delete(c.closest("tr").querySelector("button").getAttribute("onclick").match(/'([^']+)'/)[1]); });
+    c => { if (c.checked) checked.delete(c.dataset.id); });
   renderLauncher();
 }
 function lClearAll() { checked.clear(); renderLauncher(); }
@@ -535,6 +535,26 @@ function lLaunch() {
     }
   })();
 }
+
+/* ---------- delegated handlers ----------
+   Never interpolate text into inline handler attributes: the browser
+   HTML-decodes attributes before the JS parser sees them, so an
+   apostrophe inside a single-quoted argument terminates the string early.
+   Instead, render values into data-* attributes (attribute-escaping via
+   esc() is sufficient) and dispatch here. */
+document.addEventListener("click", ev => {
+  const el = ev.target.closest("[data-action]");
+  if (!el) return;
+  const d = el.dataset;
+  if (d.action === "tail") tail(d.task);
+  else if (d.action === "fleet") fleetAct(d.act, d.id);
+  else if (d.action === "decide") decide(d.id, d.choice);
+  else if (d.action === "edit-entry") editEntry(d.id);
+});
+document.addEventListener("change", ev => {
+  const el = ev.target.closest('[data-action="toggle"]');
+  if (el) toggle(el.dataset.id, el.checked);
+});
 
 /* ---------- boot ---------- */
 connect();

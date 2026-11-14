@@ -1,0 +1,141 @@
+{
+  "task": {
+    "id": "T-0194",
+    "title": "H4: emit non-empty model attribution on MODEL_SERVED",
+    "type": "implement",
+    "goal_ref": "G-001",
+    "risk_floor": "R2",
+    "scope": {
+      "read": [
+        "src/quotagate/provenance.py",
+        "tests/fleet/test_fleet.py",
+        "tests/fleet/test_provenance.py"
+      ],
+      "write": [
+        "src/fleet/harness.py",
+        "tests/fleet/test_model_attribution.py"
+      ]
+    },
+    "acceptance": {
+      "evidence_required": [],
+      "oracles": [
+        "python -m pytest -q tests/fleet/test_model_attribution.py tests/fleet/test_fleet.py tests/fleet/test_provenance.py"
+      ]
+    },
+    "premises": [],
+    "budget": {
+      "tokens": 8000,
+      "wall_min": 15
+    },
+    "depends_on": [],
+    "attempts": {
+      "max": 2
+    },
+    "created_by": {
+      "agent": "",
+      "kind": "overseer",
+      "model": "",
+      "role": "",
+      "session": ""
+    },
+    "priority": 30,
+    "agent_hint": "Base 9b92c936. Harness._record_provenance in src/fleet/harness.py:733 emits MODEL_SERVED with served_models: [] and source: none when no gateway model is attributable (direct CLI or empty window). Change it so every MODEL_SERVED payload and bundle attribution carries a non-empty list: use the explicit sentinel [unavailable] with a non-none source such as unavailable when provenance is genuinely unknown, while preserving the real models/source when the gateway names them. Do not invent a model from profile.model. Add tests/fleet/test_model_attribution.py covering direct/no-model and real gateway model; keep fleet/provenance tests green.",
+    "hint_base_commit": "9b92c936036c2c9046b63a8e120a0eb760e01f58",
+    "state": "READY",
+    "attempt": 0,
+    "fence": 0,
+    "block_reason": "",
+    "stop_conditions": []
+  },
+  "lease": null,
+  "events": [
+    {
+      "seq": 3540,
+      "prev_hash": "b25fa03f661bdf5eb9fad553e842695c1b2299a5a3235aa740117e998268ba79",
+      "ts": "2026-11-09T19:05:49Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_CREATED",
+      "subject": "T-0194",
+      "fence": null,
+      "payload": {
+        "admission_errors": [],
+        "card": {
+          "acceptance": {
+            "evidence_required": [],
+            "oracles": [
+              "python -m pytest -q tests/fleet/test_model_attribution.py tests/fleet/test_fleet.py tests/fleet/test_provenance.py"
+            ]
+          },
+          "agent_hint": "Base 9b92c936. Harness._record_provenance in src/fleet/harness.py:733 emits MODEL_SERVED with served_models: [] and source: none when no gateway model is attributable (direct CLI or empty window). Change it so every MODEL_SERVED payload and bundle attribution carries a non-empty list: use the explicit sentinel [unavailable] with a non-none source such as unavailable when provenance is genuinely unknown, while preserving the real models/source when the gateway names them. Do not invent a model from profile.model. Add tests/fleet/test_model_attribution.py covering direct/no-model and real gateway model; keep fleet/provenance tests green.",
+          "attempt": 0,
+          "attempts": {
+            "max": 2
+          },
+          "block_reason": "",
+          "budget": {
+            "tokens": 8000,
+            "wall_min": 15
+          },
+          "created_by": {
+            "agent": "",
+            "kind": "overseer",
+            "model": "",
+            "role": "",
+            "session": ""
+          },
+          "depends_on": [],
+          "fence": 0,
+          "goal_ref": "G-001",
+          "hint_base_commit": "9b92c936036c2c9046b63a8e120a0eb760e01f58",
+          "id": "T-0194",
+          "premises": [],
+          "priority": 30,
+          "risk_floor": "R2",
+          "scope": {
+            "read": [
+              "src/quotagate/provenance.py",
+              "tests/fleet/test_fleet.py",
+              "tests/fleet/test_provenance.py"
+            ],
+            "write": [
+              "src/fleet/harness.py",
+              "tests/fleet/test_model_attribution.py"
+            ]
+          },
+          "state": "PROPOSED",
+          "stop_conditions": [],
+          "title": "H4: emit non-empty model attribution on MODEL_SERVED",
+          "type": "implement"
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "d02d214730176c8ce5572cd21dd89f9fc0fea9ff7450082b7d1a5655aa2f25e2"
+    },
+    {
+      "seq": 3589,
+      "prev_hash": "8fe98fb1e9b2f2c33a3771d5eb0ee5ec22f1f28124f53ce5fbf15412189e75a1",
+      "ts": "2026-11-10T06:22:00Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_ADMITTED",
+      "subject": "T-0194",
+      "fence": null,
+      "payload": {},
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "297542c368f5ec49150e648ec4527038839745ea5e447fa0f642d2dbec710d6c"
+    }
+  ]
+}

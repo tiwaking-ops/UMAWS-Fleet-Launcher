@@ -36,6 +36,10 @@ ACTIVE_STATES = (LEASED, SUBMITTED, VERIFYING, INTEGRATING)
 #: States that count as finished for conservation purposes (I3).
 TERMINAL_STATES = (DONE, VOID)
 
+#: Every state that is not finished: cards in these states still hold (or
+#: will hold) write scope that future cards must not clobber.
+NON_TERMINAL_STATES = tuple(s for s in ALL_STATES if s not in TERMINAL_STATES)
+
 #: Legal transitions.  Anything else is a bug and is refused.
 TRANSITIONS: dict[str, set[str]] = {
     PROPOSED: {READY, BLOCKED, VOID},

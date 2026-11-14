@@ -1,0 +1,124 @@
+{
+  "task": {
+    "id": "T-0204",
+    "title": "Enforce coverage refresh in the delivery contract",
+    "type": "implement",
+    "goal_ref": "G-001",
+    "risk_floor": "R2",
+    "scope": {
+      "read": [
+        "src/cna/tools/coverage.py",
+        "coverage/rules_coverage.json",
+        "docs/plans/cna-p1b-p4-implementation-plan.md"
+      ],
+      "write": [
+        "src/cna/tools/coverage.py",
+        "docs/rules/coverage-contract.md",
+        "tests/test_coverage_contract.py"
+      ]
+    },
+    "acceptance": {
+      "evidence_required": [],
+      "oracles": [
+        "python -m pytest -q tests/test_coverage_contract.py"
+      ]
+    },
+    "premises": [],
+    "budget": {
+      "tokens": 60000,
+      "wall_min": 240
+    },
+    "depends_on": [],
+    "attempts": {
+      "max": 3
+    },
+    "created_by": {
+      "agent": "",
+      "kind": "overseer",
+      "model": "",
+      "role": "",
+      "session": ""
+    },
+    "priority": 20,
+    "agent_hint": "Fail when coverage/rules_coverage.json is older than any scanned rule module; document that each source-adding card owns the report or depends on a refresh card.",
+    "hint_base_commit": "a4cbd0ae44dca915693e6dcfb0c36393eea482b3",
+    "state": "PROPOSED",
+    "attempt": 0,
+    "fence": 0,
+    "block_reason": "",
+    "stop_conditions": []
+  },
+  "lease": null,
+  "events": [
+    {
+      "seq": 3578,
+      "prev_hash": "3754c0d859326e04cd7a65bd9d9976fd4b885d70d5ed7aa9d387356de38e3826",
+      "ts": "2026-11-10T05:20:07Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_CREATED",
+      "subject": "T-0204",
+      "fence": null,
+      "payload": {
+        "admission_errors": [],
+        "card": {
+          "acceptance": {
+            "evidence_required": [],
+            "oracles": [
+              "python -m pytest -q tests/test_coverage_contract.py"
+            ]
+          },
+          "agent_hint": "Fail when coverage/rules_coverage.json is older than any scanned rule module; document that each source-adding card owns the report or depends on a refresh card.",
+          "attempt": 0,
+          "attempts": {
+            "max": 3
+          },
+          "block_reason": "",
+          "budget": {
+            "tokens": 60000,
+            "wall_min": 240
+          },
+          "created_by": {
+            "agent": "",
+            "kind": "overseer",
+            "model": "",
+            "role": "",
+            "session": ""
+          },
+          "depends_on": [],
+          "fence": 0,
+          "goal_ref": "G-001",
+          "hint_base_commit": "a4cbd0ae44dca915693e6dcfb0c36393eea482b3",
+          "id": "T-0204",
+          "premises": [],
+          "priority": 20,
+          "risk_floor": "R2",
+          "scope": {
+            "read": [
+              "src/cna/tools/coverage.py",
+              "coverage/rules_coverage.json",
+              "docs/plans/cna-p1b-p4-implementation-plan.md"
+            ],
+            "write": [
+              "src/cna/tools/coverage.py",
+              "docs/rules/coverage-contract.md",
+              "tests/test_coverage_contract.py"
+            ]
+          },
+          "state": "PROPOSED",
+          "stop_conditions": [],
+          "title": "Enforce coverage refresh in the delivery contract",
+          "type": "implement"
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "2996abdfa777cd05f058240336a2e41594f22803f788abcb4983e3c81e5c406c"
+    }
+  ]
+}

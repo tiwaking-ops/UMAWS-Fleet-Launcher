@@ -90,7 +90,7 @@ models = [
 id = "pi-orca-hy3"
 adapter = "pi"
 family = "tencent"
-priority = 103
+priority = 110
 max_concurrent = 1
 via_gateway = false
 roles = ["implement", "review"]
@@ -125,6 +125,67 @@ models = [
 ]
 
 [[profile]]
+id = "pi-omniroute-claude-3-opus-20240229"
+adapter = "pi"
+family = "claude"
+priority = 90
+max_concurrent = 2
+via_gateway = false
+roles = ["implement", "review"]
+argv_new = ["pi", "--provider", "omniroute", "--model", "claude-3-opus-20240229", "-p", "{prompt}"]
+# Measured: `--continue` resumes, and the model CAN be swapped on resume
+# (exit 0 with a different model).  This is the only profile where the
+# ladder's L1 step is available.
+argv_resume = ["pi", "--provider", "omniroute", "--model", "{model}", "-p", "{prompt}", "--continue"]
+models = [
+"poor-claude", 
+"poor-codex", 
+"poor-kimi",
+"auto/cheap",
+]
+
+[[profile]]
+id = "pi-omniroute-poor-claude"
+adapter = "pi"
+family = "claude"
+priority = 91
+max_concurrent = 2
+via_gateway = false
+roles = ["implement", "review"]
+argv_new = ["pi", "--provider", "omniroute", "--model", "poor-claude", "-p", "{prompt}"]
+# Measured: `--continue` resumes, and the model CAN be swapped on resume
+# (exit 0 with a different model).  This is the only profile where the
+# ladder's L1 step is available.
+argv_resume = ["pi", "--provider", "omniroute", "--model", "{model}", "-p", "{prompt}", "--continue"]
+models = [
+"poor-codex", 
+"poor-kimi",
+"claude-3-opus-20240229", 
+"auto/cheap",
+]
+
+[[profile]]
+id = "pi-omniroute-poor-codex"
+adapter = "pi"
+family = "claude"
+priority = 92
+max_concurrent = 2
+via_gateway = false
+roles = ["implement", "review"]
+argv_new = ["pi", "--provider", "omniroute", "--model", "poor-codex", "-p", "{prompt}"]
+# Measured: `--continue` resumes, and the model CAN be swapped on resume
+# (exit 0 with a different model).  This is the only profile where the
+# ladder's L1 step is available.
+argv_resume = ["pi", "--provider", "omniroute", "--model", "{model}", "-p", "{prompt}", "--continue"]
+models = [
+"poor-codex", 
+"poor-kimi",
+"claude-3-opus-20240229",
+"poor-claude",
+"auto/cheap",
+]
+
+[[profile]]
 id = "kilo-auto"
 adapter = "kilo"
 family = "google"
@@ -151,18 +212,11 @@ model = "kilo/kilo-auto/free"
 # ACCOUNT-limited (same operator), so rotating models buys nothing and merely
 # spends the shared ceiling faster.  One model, used well.
 models = [
-  "kilo/kilo-auto/free",
   "kilo/nvidia/nemotron-3.5-super-vl:free",
-  "kilo/nvidia/nemotron-3-super-120b-a12b:free",
   "kilo/nvidia/nemotron-3-ultra-550b-a55b:free",
-  "kilo/cohere/north-mini-code:free",
   "kilo/dots-studio/dots-3-note-preview:free",
-  "kilo/nvidia/nemotron-3.5-lightning:free",
-  "kilo/recursive/flint-v1.0:free",
-  "kilo/xingchen-agi/xing4.0-29b-a4b:free",
+  "kilo/kilo-auto/free",
   # Poolside models removed - shut down October 31, 2026
-  "kilo/liquid/lfm-2.5-2.6b:free",
-  "kilo/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ]
 
 [[profile]]
@@ -226,7 +280,7 @@ priority = 33
 max_concurrent = 1
 via_gateway = false
 roles = ["implement"]
-argv_new = ["cline", "--provider", "cline", "--model", "nvidia/nemotron-3.5-lightning-free", "{prompt}"]
+argv_new = ["cline", "--provider", "cline", "--model", "nvidia/nemotron-3.5-super-vl-free", "{prompt}"]
 argv_resume = ["cline", "--provider", "cline", "--model", "{model}", "{prompt}", "--id", "{session}"]
 models = [
   "cline-free/solar-mini4",
@@ -296,7 +350,7 @@ via_gateway = false
 roles = ["plan", "review", "implement"]
 argv_new = ["opencode", "run", "-m", "{model}", "{prompt}"]
 argv_resume = ["opencode", "run", "-m", "{model}", "{prompt}", "--continue"]
-model = "openrouter/thinkingmachines/inkling:free"
+model = "openrouter/baidu/ernie-5.5-flash-preview:free"
 models = [
 # /**Mon Nov 09 09:34:47 NZDT 2026*/ ollama-cloud no longer provides free models   "ollama-cloud/beam",
   "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
@@ -339,7 +393,7 @@ argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--sour
 argv_resume = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}", "--resume", "{session}"]
 model = "stepfun/step-3.7-flash:free"
 models = [
-"ornith/ornith-1.5-122b:free",
+# /**Sat Nov 14 12:01:46 NZDT 2026*/ REMOVED by Tiwa "ornith/ornith-1.5-122b:free",
 "upstage/solar-mini4:free",
 ]
 
@@ -381,14 +435,14 @@ argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--sour
 argv_resume = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}", "--resume", "{session}"]
 model = "upstage/solar-mini4:free"
 models = [
-"reflection/beam-1.0-501b-a23b:free",
+# /**Sat Nov 14 12:01:46 NZDT 2026*/ REMOVED by Tiwa "reflection/beam-1.0-501b-a23b:free",
 ]
 
 [[profile]]
-id = "hermes-beam"
+id = "hermes-meituan-longcat-2.5-free"
 adapter = "hermes"
-family = "reflection"
-priority = 2
+family = "upstage"
+priority = 1
 max_concurrent = 1
 via_gateway = false
 roles = ["implement", "review", "plan"]
@@ -399,11 +453,31 @@ argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--sour
 # The working directory is already set by the harness (cwd=worktree), so no
 # --in flag is needed.
 argv_resume = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}", "--resume", "{session}"]
-model = "reflection/beam-1.0-501b-a23b:free"
+model = "meituan/longcat-2.5:free"
 models = [
-# /**Thu Nov 12 11:38:59 NZDT 2026*/ REMOVED by Tiwa "ornith/ornith-1.5-122b:free",
 "upstage/solar-mini4:free",
 ]
+
+# /**Sat Nov 14 12:01:46 NZDT 2026*/ REMOVED by Tiwa [[profile]]
+# id = "hermes-beam"
+# adapter = "hermes"
+# family = "reflection"
+# priority = 2
+# max_concurrent = 1
+# via_gateway = false
+# roles = ["implement", "review", "plan"]
+# argv_new = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}"]
+# Measured: under -Q, hermes writes a `session_id: YYYYMMDD_HHMMSS_<hex6>`
+# line to STDERR (which plat.spawn merges into the stdout log via
+# subprocess.STDOUT).  There is NO "Resume this session with" trailer.
+# The working directory is already set by the harness (cwd=worktree), so no
+# --in flag is needed.
+# argv_resume = ["hermes", "chat", "-q", "{prompt}", "-Q", "--yolo", "--cli", "--source", "tool", "-m", "{model}", "--resume", "{session}"]
+# model = "reflection/beam-1.0-501b-a23b:free"
+# models = [
+# /**Thu Nov 12 11:38:59 NZDT 2026*/ REMOVED by Tiwa "ornith/ornith-1.5-122b:free",
+# "upstage/solar-mini4:free",
+# ]
 
 [[profile]]
 id = "fake"

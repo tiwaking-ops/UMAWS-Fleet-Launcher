@@ -1,0 +1,36 @@
+{
+  "task": "T-0194",
+  "state": "PROPOSED",
+  "base_ref": "9b92c936036c2c9046b63a8e120a0eb760e01f58",
+  "scratch_ref": "9b92c936036c2c9046b63a8e120a0eb760e01f58",
+  "patch": "C:\\temp\\projects\\testproject1\\tmp\\h4.patch",
+  "oracles": [
+    "python -m pytest -q tests/fleet/test_model_attribution.py tests/fleet/test_fleet.py tests/fleet/test_provenance.py"
+  ],
+  "base": {
+    "all_pass": false,
+    "oracles": [
+      {
+        "cmd": "python -m pytest -q tests/fleet/test_model_attribution.py tests/fleet/test_fleet.py tests/fleet/test_provenance.py",
+        "exit": 4,
+        "ok": false,
+        "stdout_tail": "\n",
+        "stderr_tail": "ERROR: file or directory not found: tests/fleet/test_model_attribution.py\n\n"
+      }
+    ]
+  },
+  "scratch": {
+    "all_pass": true,
+    "oracles": [
+      {
+        "cmd": "python -m pytest -q tests/fleet/test_model_attribution.py tests/fleet/test_fleet.py tests/fleet/test_provenance.py",
+        "exit": 0,
+        "ok": true,
+        "stdout_tail": ".....................................................................    [100%]\n",
+        "stderr_tail": ""
+      }
+    ]
+  },
+  "canary_valid": true,
+  "reason": "the oracle fails at the base and passes on the scratch implementation"
+}

@@ -1,0 +1,37 @@
+--- processes before ---
+  4200664       0       0       6360  ?              0   Nov  8 C:\Users\Tiwa Pene\AppData\Roaming\ai.opencode.desktop\cli\2.2.6-x64\opencode-cli.exe
+  4199696       0       0       5392  ?              0 23:18:10 C:\temp\projects\testproject1\.venv\Scripts\python.exe
+  4204404       0       0      10100  ?              0 23:18:10 C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\python.exe
+  4205112       0       0      10808  ?              0 23:44:41 C:\Program Files\nodejs\node.exe
+--- processes after 60s ---
+  4200664       0       0       6360  ?              0   Nov  8 C:\Users\Tiwa Pene\AppData\Roaming\ai.opencode.desktop\cli\2.2.6-x64\opencode-cli.exe
+  4199696       0       0       5392  ?              0 23:18:10 C:\temp\projects\testproject1\.venv\Scripts\python.exe
+  4204404       0       0      10100  ?              0 23:18:10 C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\python.exe
+  4205112       0       0      10808  ?              0 23:44:41 C:\Program Files\nodejs\node.exe
+     1098    1096    1096       9588  ?         197610 00:09:20 /c/Users/Tiwa Pene/AppData/Local/Programs/Python/Python312/python
+--- git after ---
+e7d2725 docs(evidence): add H1-H4 deletion-safety patch at c1fac8f
+4e72901 test(fleet): cover AGENT_STARTED write failure
+06d3e93 merge: T-0182 full-product release-status note
+--- pmk after ---
+{
+  "root": "C:\\temp\\projects\\testproject1",
+  "project_state": "PAUSED",
+  "tasks": {
+    "VOID": 143,
+    "DONE": 37,
+    "PROPOSED": 8,
+    "READY": 1
+  },
+  "task_total": 189,
+  "active_leases": 0,
+  "open_queue_items": 0,
+  "incidents": 103,
+  "stopped": false,
+  "chain": "I1 chain verifies (3497 events)",
+  "worktrees": {
+    "count": 31,
+    "bytes": 418352285,
+    "dirty": null
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "task": "T-0191",
+  "state": "PROPOSED",
+  "base_ref": "ce22591530ac17fe5f3dda313426d179993ded2c",
+  "scratch_ref": "ce22591530ac17fe5f3dda313426d179993ded2c",
+  "patch": "C:\\temp\\projects\\testproject1\\tmp\\canary-h6-v3.patch",
+  "oracles": [
+    "python -c \"import pathlib; p=pathlib.Path('docs/reports/dispatch-repair-verification-v3.md'); t=p.read_text(encoding='utf-8'); assert 'rule_files=69' in t and 'CNA-Rules.adoc' in t and 'base=' in t and 'gate=pytest -q' in t and 'h6=gate_output' in t; print('verified')\""
+  ],
+  "base": {
+    "all_pass": false,
+    "oracles": [
+      {
+        "cmd": "python -c \"import pathlib; p=pathlib.Path('docs/reports/dispatch-repair-verification-v3.md'); t=p.read_text(encoding='utf-8'); assert 'rule_files=69' in t and 'CNA-Rules.adoc' in t and 'base=' in t and 'gate=pytest -q' in t and 'h6=gate_output' in t; print('verified')\"",
+        "exit": 1,
+        "ok": false,
+        "stdout_tail": "",
+        "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n  File \"C:\\Users\\Tiwa Pene\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\pathlib.py\", line 1027, in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors) as f:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Tiwa Pene\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\pathlib.py\", line 1013, in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nFileNotFoundError: [Errno 2] No such file or directory: 'docs\\\\reports\\\\dispatch-repair-verification-v3.md'\n"
+      }
+    ]
+  },
+  "scratch": {
+    "all_pass": true,
+    "oracles": [
+      {
+        "cmd": "python -c \"import pathlib; p=pathlib.Path('docs/reports/dispatch-repair-verification-v3.md'); t=p.read_text(encoding='utf-8'); assert 'rule_files=69' in t and 'CNA-Rules.adoc' in t and 'base=' in t and 'gate=pytest -q' in t and 'h6=gate_output' in t; print('verified')\"",
+        "exit": 0,
+        "ok": true,
+        "stdout_tail": "verified\n",
+        "stderr_tail": ""
+      }
+    ]
+  },
+  "canary_valid": true,
+  "reason": "the oracle fails at the base and passes on the scratch implementation"
+}

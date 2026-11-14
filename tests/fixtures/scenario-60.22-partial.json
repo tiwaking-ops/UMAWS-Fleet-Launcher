@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "kind": "scenario",
+  "source": "rulebook:\u00a760.22",
+  "status": "verified",
+  "id": "60.22-partial",
+  "name": "Graziani's Offensive \u2014 partial fixture (R-05 map incomplete)",
+  "note": "Contract fixture only. The map carries C4120 from \u00a760.31 but deliberately omits C4218, so the loader must refuse the deployment and name the missing R-05 hex. It is not a playable dataset and carries no historical ratings.",
+  "sides": ["axis", "commonwealth"],
+  "start": {"turn": 1, "stage": 1},
+  "end": {"turn": 6, "stage": 3},
+  "operations_stages": 18,
+  "tec": {
+    "schema_version": 1,
+    "source": "chart:R-04:TEC:fixture",
+    "status": "verified",
+    "records": [
+      {
+        "provenance": "chart:R-04:TEC:fixture",
+        "status": "verified",
+        "terrain": "clear",
+        "cp": 1,
+        "breakdown": 0,
+        "stacking_limit": 6
+      },
+      {
+        "provenance": "chart:R-04:TEC:fixture",
+        "status": "verified",
+        "terrain": "rough",
+        "cp": 2,
+        "breakdown": 2,
+        "stacking_limit": 4
+      }
+    ]
+  },
+  "map": [
+    {
+      "provenance": "chart:R-05:map:fixture",
+      "status": "verified",
+      "hex": "C4120",
+      "terrain": "clear",
+      "neighbours": []
+    }
+  ],
+  "units": [
+    {
+      "provenance": "rulebook:\u00a760.31",
+      "status": "verified",
+      "id": "ax-1",
+      "side": "axis",
+      "hex": "C4120",
+      "base_cpa": 12,
+      "unit_class": "infantry",
+      "kind": "combat",
+      "move_kind": "combat",
+      "stacking_points": 3,
+      "cohesion": 0
+    },
+    {
+      "provenance": "rulebook:\u00a760.31",
+      "status": "verified",
+      "id": "ax-2",
+      "side": "axis",
+      "hex": "C4218",
+      "base_cpa": 12,
+      "unit_class": "infantry",
+      "kind": "combat",
+      "move_kind": "combat",
+      "stacking_points": 3,
+      "cohesion": 0
+    }
+  ]
+}

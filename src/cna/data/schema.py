@@ -36,6 +36,7 @@ __all__ = [
     "require_playable",
     "validate_header",
     "validate_provenance",
+    "validate_provenance_table",
     "validate_record",
     "validate_status",
     "validate_table",
@@ -151,6 +152,61 @@ def validate_table(table: Mapping[str, Any]) -> list[Mapping[str, Any]]:
         except DataError as exc:
             raise DataError(f"records[{index}]: {exc}") from exc
     return list(records)
+
+
+def validate_provenance_table(
+    table: Mapping[str, Any],
+    *,
+    kind: str,
+    schema_version: int | None = None,
+    allow_synthetic: bool = False,
+    source_prefixes: tuple[str, ...] = ("chart:",),
+) -> tuple[DataHeader, list[Mapping[str, Any]]]:
+    """Validate a table whose records must share one admitted provenance.
+
+    A ``verified`` table and every record must cite one of
+    ``source_prefixes`` (``chart:`` by default).  A ``synthetic`` table is
+    accepted only with ``allow_synthetic=True`` and must be wholly
+    ``synthetic-test``; the two kinds are never mixed.  This is the gate the
+    chart/map loaders use before parsing rows.
+    """
+    if not isinstance(table, Mapping):
+        raise DataError(f"{kind} table must be a mapping")
+    header = validate_header(table)
+    if schema_version is not None and header.schema_version != schema_version:
+        raise DataError(
+            f"{kind} schema_version {header.schema_version} is not supported; "
+            f"expected {schema_version}"
+        )
+    if header.status == "synthetic" and allow_synthetic:
+        expected = ("synthetic-test",)
+    else:
+        if header.status != "verified":
+            raise DataError(
+                f"{kind} table status must be 'verified', got "
+                f"{header.status!r}"
+            )
+        expected = source_prefixes
+    cited = " or ".join(repr(prefix) for prefix in expected)
+    if not any(header.source.startswith(prefix) for prefix in expected):
+        raise DataError(
+            f"{kind} table source must cite a {cited} provenance, got "
+            f"{header.source!r}"
+        )
+    records = validate_table(table)
+    for index, record in enumerate(records):
+        if record["status"] != header.status:
+            raise DataError(
+                f"{kind} records[{index}] status must be {header.status!r}, "
+                f"got {record['status']!r}"
+            )
+        if not any(record["provenance"].startswith(prefix)
+                   for prefix in expected):
+            raise DataError(
+                f"{kind} records[{index}] provenance must cite a {cited} "
+                f"source, got {record['provenance']!r}"
+            )
+    return header, records
 
 
 def require_playable(

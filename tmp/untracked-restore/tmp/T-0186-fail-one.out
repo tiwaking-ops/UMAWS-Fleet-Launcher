@@ -1,0 +1,11 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.7.0 -- C:\temp\projects\testproject1\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\temp\projects\testproject1
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: anyio-4.15.1
+collecting ... collected 1 item
+
+tests/fleet/test_conductor_leases.py::test_every_recorded_process_is_stopped_before_the_revoke PASSED [100%]
+
+============================== 1 passed in 1.43s ==============================

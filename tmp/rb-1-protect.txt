@@ -1,0 +1,7 @@
+Phase 1 — Protect the uncommitted repair
+Archive path: C:\temp\projects\umaws-repair-archive-2026-11-12
+tracked-changes.patch length: 478310 bytes (> 0)
+Files copied: 852 (>= ?? lines in working-tree-status.txt)
+Repair branch: repair/fleet-launcher-2026-11-12 (from HEAD 0d25d38)
+Identity: umaws-pilot <umaws-pilot@localhost>
+Verify-first gate: passed (patch non-empty, copy loop complete)

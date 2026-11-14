@@ -1,0 +1,10 @@
+{
+  "task": "T-0147",
+  "state": "DONE",
+  "ok": true,
+  "ticks": 328,
+  "elapsed_s": 900.688,
+  "started_seq": 3124,
+  "finished_seq": 3136,
+  "lock": "C:\\temp\\projects\\testproject1\\tmp\\canary-base-20261110\\.pm\\fleet\\dispatch.owner.lock"
+}

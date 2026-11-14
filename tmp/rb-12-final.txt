@@ -1,0 +1,428 @@
+captured 2026-11-09T11:44:18Z
+--- pmk status
+{
+  "root": "C:\\temp\\projects\\testproject1",
+  "project_state": "PAUSED",
+  "tasks": {
+    "VOID": 143,
+    "DONE": 37,
+    "PROPOSED": 8,
+    "READY": 1
+  },
+  "task_total": 189,
+  "active_leases": 0,
+  "open_queue_items": 0,
+  "incidents": 103,
+  "stopped": false,
+  "chain": "I1 chain verifies (3500 events)",
+  "worktrees": {
+    "count": 32,
+    "bytes": 438007623,
+    "dirty": null
+  }
+}
+--- git status
+ M .pm/events/2026-11-07.jsonl
+ M .pm/views/ledger.md
+ M .pm/views/queue.md
+ M .pm/views/status.md
+ M src/cna/data/scenario.py
+ M src/cna/engine/loop.py
+ M tests/test_scenario_loader.py
+ M tests/test_transport.py
+?? .pm/events/2026-11-08.jsonl
+?? .pm/events/2026-11-09.jsonl
+?? EVENT_LOG_VIOLATION_REPORT.md
+?? FINAL_REPORT-completed.md
+?? HANDOFF.previous.md
+?? assessment-claude-umaws-fleet-parallel-decomposition-v1.md
+?? assessment-claude-umaws-fleet-patch-review-v1.1.md
+?? assessment-claude-umaws-fleet-patch-review-v1.2.1.md
+?? assessment-claude-umaws-fleet-patch-review-v1.2.10.md
+?? assessment-claude-umaws-fleet-patch-review-v1.2.11.md
+?? assessment-claude-umaws-fleet-patch-review-v1.2.12.md
+?? assessment-claude-umaws-fleet-patch-review-v1.2.13.md
+?? assessment-claude-umaws-fleet-patch-review-v1.2.14.md
+?? assessment-claude-umaws-fleet-patch-review-v1.2.3.md
+?? assessment-claude-umaws-fleet-patch-review-v1.2.4.md
+?? assessment-claude-umaws-fleet-patch-review-v1.2.5.md
+?? assessment-claude-umaws-fleet-patch-review-v1.2.6.md
+?? assessment-claude-umaws-fleet-patch-review-v1.2.7.md
+?? assessment-claude-umaws-fleet-patch-review-v1.2.9.md
+?? assessment-claude-umaws-fleet-patch-review-v1.2.md
+?? assessment-claude-umaws-fleet-patch-review-v1.md
+?? assessment-claude-umaws-fleet-patch-review-v12.2.md
+?? assessment-claude-umaws-fleet-worktree-isolation-v1.md
+?? assessment-claude-umaws-fleet-worktree-isolation-v2.md
+?? assessment-claude-umaws-fleet-worktree-isolation-v3.md
+?? create_p0_tasks.py
+?? create_t128.py
+?? decide_q61.py
+?? docs/milestones/
+?? docs/plans/cna-p1b-p4-case-backlog.csv
+?? docs/plans/cna-p1b-p4-implementation-plan.md
+?? docs/plans/p1c2-data-gate-checklist.md
+?? docs/plans/proposal-deepseek-umaws-fleet-launcher-repair-v1.md
+?? docs/plans/proposal-glm-5-3-umaws-fleet-launcher-repair-execution-v1.md
+?? docs/plans/proposal-mimo-2-6-freebuff-umaws-fleet-launcher-repair-runbook-v1.md
+?? docs/plans/r04-r05-r06-data-intake-checklist.md
+?? docs/pm-workflow-analysis-template-v1.md
+?? docs/report-tiwas-full-list-project-workflow-systems-v1.md
+?? docs/reports/project-evaluation-2026-11-08-v1.md
+?? docs/sources/proposal-cfna-game-v1.md
+?? docs/sources/proposal-deepseek-umaws-fleet-parallel-decomposition-v1.md
+?? find_1203.py
+?? find_1205.py
+?? find_seq.py
+?? handoff-claude-umaws-fleet-launcher-v4.md
+?? handoff-claude-umaws-fleet-launcher-v6.md
+?? insert_1205.py
+?? insert_both.py
+?? pilot/assessment/report-conductor-stall-v1.md
+?? pilot/assessment/report-model-performance-v1.md
+?? pilot/evidence/canary-replacement-v1-precheck.json
+?? pilot/evidence/canary-replacement-v1.patch
+?? pilot/evidence/launcher-repair-uncommitted-v1.json
+?? pilot/evidence/launcher-repair-uncommitted-v1.patch
+?? pilot/evidence/launcher-repair-uncommitted-v1.patch.sha256
+?? prompt-b5.txt
+?? prompt-claim-complete1.md
+?? prompt-complete-uwas-v1.md
+?? proposal-deepseek-umaws-fleet-parallel-decomposition-v1.md
+?? relay-A-evidence-report-v1.md
+?? relay-C-phase0-census-v1.md
+?? report-answers-for-claude-incident-v1.md
+?? report-freebuff-UMAWS-Fleet-Launcher-repair-v1.md
+?? reset_blocked.py
+?? response-assessment-v3-containment-and-decisions-v1.md
+?? step1-canary-test-results.md
+?? submit_base_tasks.py
+?? submit_new_base.py
+?? submit_t113.py
+?? test_kernel_hash.py
+?? test_parse.py
+?? tests/fixtures/
+?? tmp/T-0168-bundle.json
+?? tmp/T-0168-collect.out
+?? tmp/T-0168-coverage.err
+?? tmp/T-0168-coverage.out
+?? tmp/T-0168-full.err
+?? tmp/T-0168-full.out
+?? tmp/T-0168-oracle.err
+?? tmp/T-0168-oracle.out
+?? tmp/T-0169-bundle.json
+?? tmp/T-0169-oracle.err
+?? tmp/T-0169-oracle.out
+?? tmp/T-0170-bundle.json
+?? tmp/T-0171-bundle.json
+?? tmp/T-0172-bundle.json
+?? tmp/T-0173-bundle.json
+?? tmp/T-0174-bundle.json
+?? tmp/T-0175-bundle.json
+?? tmp/T-0175-full.err
+?? tmp/T-0175-full.out
+?? tmp/T-0175-full2.err
+?? tmp/T-0175-full2.out
+?? tmp/T-0175-oracle.err
+?? tmp/T-0175-oracle.out
+?? tmp/T-0181-bundle.json
+?? tmp/T-0181-oracle.err
+?? tmp/T-0181-oracle.out
+?? tmp/T-0182-bundle.json
+?? tmp/T-0182-deliverables-backup/
+?? tmp/T-0182-oracle.stderr
+?? tmp/T-0182-oracle.stdout
+?? tmp/T-0186-bundle.json
+?? tmp/T-0186-coverage-check.err
+?? tmp/T-0186-coverage-check.out
+?? tmp/T-0186-fail-one.err
+?? tmp/T-0186-fail-one.out
+?? tmp/T-0186-fleet-subset.err
+?? tmp/T-0186-fleet-subset.out
+?? tmp/T-0186-full-final.err
+?? tmp/T-0186-full-final.exit
+?? tmp/T-0186-full-final.out
+?? tmp/T-0186-full-x.err
+?? tmp/T-0186-full-x.out
+?? tmp/T-0186-full.err
+?? tmp/T-0186-full.exit
+?? tmp/T-0186-full.out
+?? tmp/T-0186-one.err
+?? tmp/T-0186-one.out
+?? tmp/T-0186-tests.err
+?? tmp/T-0186-tests.out
+?? tmp/all-tasks-review.err
+?? tmp/all-tasks-review.json
+?? tmp/audit-fix-claims.json
+?? tmp/audit2-claims.json
+?? tmp/audit3-claims.json
+?? tmp/build_case_backlog.py
+?? tmp/bundles/
+?? tmp/canary-console.log
+?? tmp/canary-dispatch.log
+?? tmp/canary-id.txt
+?? tmp/canary-task.json
+?? tmp/capture-pmk-archive.txt
+?? tmp/capture/
+?? tmp/clean-base-1794224200.log
+?? tmp/clean-base-1794225200.log
+?? tmp/clean-base-focused.log
+?? tmp/clean-base-gate.log
+?? tmp/close-after-fixes.json
+?? tmp/close-final.exit
+?? tmp/close-final.json
+?? tmp/close-final2.exit
+?? tmp/close-final2.json
+?? tmp/close-final3.json
+?? tmp/collect-only.txt
+?? tmp/cov-base.json
+?? tmp/cov-parent.json
+?? tmp/coverage-current.json
+?? tmp/coverage-fix-claim.json
+?? tmp/coverage-new.json
+?? tmp/coverage-refresh.json
+?? tmp/coverage-regen.err
+?? tmp/coverage-regen.log
+?? tmp/coverage-regen.out
+?? tmp/coverage-transport.log
+?? tmp/coverage-transport2.log
+?? tmp/coverage-transport3.log
+?? tmp/cwd-fallback-after.log
+?? tmp/cwd-fallback-before.log
+?? tmp/entry/
+?? tmp/fleet-suite-after-legacy.exit
+?? tmp/fleet-suite-after-legacy.log
+?? tmp/fleet-suite.exit
+?? tmp/fleet-suite.log
+?? tmp/foundation-commits.json
+?? tmp/foundation-pytest.err
+?? tmp/foundation-pytest.out
+?? tmp/full-audit2.txt
+?? tmp/full-gate-1794219000.log
+?? tmp/full-gate-1794219000.xml
+?? tmp/full-pytest-after.txt
+?? tmp/full-pytest-final.txt
+?? tmp/full-suite.exit
+?? tmp/full-suite.log
+?? tmp/g001-coverage.err
+?? tmp/g001-coverage.out
+?? tmp/g001-index.err
+?? tmp/g001-index.out
+?? tmp/g001-tests.err
+?? tmp/g001-tests.out
+?? tmp/gate-1794216849/
+?? tmp/gate-1794219368/
+?? tmp/h1-h4-base-combined.log
+?? tmp/h1-h4-base-single.log
+?? tmp/h1-h4-branch-1794218000-fleet.log
+?? tmp/h1-h4-branch-1794218000-fleet.xml
+?? tmp/h1-h4-branch-1794218000-fleet2.log
+?? tmp/h1-h4-branch-1794218000-fleet2.xml
+?? tmp/h1-h4-branch-1794218000-pmk.xml
+?? tmp/h1-h4-debug.log
+?? tmp/h1-h4-fixture-rename.diff
+?? tmp/h1-h4-patched-single-locals.log
+?? tmp/h1-h4-patched-single.log
+?? tmp/h1-h4-rerun-1794216491/
+?? tmp/h1-h4-rerun-1794218904/
+?? tmp/h1-h4-run-1794215552/
+?? tmp/hermes_profiles.py
+?? tmp/launcher-clean-fleet.log
+?? tmp/launcher-clean-fleet.xml
+?? tmp/launcher-clean-pmk.log
+?? tmp/launcher-clean-pmk.xml
+?? tmp/offmap-gate.log
+?? tmp/overseer_brief.txt
+?? tmp/overseer_brief2.txt
+?? tmp/phase-backlog.json
+?? tmp/pmk-fleet-suite.log
+?? tmp/pmk-suite.exit
+?? tmp/pmk-suite.log
+?? tmp/pre-T-0169-main/
+?? tmp/pre-T-0170-main/
+?? tmp/pre-T-0171-main/
+?? tmp/pre-T-0172-main/
+?? tmp/pre-T-0173-main/
+?? tmp/pre-T-0174-main/
+?? tmp/pre-T-0181-main/
+?? tmp/probe.log
+?? tmp/proposed-review.err
+?? tmp/proposed-review.json
+?? tmp/queue-add.json
+?? tmp/rb-12-final.txt
+?? tmp/rb-2-collect.log
+?? tmp/rb-2-head-gate-imports.txt
+?? tmp/rb-2-head-gate.log
+?? tmp/rb-2-head-gate.xml
+?? tmp/rb-3-s1-rerun.log
+?? tmp/rb-3-s1.log
+?? tmp/rb-3-s2.log
+?? tmp/rb-3-s3.log
+?? tmp/rb-5-script.out
+?? tmp/rb-7-git-census.txt
+?? tmp/rb-7-pmk-census.txt
+?? tmp/rb-9-collect.log
+?? tmp/rb-9-final.out
+?? tmp/review-followups/
+?? tmp/sentinel-after-fixes.json
+?? tmp/sentinel-final.json
+?? tmp/sentinel-final2.json
+?? tmp/sentinel-final3.json
+?? tmp/soak-deep-audit.py
+?? tmp/soak-deep-cli.json
+?? tmp/soak-deep-report.json
+?? tmp/soak-file.json
+?? tmp/soak-report.json
+?? tmp/soak-scenario.json
+?? tmp/soak-stage.err
+?? tmp/soak-stage.json
+?? tmp/soak-tec.err
+?? tmp/soak-tec.json
+?? tmp/soak-transport.err
+?? tmp/soak-transport.json
+?? tmp/soak-transport2.err
+?? tmp/soak-transport2.json
+?? tmp/soak-transport3.err
+?? tmp/soak-transport3.json
+?? tmp/status-final.json
+?? tmp/t0187-integrate.json
+?? tmp/t0187-oracle1.err
+?? tmp/t0187-oracle1.out
+?? tmp/t0187-oracle2.err
+?? tmp/t0187-oracle2.out
+?? tmp/t0187-submit.json
+?? tmp/t0187-verify.json
+?? tmp/t0188-bundle.json
+?? tmp/t0188-integrate.json
+?? tmp/t0188-oracle1.err
+?? tmp/t0188-oracle1.out
+?? tmp/t0188-oracle2.err
+?? tmp/t0188-oracle2.out
+?? tmp/t0188-submit.json
+?? tmp/t0188-verify.json
+?? tmp/task-list-review.err
+?? tmp/task-list-review.json
+?? tmp/task_claims.json
+?? tmp/tasks.json
+?? tmp/untracked-restore/
+?? tmp/views-final3.json
+?? verification-assessment-v2-command-results-v1.md
+?? verification-incident-order-path-v1.md
+--- git log
+640201a docs(pilot): draft D-72, update checklist, add the completion report (DoD-7)
+09cca85 fix(docs): restore LF endings in decisions.md
+f5f414c docs(pilot): record census, inventory, errata, and D-70/D-71 drafts (R-04, R-12, OQ-07/OQ-08)
+712ca1a fix(tools): verify the loaded module files, not the namespace package (R-09)
+59273d3 fix(tools): resolve the repo root after param binding (R-09)
+42882d2 chore(tools): add the standing clean-base gate (R-09)
+a438901 docs(pilot): record the launcher repair, decisions, and canary plan (F-08, F-16..F-19)
+9cb1b98 fix(tools): enforce the subprocess environment invariant (F-02)
+e1ed1c3 fix(pmk): capture/verify/reclaim and kernel state records (F-09, F-10, F-14)
+c6cc02f fix(fleet): land the launcher repair core (F-03..F-08, P-26, 4e72901 harness fix)
+--- pmk worktree list
+worktree          task    fence  state     dirty  entries    MiB  age_d
+gate-1794216849   gate-1794216849 None   ?         no           0   18.7    0.1
+gate-1794219368   gate-1794219368 None   ?         no           0   18.7    0.1
+gate-e7d2725-1794222600 gate-e7d2725-1794222600 None   ?         no           0   18.7    0.0
+h1-h4-branch-1794218000 h1-h4-branch-1794218000 None   ?         no           0   16.2    0.0
+H1-H4-clean-1794215552 H1-H4-clean-1794215552 None   ?         yes          5   16.2    0.1
+H1-H4-clean-1794218904 H1-H4-clean-1794218904 None   ?         yes          5   16.2    0.1
+launcher-repair-clean-1794220000 launcher-repair-clean-1794220000 None   ?         yes         17   16.8    0.0
+legacy-launcher-cwd-fallback-1794222000 legacy-launcher-cwd-fallback-1794222000 None   ?         no           0   14.8    0.0
+T-0118-100        T-0118  100    DONE      no           0    8.8    8.1
+T-0119-101        T-0119  101    DONE      no           0   10.3    8.1
+T-0130-102        T-0130  102    DONE      no           0    8.8    8.1
+T-0136-113        T-0136  113    VOID      no           0    8.8    7.6
+T-0136-114        T-0136  114    VOID      no           0    8.8    7.6
+T-0136-115        T-0136  115    VOID      no           0    8.8    7.4
+T-0139-116        T-0139  116    DONE      no           0    8.8    7.4
+T-0139-117        T-0139  117    DONE      no           0    9.6    7.4
+T-0141-118        T-0141  118    VOID      no           0    8.9    7.3
+T-0142-119        T-0142  119    VOID      yes          2    8.9    7.3
+T-0145-122        T-0145  122    VOID      yes          2   12.7    1.6
+T-0145-123        T-0145  123    VOID      no           0   12.8    1.5
+T-0146-124        T-0146  124    VOID      yes          1   12.6    1.5
+T-0148-120        T-0148  120    VOID      no           0   14.0    1.7
+T-0150-121        T-0150  121    DONE      no           0   12.0    1.6
+T-0169-145        T-0169  145    DONE      no           0   13.9    0.6
+T-0170-146        T-0170  146    DONE      no           0   14.2    0.6
+T-0171-147        T-0171  147    DONE      no           0   14.0    0.6
+T-0172-148        T-0172  148    DONE      no           0   14.1    0.6
+T-0173-149        T-0173  149    DONE      no           0   14.1    0.6
+T-0174-150        T-0174  150    DONE      no           0   14.2    0.6
+T-0181-144        T-0181  144    DONE      no           0   13.9    0.6
+T-0182-151        T-0182  151    DONE      no           0   14.0    0.1
+T-0189-156        T-0189  156    READY     yes          1   14.3    0.2
+
+32 worktrees, 417.7 MiB, 7 dirty
+--- git worktree list
+C:/temp/projects/testproject1                                              640201a [main]
+C:/temp/projects/testproject1/.claude/worktrees/agent-a8ea164055f940daf    aa09a8a [worktree-agent-a8ea164055f940daf]
+C:/temp/projects/testproject1/work/gate-1794216849                         06d3e93 (detached HEAD)
+C:/temp/projects/testproject1/work/gate-1794219368                         4e72901 (detached HEAD)
+C:/temp/projects/testproject1/work/gate-e7d2725-1794222600                 e7d2725 (detached HEAD)
+C:/temp/projects/testproject1/work/h1-h4-branch-1794218000                 39c0dc1 [h1-h4-deletion-safety-v1]
+C:/temp/projects/testproject1/work/H1-H4-clean-1794215552                  c1fac8f (detached HEAD)
+C:/temp/projects/testproject1/work/H1-H4-clean-1794218904                  c1fac8f (detached HEAD)
+C:/temp/projects/testproject1/work/launcher-repair-clean-1794220000        06d3e93 (detached HEAD)
+C:/temp/projects/testproject1/work/legacy-launcher-cwd-fallback-1794222000 fa8362f [legacy-launcher-cwd-fallback]
+C:/temp/projects/testproject1/work/T-0118-100                              7c4be9a [pmk/T-0118-107]
+C:/temp/projects/testproject1/work/T-0119-101                              37fb2f8 [pmk/T-0119-101]
+C:/temp/projects/testproject1/work/T-0130-102                              f759039 [pmk/T-0130-102]
+C:/temp/projects/testproject1/work/T-0136-113                              77a56db [pmk/T-0136-113]
+C:/temp/projects/testproject1/work/T-0136-114                              77a56db [pmk/T-0136-114]
+C:/temp/projects/testproject1/work/T-0136-115                              77a8659 [pmk/T-0136-115]
+C:/temp/projects/testproject1/work/T-0139-116                              77a8659 [pmk/T-0139-116]
+C:/temp/projects/testproject1/work/T-0139-117                              2a0f6fa [pmk/T-0139-117]
+C:/temp/projects/testproject1/work/T-0141-118                              977b83b [pmk/T-0141-118]
+C:/temp/projects/testproject1/work/T-0142-119                              977b83b [pmk/T-0142-119]
+C:/temp/projects/testproject1/work/T-0145-122                              e31d70a [pmk/T-0145-122]
+C:/temp/projects/testproject1/work/T-0145-123                              e08fa8d [pmk/T-0145-123]
+C:/temp/projects/testproject1/work/T-0146-124                              e08fa8d [pmk/T-0146-124]
+C:/temp/projects/testproject1/work/T-0148-120                              13b8959 [pmk/T-0148-120]
+C:/temp/projects/testproject1/work/T-0150-121                              e2091fd [pmk/T-0150-121]
+C:/temp/projects/testproject1/work/T-0169-145                              486021d [pmk/T-0169-145]
+C:/temp/projects/testproject1/work/T-0170-146                              9d66fea [pmk/T-0170-146]
+C:/temp/projects/testproject1/work/T-0171-147                              4972c22 [pmk/T-0171-147]
+C:/temp/projects/testproject1/work/T-0172-148                              7f4fc51 [pmk/T-0172-148]
+C:/temp/projects/testproject1/work/T-0173-149                              73c5c83 [pmk/T-0173-149]
+C:/temp/projects/testproject1/work/T-0174-150                              7910de5 [pmk/T-0174-150]
+C:/temp/projects/testproject1/work/T-0181-144                              2fe17f1 [pmk/T-0181-144]
+C:/temp/projects/testproject1/work/T-0182-151                              6cabebb [pmk/T-0182-151]
+C:/temp/projects/testproject1/work/T-0189-156                              f67dc36 [pmk/T-0189-156]
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-3osjhcw2/merge             96eb2f2 (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-cvq31iha/merge             ecdb893 (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-dciu4suz/merge             d34177a (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-e0p8986h/merge             9861d06 (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-gku44cl4/merge             8fdf9fe (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-hbl3vdbg/merge             a7381e0 (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-k6ls53bl/merge             0912000 (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-m2sanimo/merge             bd2b576 (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-oo2s1qwx/merge             79b29cf (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-poc6l9gt/merge             dc45fab (detached HEAD)
+--- pins
+{
+  "ok": true,
+  "mismatches": [],
+  "checked": 2
+}
+--- fleet
+{
+  "ok": true,
+  "errors": [],
+  "cap_keys": [
+    "fleet.max_total_agents"
+  ],
+  "cap_values": {
+    "fleet.max_total_agents": 10
+  },
+  "profiles_count": 18,
+  "overseer_profiles": [
+    "pi-orca-deepseek",
+    "kilo-auto",
+    "opencode-fallback",
+    "opencode-strongest",
+    "overseer-inkling",
+    "opencode-orca-auto"
+  ]
+}

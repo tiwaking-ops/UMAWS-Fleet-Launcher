@@ -1,0 +1,44 @@
+{
+  "id": "T-0210",
+  "title": "P1b.1: lock §§8–10 and §29 foundation contracts",
+  "type": "implement",
+  "goal_ref": "G-001",
+  "risk_floor": "R2",
+  "scope": {
+    "write": [
+      "tests/test_p1b1_land_contracts.py"
+    ],
+    "read": []
+  },
+  "acceptance": {
+    "oracles": [
+      "python -m pytest -q tests/test_p1b1_land_contracts.py tests/test_movement.py tests/test_stacking.py tests/test_zoc.py tests/test_weather_effects.py",
+      "python -m cna.tools.coverage --check"
+    ],
+    "evidence_required": []
+  },
+  "premises": [],
+  "budget": {
+    "tokens": 60000,
+    "wall_min": 120
+  },
+  "depends_on": [],
+  "attempts": {
+    "max": 3
+  },
+  "created_by": {
+    "kind": "overseer",
+    "agent": "",
+    "model": "",
+    "session": "",
+    "role": ""
+  },
+  "priority": 10,
+  "agent_hint": "P1b.1 contract-lock card; do not change production rules or coverage data. Add tests/test_p1b1_land_contracts.py using synthetic map/TEC/weather fixtures. Lock the existing §8–10 and §29 interfaces together: 8.13 enemy-occupied refusal, 8.14/10.23 ZOC stop, 8.17 cap, 8.23 continuation, 9.31 end-of-movement vs 9.33 Road/Track passage, 10.21 blocked hexsides, 10.24 ZOC-to-ZOC refusal, 10.26 friendly negation, 10.31/10.36 holding-off, and 29.44/29.45/29.55–29.58 storm effects applied to a movement case. Use caller-supplied R-04/R-05 values only; assert no invented TEC, terrain, map or weather table data. If a contract cannot pass without a production change, record the exact gap in RESULT.md and stop rather than weakening the test.",
+  "hint_base_commit": "d05fc4e3ee46a73a892300b662a6e1f9b9b319f8",
+  "state": "PROPOSED",
+  "attempt": 0,
+  "fence": 0,
+  "block_reason": "",
+  "stop_conditions": []
+}

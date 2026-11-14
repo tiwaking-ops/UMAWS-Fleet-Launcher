@@ -1,0 +1,47 @@
+........................................................................ [  6%]
+........................................................................ [ 12%]
+........................................................................ [ 18%]
+........................................................................ [ 24%]
+........................................................................ [ 30%]
+........................................................................ [ 36%]
+........................................................................ [ 42%]
+........................................................................ [ 48%]
+........................................................................ [ 55%]
+........................................................................ [ 61%]
+..........F............................................................. [ 67%]
+........................................................................ [ 73%]
+........................................................................ [ 79%]
+........................................................................ [ 85%]
+........................................................................ [ 91%]
+........................................................................ [ 97%]
+.........................                                                [100%]
+================================== FAILURES ===================================
+________________ test_case_inventory_reports_reviewed_statuses ________________
+
+tmp_path = WindowsPath('C:/Users/Tiwa Pene/AppData/Local/Temp/pytest-of-Tiwa Pene/pytest-2438/test_case_inventory_reports_re0')
+
+    def test_case_inventory_reports_reviewed_statuses(tmp_path):
+        rules = tmp_path / "rules"
+        sections = rules / "sections"
+        sections.mkdir(parents=True)
+        (sections / "section-05.adoc").write_text(
+            "[#5_2]\n=== Sequence\n", encoding="utf-8")
+        (sections / "section-07.adoc").write_text(
+            "[#7_14]\n*[7.14]* Initiative\n", encoding="utf-8")
+        (sections / "section-32.adoc").write_text(
+            "== Abstract Logistics\n", encoding="utf-8")
+    
+        report = cov.build_coverage(rules, ["src/example.py"])
+        cases = {case["case"]: case for case in report["cases"]}
+    
+        assert cases["5.2"]["status"] == "partial"
+        assert cases["7.14"]["status"] == "implemented"
+>       assert cases["32.0"]["status"] == "partial"
+E       AssertionError: assert 'not_applicable' == 'partial'
+E         
+E         - partial
+E         + not_applicable
+
+tests\test_coverage.py:126: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_coverage.py::test_case_inventory_reports_reviewed_statuses

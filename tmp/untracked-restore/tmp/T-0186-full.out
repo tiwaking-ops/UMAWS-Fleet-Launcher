@@ -1,0 +1,46 @@
+.........................F.............................................. [  6%]
+........................................................................ [ 13%]
+........................................................................ [ 19%]
+........................................................................ [ 26%]
+........................................................................ [ 33%]
+........................................................................ [ 39%]
+........................................................................ [ 46%]
+........................................................................ [ 53%]
+........................................................................ [ 59%]
+........................................................................ [ 66%]
+........................................................................ [ 72%]
+........................................................................ [ 79%]
+........................................................................ [ 86%]
+........................................................................ [ 92%]
+........................................................................ [ 99%]
+.....                                                                    [100%]
+================================== FAILURES ===================================
+__________ test_every_recorded_process_is_stopped_before_the_revoke ___________
+
+fake_kernel = <pmk.api.Kernel object at 0x00000152707E8950>
+clock = <pmk.clock.FakeClock object at 0x00000152707E8560>
+tmp_path = WindowsPath('C:/Users/Tiwa Pene/AppData/Local/Temp/pytest-of-Tiwa Pene/pytest-2138/test_every_recorded_process_is0')
+
+    def test_every_recorded_process_is_stopped_before_the_revoke(
+            fake_kernel, clock, tmp_path):
+        task, lease = _claim(fake_kernel, "a")
+        first = _sleeper(tmp_path)
+        second = _sleeper(tmp_path)
+        try:
+            _record_started(fake_kernel, task, lease, first)
+            fake_kernel.record_event(
+                "AGENT_STARTED", subject=task.id, fence=lease.fence,
+                payload={"pid": second.pid,
+                         "creation_time": second.creation_time,
+                         "adapter": "fake", "profile": "fake-a", "round": 1})
+            conductor = _conductor(fake_kernel)
+            clock.advance(TTL_S + 1)
+    
+            results = conductor.reap_expired_leases()
+    
+>           assert results[0]["reaped"] is True
+E           assert False is True
+
+tests\fleet\test_conductor_leases.py:398: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/fleet/test_conductor_leases.py::test_every_recorded_process_is_stopped_before_the_revoke

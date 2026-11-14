@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "reasons": [
+    "Independent re-run: both acceptance oracles exit 0 and reproduce the bundle stdout/stderr hashes exactly.",
+    "The three output SHA-256 values and diff scope match the submitted bundle.",
+    "The earlier full-suite run with these outputs present passed 1281 tests; the coverage oracle confirms the ledger remains consistent.",
+    "Known gap: the 5.1/7.15 coverage-ledger entries are outside T-0208's write scope and were not changed."
+  ]
+}

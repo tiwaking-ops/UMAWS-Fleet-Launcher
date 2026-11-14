@@ -16,9 +16,18 @@ from cna.data import DataError  # noqa: E402
 from cna.data.r04 import (  # noqa: E402
     BreakdownTable,
     load_breakdown_table,
+    load_off_map_chart,
     load_tec,
 )
 from cna.rules.sec08_movement import MovingUnit  # noqa: E402
+from cna.rules.sec08_transport import (  # noqa: E402
+    MAP_EXIT_HEX,
+    TRIPOLI,
+    TRIPOLI_TUNISIA_BOXES,
+    TUNIS,
+    OffMapChart,
+    TransportError,
+)
 from cna.rules.sec21_breakdown import COLUMN_BOUNDS  # noqa: E402
 
 
@@ -43,6 +52,18 @@ def breakdown_records():
         for tens in range(1, 7)
         for units in range(1, 7)
         for column in COLUMN_BOUNDS
+    ]
+
+
+def off_map_records(cpas=(5, 10)):
+    positions = (*TRIPOLI_TUNISIA_BOXES, MAP_EXIT_HEX)
+    return [
+        {"origin": origin, "destination": destination, "cpa": cpa,
+         "stages": 3 if cpa == 5 else 2}
+        for origin in positions
+        for destination in positions
+        if origin != destination
+        for cpa in cpas
     ]
 
 
@@ -185,3 +206,80 @@ def test_load_tec_refuses_mixed_synthetic_and_verified_records():
 
     with pytest.raises(DataError, match=r"records\[0\]"):
         load_tec(table, allow_synthetic=True)
+
+
+def test_load_off_map_chart_builds_the_distance_lookup():
+    chart = load_off_map_chart(chart_table(off_map_records()))
+
+    assert isinstance(chart, OffMapChart)
+    assert chart.stages_between(TRIPOLI, TUNIS, 5) == 3
+    assert chart.stages_between(MAP_EXIT_HEX, TUNIS, 10) == 2
+
+
+def test_load_off_map_chart_rejects_a_missing_matrix_cell():
+    records = off_map_records()
+    records.pop()
+
+    with pytest.raises(DataError, match="missing .* cell"):
+        load_off_map_chart(chart_table(records))
+
+    with pytest.raises(DataError, match="no records"):
+        load_off_map_chart(chart_table([]))
+
+
+def test_load_off_map_chart_rejects_duplicate_or_unknown_positions():
+    records = off_map_records()
+    records.append(dict(records[0]))
+    with pytest.raises(DataError, match="duplicates"):
+        load_off_map_chart(chart_table(records))
+
+    records = off_map_records()
+    records[0]["origin"] = "rome"
+    with pytest.raises(DataError, match="must be one of"):
+        load_off_map_chart(chart_table(records))
+
+    records = off_map_records()
+    records[0]["destination"] = records[0]["origin"]
+    with pytest.raises(DataError, match="must differ"):
+        load_off_map_chart(chart_table(records))
+
+
+def test_load_off_map_chart_requires_positive_cpa_and_stages():
+    records = off_map_records()
+    records[0]["cpa"] = 0
+    with pytest.raises(DataError, match="cpa must be at least 1"):
+        load_off_map_chart(chart_table(records))
+
+    records = off_map_records()
+    records[0]["stages"] = 0
+    with pytest.raises(DataError, match="stages must be at least 1"):
+        load_off_map_chart(chart_table(records))
+
+
+def test_load_off_map_chart_is_provenance_gated():
+    table = chart_table(off_map_records())
+    table["status"] = "synthetic"
+    with pytest.raises(DataError, match="verified"):
+        load_off_map_chart(table)
+
+    table = chart_table(off_map_records())
+    table["records"][0]["status"] = "ocr_suspect"
+    with pytest.raises(DataError, match=r"records\[0\]"):
+        load_off_map_chart(table)
+
+
+def test_load_off_map_chart_admits_labelled_synthetic_data_only_on_request():
+    table = synthetic_table(off_map_records())
+
+    with pytest.raises(DataError, match="verified"):
+        load_off_map_chart(table)
+
+    chart = load_off_map_chart(table, allow_synthetic=True)
+    assert chart.stages_between(TRIPOLI, TUNIS, 5) == 3
+
+
+def test_off_map_chart_miss_is_a_transport_error_not_a_guess():
+    chart = load_off_map_chart(chart_table(off_map_records(cpas=(5,))))
+
+    with pytest.raises(TransportError, match="8.89"):
+        chart.stages_between(TRIPOLI, TUNIS, 7)

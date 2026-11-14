@@ -1,9 +1,10 @@
-"""Load a CNA scenario document with its TEC, map and initial units.
+"""Load a CNA scenario document with its TEC, map, rail and initial units.
 
 R-04 (Charts and Tables) and R-05 (map) are not vendored in this repository.
 This module is the door through which a verified transcription enters the
 engine: a scenario document names the scenario, its sides and turn span, the
-Terrain Effects Chart, the hex map and the initial order of battle.
+Terrain Effects Chart, the hex map, the optional R-05 rail map, the optional
+R-04 Off-Map Land Unit Movement Distance Chart and the initial order of battle.
 
 The provenance contract is the one in :mod:`cna.data.schema`.  A playable
 scenario must be ``verified`` and cite ``rulebook:``/``chart:`` sources.  A
@@ -17,6 +18,12 @@ unit ids, unknown terrain, a missing or asymmetric neighbour, a unit on an
 unknown hex and an Operations-Stage count that disagrees with the turn span.
 It does not invent a missing value, and it does not claim that R-04/R-05 are
 present.
+
+An optional ``rail`` table is validated through
+:func:`cna.data.r05.load_rail_map`; an optional ``off_map_chart`` table is
+validated through :func:`cna.data.r04.load_off_map_chart`.  When either is
+absent, the corresponding engine feature stays disabled; no default line or
+distance is invented.
 """
 
 from __future__ import annotations
@@ -26,10 +33,12 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any
 
-from cna.data.r04 import load_tec
+from cna.data.r04 import load_off_map_chart, load_tec
+from cna.data.r05 import load_rail_map
 from cna.data.schema import DataError, DataHeader, validate_header, validate_record
 from cna.engine.loop import StageScenario
 from cna.rules.sec08_movement import TEC, TECError
+from cna.rules.sec08_transport import OffMapChart, RailNetwork
 from cna.state.model import SIDES, new_state
 
 __all__ = ["KIND", "SCHEMA_VERSION", "Scenario", "ScenarioHex", "load_scenario"]
@@ -75,6 +84,8 @@ class Scenario:
     tec: TEC
     hexes: Mapping[str, ScenarioHex]
     units: Mapping[str, Mapping[str, Any]]
+    rail: RailNetwork | None = None
+    off_map_chart: OffMapChart | None = None
 
     def stage_scenario(self, *, breakdown_table=None) -> StageScenario:
         """Build the :class:`StageScenario` the Operations Stage loop consumes.
@@ -100,6 +111,8 @@ class Scenario:
             breakdown_table=breakdown_table,
             player_a=self.player_a,
             player_b=self.player_b,
+            rail=self.rail,
+            off_map_chart=self.off_map_chart,
         )
 
     def initial_state(self, seed: int) -> dict[str, Any]:
@@ -234,6 +247,22 @@ def _players(document: Mapping[str, Any], sides: tuple[str, ...]
     return player_a, player_b
 
 
+def _optional_table(document: Mapping[str, Any], key: str, *,
+                    status: str) -> Mapping[str, Any] | None:
+    """Validate an optional sub-table's status against the scenario's."""
+    raw = document.get(key)
+    if raw is None:
+        return None
+    table = _mapping(raw, f"scenario {key}")
+    table_header = validate_header(table)
+    if table_header.status != status:
+        raise DataError(
+            f"scenario and {key} status must match; scenario is "
+            f"{status!r} and {key} is {table_header.status!r}"
+        )
+    return table
+
+
 def _map(document: Mapping[str, Any], *, tec: TEC, status: str,
          prefixes: tuple[str, ...]) -> Mapping[str, ScenarioHex]:
     hexes: dict[str, ScenarioHex] = {}
@@ -293,7 +322,8 @@ def _units(document: Mapping[str, Any], *, hexes: Mapping[str, ScenarioHex],
                 f"scenario unit {unit_id!r} names unknown side {side!r}")
         if position not in hexes:
             raise DataError(
-                f"scenario unit {unit_id!r} is on unknown hex {position!r}")
+                f"scenario unit {unit_id!r} is on unknown hex {position!r}: "
+                f"R05-S01: {position} missing from R-05 map data")
         if "position" in record:
             raise DataError(
                 f"scenario unit {unit_id!r} must use 'hex', not 'position'")
@@ -351,10 +381,19 @@ def load_scenario(document: Mapping[str, Any], *,
     units = _units(document, hexes=hexes, sides=sides,
                    status=header.status, prefixes=prefixes)
 
+    rail_table = _optional_table(document, "rail", status=header.status)
+    rail = (None if rail_table is None else load_rail_map(
+        rail_table, map_hexes=hexes,
+        allow_synthetic=header.status == "synthetic"))
+    chart_table = _optional_table(document, "off_map_chart",
+                                  status=header.status)
+    off_map_chart = (None if chart_table is None else load_off_map_chart(
+        chart_table, allow_synthetic=header.status == "synthetic"))
+
     return Scenario(
         id=scenario_id, name=name, source=header.source, status=header.status,
         sides=sides, start_turn=start_turn, start_stage=start_stage,
         end_turn=end_turn, end_stage=end_stage, operations_stages=stages,
         player_a=player_a, player_b=player_b, tec=tec, hexes=hexes,
-        units=units,
+        units=units, rail=rail, off_map_chart=off_map_chart,
     )

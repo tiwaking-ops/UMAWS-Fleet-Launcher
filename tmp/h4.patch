@@ -1,0 +1,53 @@
+diff --git a/src/fleet/harness.py b/src/fleet/harness.py
+index 5c84a1a..8051dad 100644
+--- a/src/fleet/harness.py
++++ b/src/fleet/harness.py
+@@ -761,13 +761,15 @@ class Harness:
+         except OSError:
+             pass                         # a cache that cannot be written is not worth failing a run
+ 
++        served_models = sorted(models) if models else ["unavailable"]
++        source = "gateway-window" if models else "unavailable"
+         self.kernel.record_event(
+             "MODEL_SERVED", subject=run.task.id, fence=run.lease.fence,
+             payload={"deployment": deployment,
+-                     "served_models": sorted(models),
++                     "served_models": served_models,
+                      "profile": run.profile.id,
+                      "via_gateway": run.profile.via_gateway,
+-                     "source": "gateway-window" if models else "none"})
++                     "source": source})
+         return models
+ 
+     def _recover(self, run: LeaseRun, result: LeaseResult,
+diff --git a/tests/fleet/test_model_attribution.py b/tests/fleet/test_model_attribution.py
+new file mode 100644
+index 0000000..d911997
+--- /dev/null
++++ b/tests/fleet/test_model_attribution.py
+@@ -0,0 +1,25 @@
++"""H4: MODEL_SERVED never carries an empty model list."""
++
++from __future__ import annotations
++
++from pathlib import Path
++
++from fleet.harness import Harness
++from fleet.profiles import Profile
++from fleet.state import FleetState
++
++from _fleet_fixtures import FIXTURE_ROOT, fake_profile, make_task
++
++
++def test_direct_profile_records_unavailable_not_empty(fake_kernel):
++    task = make_task(fake_kernel)
++    state = FleetState.load(Path(fake_kernel.repo.root) / ".pm" / "fleet-state.json")
++    harness = Harness(fake_kernel, state, fixture_root=FIXTURE_ROOT)
++    profile = Profile.from_dict(fake_profile("fake-a"))
++    run, _ = harness.start(task, profile)
++    assert run is not None
++
++    harness._record_provenance(run)
++    event = [e for e in fake_kernel.events() if e.type == "MODEL_SERVED"][-1]
++    assert event.payload["served_models"] == ["unavailable"]
++    assert event.payload["source"] != "none"

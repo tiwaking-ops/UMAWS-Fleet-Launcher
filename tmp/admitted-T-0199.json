@@ -1,0 +1,143 @@
+{
+  "task": {
+    "id": "T-0199",
+    "title": "Implement the Logistics Game (sections 48-58)",
+    "type": "implement",
+    "goal_ref": "G-001",
+    "risk_floor": "R2",
+    "scope": {
+      "read": [
+        "src/cna/rules/sec32_abstract.py",
+        "src/cna/state/model.py"
+      ],
+      "write": [
+        "src/cna/rules/sec48_logistics.py",
+        "tests/test_logistics.py"
+      ]
+    },
+    "acceptance": {
+      "evidence_required": [],
+      "oracles": [
+        "python -m pytest -q tests/test_logistics.py"
+      ]
+    },
+    "premises": [],
+    "budget": {
+      "tokens": 80000,
+      "wall_min": 360
+    },
+    "depends_on": [
+      "T-0175"
+    ],
+    "attempts": {
+      "max": 3
+    },
+    "created_by": {
+      "agent": "",
+      "kind": "overseer",
+      "model": "",
+      "role": "",
+      "session": ""
+    },
+    "priority": 50,
+    "agent_hint": "P2.1-P2.3: logistics sequence and consumable ledger (fuel, ammunition, stores, water); conservation invariant holds across a LAND_LOGISTICS soak. Add trucks, ports and naval supply, then activate LAND_LOGISTICS without claiming the Air Game. R-09 charts are an open gap; do not invent values.",
+    "hint_base_commit": "a4cbd0ae44dca915693e6dcfb0c36393eea482b3",
+    "state": "READY",
+    "attempt": 0,
+    "fence": 0,
+    "block_reason": "",
+    "stop_conditions": []
+  },
+  "lease": null,
+  "events": [
+    {
+      "seq": 3573,
+      "prev_hash": "3fc27f1a44daae38cb1321f8450da6c7537ff92137f2d4c3c2bc330e3beb52a1",
+      "ts": "2026-11-10T05:20:05Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_CREATED",
+      "subject": "T-0199",
+      "fence": null,
+      "payload": {
+        "admission_errors": [],
+        "card": {
+          "acceptance": {
+            "evidence_required": [],
+            "oracles": [
+              "python -m pytest -q tests/test_logistics.py"
+            ]
+          },
+          "agent_hint": "P2.1-P2.3: logistics sequence and consumable ledger (fuel, ammunition, stores, water); conservation invariant holds across a LAND_LOGISTICS soak. Add trucks, ports and naval supply, then activate LAND_LOGISTICS without claiming the Air Game. R-09 charts are an open gap; do not invent values.",
+          "attempt": 0,
+          "attempts": {
+            "max": 3
+          },
+          "block_reason": "",
+          "budget": {
+            "tokens": 80000,
+            "wall_min": 360
+          },
+          "created_by": {
+            "agent": "",
+            "kind": "overseer",
+            "model": "",
+            "role": "",
+            "session": ""
+          },
+          "depends_on": [
+            "T-0175"
+          ],
+          "fence": 0,
+          "goal_ref": "G-001",
+          "hint_base_commit": "a4cbd0ae44dca915693e6dcfb0c36393eea482b3",
+          "id": "T-0199",
+          "premises": [],
+          "priority": 50,
+          "risk_floor": "R2",
+          "scope": {
+            "read": [
+              "src/cna/rules/sec32_abstract.py",
+              "src/cna/state/model.py"
+            ],
+            "write": [
+              "src/cna/rules/sec48_logistics.py",
+              "tests/test_logistics.py"
+            ]
+          },
+          "state": "PROPOSED",
+          "stop_conditions": [],
+          "title": "Implement the Logistics Game (sections 48-58)",
+          "type": "implement"
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "25544d8aa77da11fa608fe8318f40074f39ecde8aaa5f23f6169a30363ec2b9c"
+    },
+    {
+      "seq": 3591,
+      "prev_hash": "c0f1d3ccae9e609e78f459bf672a7d313d1529ecd67274d813930190f8b1ca1b",
+      "ts": "2026-11-10T06:22:01Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_ADMITTED",
+      "subject": "T-0199",
+      "fence": null,
+      "payload": {},
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "ef8692c3ac40e0563afb21074b744683d86b021f63695c6388b02bf6202ba755"
+    }
+  ]
+}

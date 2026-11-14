@@ -1,0 +1,18 @@
+{
+  "task_id": "T-0211",
+  "fence": 163,
+  "holder": "buffy",
+  "agent": "buffy",
+  "role": "implementer",
+  "session": "",
+  "granted_at": "2026-11-10T09:01:23Z",
+  "renewed_at": "2026-11-10T09:01:23Z",
+  "expires_at": "",
+  "pid": null,
+  "creation_time": null,
+  "worktree": ".",
+  "restart_count": 0,
+  "failure_history": [],
+  "last_failure_class": "",
+  "attempt": 1
+}

@@ -1,0 +1,120 @@
+{
+  "task": {
+    "id": "T-0192",
+    "title": "H1: enforce Kernel lease admission for worktree grants",
+    "type": "implement",
+    "goal_ref": "G-001",
+    "risk_floor": "R2",
+    "scope": {
+      "read": [
+        "src/pmk/models.py",
+        "tests/pmk/test_tasks.py"
+      ],
+      "write": [
+        "src/pmk/api.py",
+        "tests/pmk/test_lease_admission.py"
+      ]
+    },
+    "acceptance": {
+      "evidence_required": [],
+      "oracles": [
+        "python -m pytest -q tests/pmk/test_lease_admission.py tests/pmk/test_tasks.py"
+      ]
+    },
+    "premises": [],
+    "budget": {
+      "tokens": 12000,
+      "wall_min": 20
+    },
+    "depends_on": [],
+    "attempts": {
+      "max": 2
+    },
+    "created_by": {
+      "agent": "",
+      "kind": "overseer",
+      "model": "",
+      "role": "",
+      "session": ""
+    },
+    "priority": 10,
+    "agent_hint": "Base 9b92c936. Kernel.claim in src/pmk/api.py does no admission validation: claim(worktree=<repo root>) succeeds, and a worktree grant with no pid/expires_at succeeds while project state is NEW/PAUSED. Add Kernel-side validation for worktree-bearing grants: reject a path resolving to the repo root with invalid_worktree, and reject a grant lacking pid or expires_at when project_state() != RUNNING with lease_incomplete; the reason must be visible in the KernelError details and a LEASE_REFUSED event. Add an explicit expires_at argument if needed for the legitimate grant. Add a legitimate pid + future expires_at grant while NEW/PAUSED and a RUNNING grant. Keep non-worktree claims used by tests/pmk/test_tasks.py working; if you broaden the gate, update their setup in scope rather than weakening the check. Do not retroactively alter historical leases. Add tests/pmk/test_lease_admission.py; run the listed oracles.",
+    "hint_base_commit": "9b92c936036c2c9046b63a8e120a0eb760e01f58",
+    "state": "PROPOSED",
+    "attempt": 0,
+    "fence": 0,
+    "block_reason": "",
+    "stop_conditions": []
+  },
+  "lease": null,
+  "events": [
+    {
+      "seq": 3538,
+      "prev_hash": "bde78af8143fa865e47d7c1334d931b6d44432f971ec0925b77645120a90c738",
+      "ts": "2026-11-09T19:05:47Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_CREATED",
+      "subject": "T-0192",
+      "fence": null,
+      "payload": {
+        "admission_errors": [],
+        "card": {
+          "acceptance": {
+            "evidence_required": [],
+            "oracles": [
+              "python -m pytest -q tests/pmk/test_lease_admission.py tests/pmk/test_tasks.py"
+            ]
+          },
+          "agent_hint": "Base 9b92c936. Kernel.claim in src/pmk/api.py does no admission validation: claim(worktree=<repo root>) succeeds, and a worktree grant with no pid/expires_at succeeds while project state is NEW/PAUSED. Add Kernel-side validation for worktree-bearing grants: reject a path resolving to the repo root with invalid_worktree, and reject a grant lacking pid or expires_at when project_state() != RUNNING with lease_incomplete; the reason must be visible in the KernelError details and a LEASE_REFUSED event. Add an explicit expires_at argument if needed for the legitimate grant. Add a legitimate pid + future expires_at grant while NEW/PAUSED and a RUNNING grant. Keep non-worktree claims used by tests/pmk/test_tasks.py working; if you broaden the gate, update their setup in scope rather than weakening the check. Do not retroactively alter historical leases. Add tests/pmk/test_lease_admission.py; run the listed oracles.",
+          "attempt": 0,
+          "attempts": {
+            "max": 2
+          },
+          "block_reason": "",
+          "budget": {
+            "tokens": 12000,
+            "wall_min": 20
+          },
+          "created_by": {
+            "agent": "",
+            "kind": "overseer",
+            "model": "",
+            "role": "",
+            "session": ""
+          },
+          "depends_on": [],
+          "fence": 0,
+          "goal_ref": "G-001",
+          "hint_base_commit": "9b92c936036c2c9046b63a8e120a0eb760e01f58",
+          "id": "T-0192",
+          "premises": [],
+          "priority": 10,
+          "risk_floor": "R2",
+          "scope": {
+            "read": [
+              "src/pmk/models.py",
+              "tests/pmk/test_tasks.py"
+            ],
+            "write": [
+              "src/pmk/api.py",
+              "tests/pmk/test_lease_admission.py"
+            ]
+          },
+          "state": "PROPOSED",
+          "stop_conditions": [],
+          "title": "H1: enforce Kernel lease admission for worktree grants",
+          "type": "implement"
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "44100472fce930e14d6b994de48247b4b763c546ff1bc00655c0b023c198a3da"
+    }
+  ]
+}

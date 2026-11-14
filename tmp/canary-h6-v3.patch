@@ -1,0 +1,12 @@
+diff --git a/docs/reports/dispatch-repair-verification-v3.md b/docs/reports/dispatch-repair-verification-v3.md
+new file mode 100644
+--- /dev/null
++++ b/docs/reports/dispatch-repair-verification-v3.md
+@@ -0,0 +1,7 @@
++# Dispatch repair verification v3 (H6 canary)
++
++- base=ce22591530ac17fe5f3dda313426d179993ded2c
++- corpus=docs/rules/CNA-Rules.adoc present
++- rule_files=69
++- gate=pytest -q
++- h6=gate_output

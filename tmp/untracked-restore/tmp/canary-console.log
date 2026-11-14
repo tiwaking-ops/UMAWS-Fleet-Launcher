@@ -1,0 +1,5 @@
+UMAWS Fleet Console
+  repository : C:\temp\projects\testproject1
+  console    : http://127.0.0.1:8765
+  stop       : Ctrl+C in this window, or close it
+

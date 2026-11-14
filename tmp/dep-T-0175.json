@@ -1,0 +1,290 @@
+{
+  "task": {
+    "id": "T-0175",
+    "title": "Implement abstract supply and air (§32)",
+    "type": "implement",
+    "goal_ref": "G-001",
+    "risk_floor": "R2",
+    "scope": {
+      "read": [],
+      "write": [
+        "src/cna/rules/sec32_abstract.py",
+        "tests/test_abstract_supply_air.py"
+      ]
+    },
+    "acceptance": {
+      "evidence_required": [],
+      "oracles": [
+        "python -m pytest -q tests/test_abstract_supply_air.py"
+      ]
+    },
+    "premises": [],
+    "budget": {
+      "tokens": 60000,
+      "wall_min": 240
+    },
+    "depends_on": [
+      "T-0165",
+      "T-0166",
+      "T-0167"
+    ],
+    "attempts": {
+      "max": 3
+    },
+    "created_by": {
+      "agent": "",
+      "kind": "overseer",
+      "model": "",
+      "role": "",
+      "session": ""
+    },
+    "priority": 20,
+    "agent_hint": "Land-only abstract supply and air for LAND_ABSTRACT; full Logistics/Air remain P2/P3.",
+    "hint_base_commit": "5bda527c03fbd47ab47a076fa263a940e99b98a5",
+    "state": "DONE",
+    "attempt": 1,
+    "fence": 152,
+    "block_reason": "",
+    "stop_conditions": []
+  },
+  "lease": {
+    "task_id": "T-0175",
+    "fence": 152,
+    "holder": "opencode-strongest",
+    "agent": "buffy",
+    "role": "implement",
+    "session": "",
+    "granted_at": "2026-11-09T05:05:24Z",
+    "renewed_at": "2026-11-09T05:05:24Z",
+    "expires_at": "",
+    "pid": null,
+    "creation_time": null,
+    "worktree": "C:\\temp\\projects\\testproject1",
+    "restart_count": 0,
+    "failure_history": [],
+    "last_failure_class": "",
+    "attempt": 1
+  },
+  "events": [
+    {
+      "seq": 3371,
+      "prev_hash": "f50c0bd37710c1d0a080120df7516f97b0f86c7521365354078063dd7f7fead4",
+      "ts": "2026-11-08T13:13:34Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_CREATED",
+      "subject": "T-0175",
+      "fence": null,
+      "payload": {
+        "admission_errors": [],
+        "card": {
+          "acceptance": {
+            "evidence_required": [],
+            "oracles": [
+              "python -m pytest -q tests/test_abstract_supply_air.py"
+            ]
+          },
+          "agent_hint": "Land-only abstract supply and air for LAND_ABSTRACT; full Logistics/Air remain P2/P3.",
+          "attempt": 0,
+          "attempts": {
+            "max": 3
+          },
+          "block_reason": "",
+          "budget": {
+            "tokens": 60000,
+            "wall_min": 240
+          },
+          "created_by": {
+            "agent": "",
+            "kind": "overseer",
+            "model": "",
+            "role": "",
+            "session": ""
+          },
+          "depends_on": [
+            "T-0165",
+            "T-0166",
+            "T-0167"
+          ],
+          "fence": 0,
+          "goal_ref": "G-001",
+          "hint_base_commit": "5bda527c03fbd47ab47a076fa263a940e99b98a5",
+          "id": "T-0175",
+          "premises": [],
+          "priority": 20,
+          "risk_floor": "R2",
+          "scope": {
+            "read": [],
+            "write": [
+              "src/cna/rules/sec32_abstract.py",
+              "tests/test_abstract_supply_air.py"
+            ]
+          },
+          "state": "PROPOSED",
+          "stop_conditions": [],
+          "title": "Implement abstract supply and air (§32)",
+          "type": "implement"
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "38d04d6b9e3d7d0869a10a6a9cc48bda310d0bf92697308029fae36d948fcddd"
+    },
+    {
+      "seq": 3440,
+      "prev_hash": "626b562c0f104cde4c16bfad603a0efec4d8c85f42c9738b684854ad70f04ad6",
+      "ts": "2026-11-09T05:05:23Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_ADMITTED",
+      "subject": "T-0175",
+      "fence": null,
+      "payload": {},
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "90477afa04cefdb96546fbd789acce57ede0837af058b15a809784cfff8fe330"
+    },
+    {
+      "seq": 3441,
+      "prev_hash": "90477afa04cefdb96546fbd789acce57ede0837af058b15a809784cfff8fe330",
+      "ts": "2026-11-09T05:05:24Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "CLAIMED",
+      "subject": "T-0175",
+      "fence": 152,
+      "payload": {
+        "attempt": 1,
+        "base_commit": "5cecf7eee6758afafe31e70975ce316ec66f51c5",
+        "fence": 152,
+        "lease": {
+          "agent": "buffy",
+          "attempt": 1,
+          "creation_time": null,
+          "expires_at": "",
+          "failure_history": [],
+          "fence": 152,
+          "granted_at": "2026-11-09T05:05:24Z",
+          "holder": "opencode-strongest",
+          "last_failure_class": "",
+          "pid": null,
+          "renewed_at": "2026-11-09T05:05:24Z",
+          "restart_count": 0,
+          "role": "implement",
+          "session": "",
+          "task_id": "T-0175",
+          "worktree": "C:\\temp\\projects\\testproject1"
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "31a9eae20a9c114fcf22eed0bdac554c413b049f4519be3f521f210741e1e7fa"
+    },
+    {
+      "seq": 3442,
+      "prev_hash": "31a9eae20a9c114fcf22eed0bdac554c413b049f4519be3f521f210741e1e7fa",
+      "ts": "2026-11-09T05:21:38Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "SUBMITTED",
+      "subject": "T-0175",
+      "fence": 152,
+      "payload": {
+        "all_oracles_passed": true,
+        "bundle": "EB-T-0175-152",
+        "bundle_path": "C:\\temp\\projects\\testproject1\\.pm\\evidence\\EB-T-0175-152\\bundle.json",
+        "pid": null,
+        "session": ""
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "b06d3d44e4d02e2e75a3e1204e76777aacaf6c575b8df38f094ab77b90a9645d"
+    },
+    {
+      "seq": 3443,
+      "prev_hash": "b06d3d44e4d02e2e75a3e1204e76777aacaf6c575b8df38f094ab77b90a9645d",
+      "ts": "2026-11-09T05:21:39Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "VERIFIED",
+      "subject": "T-0175",
+      "fence": 152,
+      "payload": {
+        "class": "",
+        "ok": true,
+        "reasons": []
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "def4b13ce808f903784c00be4b7b5ac812c740de3620d334b77301b546734e83"
+    },
+    {
+      "seq": 3444,
+      "prev_hash": "def4b13ce808f903784c00be4b7b5ac812c740de3620d334b77301b546734e83",
+      "ts": "2026-11-09T05:21:48Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "INTEGRATING",
+      "subject": "T-0175",
+      "fence": 152,
+      "payload": {
+        "commit": "d1d7f4fe38edcecdc682093ab4bbce7239165832"
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "42979a20b643bcfc816341f2bc6136f95dc8084c777452ac671e8adc6ef4a970"
+    },
+    {
+      "seq": 3445,
+      "prev_hash": "42979a20b643bcfc816341f2bc6136f95dc8084c777452ac671e8adc6ef4a970",
+      "ts": "2026-11-09T05:21:49Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "INTEGRATED",
+      "subject": "T-0175",
+      "fence": 152,
+      "payload": {
+        "bundle": "EB-T-0175-152",
+        "commit": "d1d7f4fe38edcecdc682093ab4bbce7239165832"
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "146d91cdf4ad3bdda6d9f625af02b2bc41a359b0b2cffa7e9eb31ec529ac3aaa"
+    }
+  ]
+}

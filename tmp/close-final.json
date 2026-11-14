@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "goals": [
+    {
+      "goal": "G-001",
+      "title": "Rules implemented, cited, and covered",
+      "oracle": "python -m cna.tools.rules_index --check && python -m cna.tools.coverage --check && python -m pytest -q tests/test_rules_baseline.py",
+      "exit": 0,
+      "status": "pass"
+    },
+    {
+      "goal": "G-002",
+      "title": "Computer opponent chooses only legal actions (formerly G-003)",
+      "oracle": "python -m pytest -q tests/test_engine_contract.py",
+      "exit": 0,
+      "status": "pass"
+    }
+  ],
+  "gate": {
+    "cmd": "python -m pytest -q",
+    "exit": 0,
+    "status": "pass"
+  },
+  "failures": [],
+  "needs_human": []
+}

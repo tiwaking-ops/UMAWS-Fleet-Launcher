@@ -1,0 +1,45 @@
+{
+  "task": "CANARY-REPLACEMENT-V1",
+  "state": "DRAFT",
+  "base_ref": "51c657f0507bb0a9287169b8c8531440d17ba962",
+  "scratch_ref": "51c657f0507bb0a9287169b8c8531440d17ba962",
+  "patch": "C:\\temp\\projects\\testproject1\\pilot\\evidence\\canary-replacement-v1.patch",
+  "oracles": [
+    "python -c \"import pathlib; p=pathlib.Path('docs/reports/dispatch-repair-verification-v1.md'); t=p.read_text(encoding='utf-8'); assert 'rule_files=69' in t and 'CNA-Rules.adoc' in t and 'base=' in t and 'gate=pytest -q' in t; print('verified')\""
+  ],
+  "base": {
+    "all_pass": false,
+    "oracles": [
+      {
+        "cmd": "python -c \"import pathlib; p=pathlib.Path('docs/reports/dispatch-repair-verification-v1.md'); t=p.read_text(encoding='utf-8'); assert 'rule_files=69' in t and 'CNA-Rules.adoc' in t and 'base=' in t and 'gate=pytest -q' in t; print('verified')\"",
+        "exit": 1,
+        "ok": false,
+        "stdout_tail": "",
+        "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n  File \"C:\\Users\\Tiwa Pene\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\pathlib.py\", line 1027, in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors) as f:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Tiwa Pene\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\pathlib.py\", line 1013, in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nFileNotFoundError: [Errno 2] No such file or directory: 'docs\\\\reports\\\\dispatch-repair-verification-v1.md'\n"
+      }
+    ]
+  },
+  "scratch": {
+    "all_pass": true,
+    "oracles": [
+      {
+        "cmd": "python -c \"import pathlib; p=pathlib.Path('docs/reports/dispatch-repair-verification-v1.md'); t=p.read_text(encoding='utf-8'); assert 'rule_files=69' in t and 'CNA-Rules.adoc' in t and 'base=' in t and 'gate=pytest -q' in t; print('verified')\"",
+        "exit": 0,
+        "ok": true,
+        "stdout_tail": "verified\n",
+        "stderr_tail": ""
+      }
+    ]
+  },
+  "canary_valid": true,
+  "reason": "the oracle fails at the base and passes on the scratch implementation",
+  "schema": "pmk.canary-precheck.v1",
+  "for_decision": "D-69",
+  "validated_at": "2026-11-08T19:18:29+00:00",
+  "card": "pilot/cards/canary-replacement-v1.md",
+  "card_sha256": "5f8a50e74f5045cdab08a8fd3d6b6c380d697d5a9e07880cb950ffc397f26567",
+  "patch_evidence": "pilot/evidence/canary-replacement-v1.patch",
+  "patch_sha256": "8634690c2f9e20a39e3bd20741bab0e8117384d2db213853c1bd53e58654b0c4",
+  "base_commit": "51c657f0507bb0a9287169b8c8531440d17ba962",
+  "note": "Draft card validated in memory; no task was created, admitted, leased or dispatched."
+}

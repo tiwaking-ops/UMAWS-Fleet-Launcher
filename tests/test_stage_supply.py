@@ -7,7 +7,8 @@ from fractions import Fraction
 import pytest
 
 from cna.engine.loop import (StageError, StageScenario, apply_assault,
-                             apply_move, legal_moves)
+                             apply_move, apply_off_map_move, legal_moves)
+from cna.rules.sec08_transport import OffMapChart, TRIPOLI, TUNIS
 from cna.rules.sec11_combat import AssaultRoll
 from cna.state.model import new_state
 
@@ -63,6 +64,28 @@ def make_scenario(graph=LINE, *, cost=None, **fields):
     )
 
 
+OFF_MAP_CHART = OffMapChart(lambda origin, destination, cpa: 2)
+
+
+def off_map_scenario():
+    return StageScenario(
+        neighbours=lambda hex_id: (),
+        cost=lambda moving, source, destination: Fraction(1),
+        hex_limits={},
+        off_map_chart=OFF_MAP_CHART,
+        off_map_boxes=(TRIPOLI, TUNIS),
+    )
+
+
+def off_map_unit(**fields):
+    record = unit(
+        "axis", TRIPOLI, off_map_box=True, base_cpa=5, stacking_points=1,
+        reinforcement_or_replacement=False,
+    )
+    record.update(fields)
+    return record
+
+
 class FixedRng:
     def __init__(self, *values):
         self.values = iter(values)
@@ -107,6 +130,25 @@ def test_32_23_first_move_that_crosses_cpa_uses_the_doubled_fuel_cost():
 
     assert after["supplies"]["sup-1"]["fuel"] == 56
     assert after["units"]["ax-tank"]["fuel_required"] == 4
+
+
+def test_32_24_off_map_transit_pays_fuel_from_a_linked_supply_unit():
+    state = make_state(
+        {"ax-tank": off_map_unit(
+            unit_class="tank", motorized=True, supply_id="sup-1")},
+        {"sup-1": supply("axis", TRIPOLI, ammo=40, fuel=60)},
+    )
+
+    after = apply_off_map_move(state, "axis", "ax-tank", TUNIS,
+                               off_map_scenario(), phase_key="segment-1")
+
+    record = after["units"]["ax-tank"]
+    assert after["supplies"]["sup-1"]["fuel"] == 58
+    assert record["fuel_spent"] == 2
+    assert record["fuel_paid_stage"] == "T1S1"
+    # 8.83's transport-layer flag stays a boolean; the numeric Fuel the
+    # linked Supply Unit paid is tracked separately in fuel_spent.
+    assert record["fuel_required"] is True
 
 
 def test_32_21_assault_draws_ammo_per_battalion_equivalent():

@@ -17,7 +17,7 @@ lines and a synthetic distance chart.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from typing import Any, Callable, Iterable, Mapping
 
@@ -643,3 +643,356 @@ def supply_transfer_allows_movement(*, loads_or_unloads_this_stage: bool) -> boo
     """8.88: a truck or motorization point may not move while loading/unloading."""
     return not _bool(loads_or_unloads_this_stage,
                      name="loads_or_unloads_this_stage")
+
+
+# ---------------------------------------------------------------------------
+# Supply cargo (8.72, 8.88)
+# ---------------------------------------------------------------------------
+
+#: 8.72/8.75: supplies share the rail stack's two-Stacking-Point limit.  The
+#: supply maximum 8.75 cites is not in the vendored corpus (49.3 there is
+#: evaporation), so supply points are counted as Stacking Points here.
+RAIL_SUPPLY_LIMIT = RAIL_STACK_LIMIT
+
+
+def supply_dump_allowed(location: str) -> bool:
+    """8.87/8.88: large boxes and map hexes are dumps; in-transit boxes are not."""
+    _text(location, name="location")
+    return not location.startswith(IN_TRANSIT_PREFIX)
+
+
+@dataclass(frozen=True)
+class TruckCargo:
+    """8.88/8.95: the supplies loaded on one truck or motorization point.
+
+    ``capacity`` is caller-supplied.  The Truck Characteristics Chart and the
+    supply maximums are R-04 data and are not invented here.
+    """
+
+    carrier_id: str
+    capacity: Fraction
+    load: Fraction = Fraction(0)
+    last_transfer_stage: int | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "carrier_id",
+                           _text(self.carrier_id, name="carrier_id"))
+        capacity = _points(self.capacity, name="capacity")
+        if capacity <= 0:
+            raise TransportError(
+                "8.95: a truck's supply capacity must be positive")
+        load = _points(self.load, name="load")
+        if load > capacity:
+            raise TransportError(
+                "8.95: a truck's load exceeds its supply capacity")
+        object.__setattr__(self, "capacity", capacity)
+        object.__setattr__(self, "load", load)
+        if self.last_transfer_stage is not None:
+            _whole(self.last_transfer_stage, name="last_transfer_stage",
+                   minimum=1)
+
+    @property
+    def free(self) -> Fraction:
+        return self.capacity - self.load
+
+    def may_move(self, *, stage: int) -> bool:
+        """8.88: no move in the stage this carrier loads and/or unloads."""
+        _whole(stage, name="stage", minimum=1)
+        return self.last_transfer_stage != stage
+
+    def require_move(self, *, stage: int) -> None:
+        """8.88: raise when the carrier is locked for *stage*."""
+        if not self.may_move(stage=stage):
+            raise TransportError(
+                "8.88: a truck or motorization point may not move in the "
+                "Operations Stage in which it loads and/or unloads supplies")
+
+    def to_obj(self) -> dict[str, Any]:
+        return {
+            "carrier": self.carrier_id,
+            "capacity": str(self.capacity),
+            "load": str(self.load),
+            "last_transfer_stage": self.last_transfer_stage,
+            "rule": "8.88, 8.95",
+        }
+
+
+@dataclass(frozen=True)
+class SupplyLedger:
+    """8.72/8.88: supply dumps by location and cargo by carrier.
+
+    The ledger is immutable; every transfer returns a new ledger.  A carrier
+    may be a truck or a motorization point, since 8.88 locks both.  Dump
+    capacities are not enforced: the large Tripoli/Tunisia boxes are unlimited
+    (8.88) and map dumps are outside this module's chart data.
+    """
+
+    dumps: Mapping[str, Fraction] = field(default_factory=dict)
+    trucks: Mapping[str, TruckCargo] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        dumps: dict[str, Fraction] = {}
+        for location, amount in dict(self.dumps).items():
+            _text(location, name="dump location")
+            if not supply_dump_allowed(location):
+                raise TransportError(
+                    f"8.87: {location!r} is an in-transit box, not a supply "
+                    "dump")
+            dumps[location] = _points(amount, name=f"dump at {location}")
+        trucks: dict[str, TruckCargo] = {}
+        for carrier_id, cargo in dict(self.trucks).items():
+            _text(carrier_id, name="carrier_id")
+            if not isinstance(cargo, TruckCargo):
+                raise TransportError(
+                    "trucks must map carrier ids to TruckCargo")
+            if carrier_id != cargo.carrier_id:
+                raise TransportError(
+                    "a truck's mapping key must match its carrier_id")
+            trucks[carrier_id] = cargo
+        object.__setattr__(self, "dumps", dumps)
+        object.__setattr__(self, "trucks", trucks)
+
+    def dump_at(self, location: str) -> Fraction:
+        _text(location, name="location")
+        return self.dumps.get(location, Fraction(0))
+
+    def truck(self, carrier_id: str) -> TruckCargo:
+        _text(carrier_id, name="carrier_id")
+        try:
+            return self.trucks[carrier_id]
+        except KeyError:
+            raise TransportError(
+                f"unknown truck or motorization point: {carrier_id!r}"
+            ) from None
+
+    def is_unlimited_dump(self, location: str) -> bool:
+        """8.88: the large Tripoli/Tunisia boxes hold unlimited supplies."""
+        _text(location, name="location")
+        return location in TRIPOLI_TUNISIA_BOXES
+
+    @staticmethod
+    def _quantity(amount: Fraction | int, *, label: str) -> Fraction:
+        quantity = _points(amount, name=label)
+        if quantity <= 0:
+            raise TransportError(f"{label} must be positive")
+        return quantity
+
+    def _with_dump(self, location: str,
+                   amount: Fraction) -> dict[str, Fraction]:
+        dumps = dict(self.dumps)
+        dumps[location] = amount
+        return dumps
+
+    def load(self, carrier_id: str, location: str,
+             amount: Fraction | int, *, stage: int) -> "SupplyLedger":
+        """8.88/8.95: load supplies from *location* onto a carrier."""
+        stage = _whole(stage, name="stage", minimum=1)
+        cargo = self.truck(carrier_id)
+        _text(location, name="location")
+        if not supply_dump_allowed(location):
+            raise TransportError(
+                "8.87: supplies may not be loaded from an in-transit box")
+        quantity = self._quantity(amount, label="load")
+        available = self.dump_at(location)
+        if quantity > available:
+            raise TransportError(
+                f"8.72: {location!r} holds only {available} supply points")
+        if quantity > cargo.free:
+            raise TransportError(
+                f"8.95: {carrier_id!r} can carry at most "
+                f"{cargo.capacity} supply points")
+        trucks = dict(self.trucks)
+        trucks[carrier_id] = replace(
+            cargo, load=cargo.load + quantity, last_transfer_stage=stage)
+        return SupplyLedger(self._with_dump(location,
+                                            available - quantity), trucks)
+
+    def unload(self, carrier_id: str, location: str,
+               amount: Fraction | int, *, stage: int) -> "SupplyLedger":
+        """8.88: unload carrier supplies into *location*."""
+        stage = _whole(stage, name="stage", minimum=1)
+        cargo = self.truck(carrier_id)
+        _text(location, name="location")
+        if not supply_dump_allowed(location):
+            raise TransportError(
+                "8.87: supplies may not be unloaded into an in-transit box")
+        quantity = self._quantity(amount, label="unload")
+        if quantity > cargo.load:
+            raise TransportError(
+                f"8.72: {carrier_id!r} carries only {cargo.load} supply points")
+        trucks = dict(self.trucks)
+        trucks[carrier_id] = replace(
+            cargo, load=cargo.load - quantity, last_transfer_stage=stage)
+        return SupplyLedger(
+            self._with_dump(location, self.dump_at(location) + quantity),
+            trucks)
+
+    def rail_deliver(self, move: "RailSupplyMove") -> "SupplyLedger":
+        """8.72: move a rail supply shipment between the two dumps."""
+        if not isinstance(move, RailSupplyMove):
+            raise TransportError("move must be a RailSupplyMove")
+        available = self.dump_at(move.origin)
+        if move.supply_points > available:
+            raise TransportError(
+                f"8.72: {move.origin!r} holds only {available} supply points")
+        dumps = self._with_dump(move.origin,
+                                available - move.supply_points)
+        dumps[move.destination] = (self.dump_at(move.destination)
+                                   + move.supply_points)
+        return SupplyLedger(dumps, self.trucks)
+
+    def to_obj(self) -> dict[str, Any]:
+        return {
+            "dumps": {location: str(amount)
+                      for location, amount in sorted(self.dumps.items())},
+            "trucks": {carrier_id: cargo.to_obj()
+                       for carrier_id, cargo in sorted(self.trucks.items())},
+            "rule": "8.72, 8.88",
+        }
+
+
+@dataclass(frozen=True)
+class RailSupplyMove:
+    """One 8.72 rail shipment of supplies."""
+
+    line: str
+    direction: str
+    origin: str
+    destination: str
+    supply_points: Fraction
+    entered: tuple[str, ...]
+    usage: RailUsage = RailUsage()
+
+    def __post_init__(self) -> None:
+        _text(self.line, name="line")
+        if self.direction not in ("east", "west"):
+            raise TransportError("direction must be 'east' or 'west'")
+        _text(self.origin, name="origin")
+        _text(self.destination, name="destination")
+        points = _points(self.supply_points, name="supply_points")
+        if points <= 0:
+            raise TransportError(
+                "8.75: a rail supply shipment must be positive")
+        if points > RAIL_SUPPLY_LIMIT:
+            raise TransportError(
+                "8.75: Rail Movement may carry at most two Stacking Points")
+        object.__setattr__(self, "supply_points", points)
+        entered = tuple(self.entered)
+        if not entered:
+            raise TransportError(
+                "a rail supply move must enter at least one hex")
+        for hex_id in entered:
+            _text(hex_id, name="entered hex")
+        object.__setattr__(self, "entered", entered)
+        if not isinstance(self.usage, RailUsage):
+            raise TransportError("usage must be a RailUsage")
+
+    def to_obj(self) -> dict[str, Any]:
+        return {
+            "line": self.line,
+            "direction": self.direction,
+            "origin": self.origin,
+            "destination": self.destination,
+            "supply_points": str(self.supply_points),
+            "entered": list(self.entered),
+            "usage": self.usage.to_obj(),
+            "rule": "8.72, 8.74, 8.75",
+        }
+
+
+def plan_rail_supply_move(
+    line: RailLine,
+    *,
+    side: str,
+    phase: str,
+    supply_points: Fraction | int,
+    origin: str,
+    destination: str,
+    direction: str | None = None,
+    enemy_zoc: Iterable[str] = (),
+    enemy_occupied: Iterable[str] = (),
+    axis_combat_hexes: Iterable[str] = (),
+    usage: RailUsage = RailUsage(),
+) -> RailSupplyMove:
+    """Validate one 8.72 rail shipment of supplies.
+
+    Supplies use the line, direction, path and Axis-cutoff restrictions; they
+    are not units, so the 8.73 CP/start-on-rail checks do not apply.
+    ``supply_points`` is bounded by the 8.75 two-point rail cap.
+    """
+    if not isinstance(line, RailLine):
+        raise TransportError("line must be a RailLine")
+    _text(side, name="side")
+    _text(phase, name="phase")
+    points = _points(supply_points, name="supply_points")
+    _text(origin, name="origin")
+    _text(destination, name="destination")
+    if not isinstance(usage, RailUsage):
+        raise TransportError("usage must be a RailUsage")
+
+    if side != COMMONWEALTH:
+        raise TransportError("8.71: only the Commonwealth may use Rail Movement")
+    if phase != RAIL_PHASE:
+        raise TransportError(
+            "8.72: rail movement occurs in the Commonwealth Rail Movement Phase")
+    if not line.active:
+        raise TransportError(f"8.71: rail line {line.name!r} is not active")
+    if points <= 0:
+        raise TransportError("8.75: a rail supply shipment must be positive")
+    if points > RAIL_SUPPLY_LIMIT:
+        raise TransportError(
+            "8.75: Rail Movement may carry at most two Stacking Points")
+
+    line.index(origin)
+    line.index(destination)
+    if origin == destination:
+        raise TransportError("8.72: a rail move must change hex")
+    if not line.usable(origin):
+        raise TransportError(f"8.76: rail hex {origin!r} is not usable")
+    if not line.usable(destination):
+        raise TransportError(f"8.76: rail hex {destination!r} is not usable")
+
+    if direction is None:
+        direction = ("east" if line.index(destination) > line.index(origin)
+                     else "west")
+    if direction not in ("east", "west"):
+        raise TransportError("direction must be 'east' or 'west'")
+    entered = line.path(origin, destination, direction)
+
+    controlled = frozenset(str(item) for item in enemy_zoc)
+    occupied = frozenset(str(item) for item in enemy_occupied)
+    axis_hexes = frozenset(str(item) for item in axis_combat_hexes)
+    if origin in controlled or origin in occupied:
+        raise TransportError(
+            "8.73: a rail move may not start in an Enemy ZOC or occupied hex")
+    for hex_id in entered:
+        if not line.usable(hex_id):
+            raise TransportError(f"8.76: rail hex {hex_id!r} is not usable")
+        if hex_id in controlled:
+            raise TransportError(
+                f"8.73: rail movement may not enter Enemy ZOC hex {hex_id!r}")
+        if hex_id in occupied:
+            raise TransportError(
+                f"8.73: rail movement may not enter Enemy-occupied hex "
+                f"{hex_id!r}")
+        if hex_id in axis_hexes:
+            raise TransportError(
+                f"8.73: rail movement may not enter Axis-occupied hex "
+                f"{hex_id!r}")
+
+    axis_indices = [line.index(hex_id) for hex_id in axis_hexes
+                    if hex_id in line.hexes]
+    if axis_indices:
+        cutoff = min(axis_indices)
+        if any(line.index(hex_id) <= cutoff for hex_id in entered):
+            raise TransportError(
+                "8.78: no rail hex west of an Axis combat unit may be used")
+
+    if usage.used_direction(line.name, direction):
+        raise TransportError(
+            f"8.74: {line.name!r} has already been used {direction}ward this "
+            "Stage")
+    return RailSupplyMove(line=line.name, direction=direction,
+                          origin=origin, destination=destination,
+                          supply_points=points, entered=entered,
+                          usage=usage.use(line.name, direction))

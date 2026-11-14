@@ -1,0 +1,64 @@
+{
+  "task": "T-0182",
+  "fence": 151,
+  "base_commit": "5cecf7eee6758afafe31e70975ce316ec66f51c5",
+  "outputs": [
+    {
+      "path": "docs/release-status.md",
+      "sha256": "aca13353bd3bfe788f2ea058526fdc926760c6dd8bd148d2518bb6a9325fc33f"
+    },
+    {
+      "path": "tests/test_release_status.py",
+      "sha256": "13d8ae0cd7ba8b05109b5de6ad20580f06b48ad61741a4660e59c49eb1f965ec"
+    }
+  ],
+  "diff_scope_check": {
+    "violations": [],
+    "changed": [
+      "docs/release-status.md",
+      "tests/test_release_status.py"
+    ],
+    "allowed": [
+      "docs/release-status.md",
+      "tests/test_release_status.py"
+    ]
+  },
+  "commands": [
+    {
+      "cmd": "python -m pytest -q tests/test_release_status.py",
+      "cwd": "C:\\temp\\projects\\testproject1\\work\\T-0182-151",
+      "exit": 0,
+      "stdout_hash": "9d5a2646cfea101970d3c6e3eb8c2650770734a095b2562b4c25cf9f554c913c",
+      "stderr_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "oracle_results": [
+    {
+      "cmd": "python -m pytest -q tests/test_release_status.py",
+      "exit": 0,
+      "ok": true,
+      "stdout_hash": "9d5a2646cfea101970d3c6e3eb8c2650770734a095b2562b4c25cf9f554c913c",
+      "stderr_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "note": "4 tests passed in work/T-0182-151 at lease base 5cecf7e"
+    }
+  ],
+  "premise_check": {
+    "refuted": false
+  },
+  "budget_used": {
+    "tokens": 0,
+    "wall_min": 0
+  },
+  "resolved_models": [
+    {
+      "provider": "local",
+      "model": "buffy"
+    }
+  ],
+  "constitution_hash": "cfa209a377a1a5ba4f4744822ea15490b44cd745528c523129e06fe43bba64bf",
+  "context_hash": "",
+  "worktree": "work/T-0182-151",
+  "lease_worktree": "C:\\temp\\projects\\testproject1",
+  "integration_commit": "06d3e93e23020a0b9245b7760ed500c45c8165f6",
+  "reconciliation_note": "T-0182's lease recorded the main worktree. The deliverables were re-run and committed in a dedicated worktree at the lease base before submission."
+}

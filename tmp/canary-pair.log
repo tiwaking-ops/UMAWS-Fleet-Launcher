@@ -1,0 +1,11 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.7.0
+rootdir: C:\temp\projects\testproject1\tmp\canary-base-e302119
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: anyio-4.15.1
+collected 31 items
+
+tests\fleet\test_adapter_paths.py .........                              [ 29%]
+tests\fleet\test_conductor_leases.py ......................              [100%]
+
+============================= 31 passed in 22.21s =============================

@@ -1,0 +1,11 @@
+diff --git a/docs/reports/dispatch-repair-verification-v2.md b/docs/reports/dispatch-repair-verification-v2.md
+new file mode 100644
+--- /dev/null
++++ b/docs/reports/dispatch-repair-verification-v2.md
+@@ -0,0 +1,6 @@
++# Dispatch repair verification (supervised canary)
++
++- base=e302119728dcdf066b7f5555a14df4e5424da1bc
++- corpus=docs/rules/CNA-Rules.adoc present
++- rule_files=69
++- gate=pytest -q

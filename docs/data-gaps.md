@@ -29,3 +29,6 @@ Open gaps: **8**
 3. Placing an official resource in `docs/sources/` is the operator's
    authorisation to use it; it must then be reviewed and labelled.
 4. A phase stays incomplete while any gap in its `Blocks` column is open.
+5. A validated intake record (`docs/sources/intake.json`) closes a
+   resource: it marks the register `HAVE` and moves the P1c.2 gate
+   in one step. Run `python -m cna.tools.data_gaps --validate-intake`.

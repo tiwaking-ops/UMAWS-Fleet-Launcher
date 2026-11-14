@@ -1,0 +1,57 @@
+{
+  "task": "T-0172",
+  "fence": 148,
+  "base_commit": "4972c22f3a09a7cc13d98ec8556b0cade9e6e749",
+  "outputs": [
+    {
+      "path": "src/cna/rules/sec19_organization.py",
+      "sha256": "78ac2a51acfa82670852483b74777ba58981ff4bd90bd65d740ae4dcfd02a16d"
+    },
+    {
+      "path": "tests/test_organization.py",
+      "sha256": "e6b5d03d9b0e0ff32e7583076e46f74af9b9c11acbeb46004a50a53ab5ff00c2"
+    }
+  ],
+  "diff_scope_check": {
+    "violations": []
+  },
+  "commands": [
+    {
+      "cmd": "python -m pytest -q tests/test_organization.py",
+      "cwd": ".",
+      "exit": 0,
+      "stdout_hash": "369c47fbf4e04af873402a8568be38208bebabff8b6f81e2c7207438907bd4e4",
+      "stderr_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "oracle_results": [
+    {
+      "cmd": "python -m pytest -q tests/test_organization.py",
+      "exit": 0,
+      "ok": true,
+      "stdout_hash": "369c47fbf4e04af873402a8568be38208bebabff8b6f81e2c7207438907bd4e4",
+      "stderr_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "note": "organization oracle passed in work/T-0172-148"
+    }
+  ],
+  "premise_check": {
+    "refuted": false
+  },
+  "budget_used": {
+    "tokens": 0,
+    "wall_min": 0
+  },
+  "resolved_models": [
+    {
+      "provider": "local",
+      "model": "buffy"
+    }
+  ],
+  "constitution_hash": "cfa209a377a1a5ba4f4744822ea15490b44cd745528c523129e06fe43bba64bf",
+  "context_hash": "bcd8de7ea32626c2c6361bbffdfb55c1ab4aef4a27aa82704c0ea749a89825ec",
+  "known_gaps": [
+    "R-04 Formation Organization and Maximum Attachment charts remain caller-supplied.",
+    "R-07 Axis Replacement Pool and Commonwealth Production tables remain caller-supplied.",
+    "R-06 unit records (max TOE, ratings, assignments) remain caller data."
+  ]
+}

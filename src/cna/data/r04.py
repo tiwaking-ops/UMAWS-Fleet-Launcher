@@ -1,4 +1,4 @@
-"""Load verified R-04 Terrain Effects and Breakdown tables.
+"""Load verified R-04 Terrain Effects, Breakdown and off-map distance tables.
 
 R-04 (Charts and Tables) is not vendored.  These loaders are the door through
 which a verified transcription enters the engine: they refuse anything the
@@ -28,6 +28,11 @@ The 21.38 Breakdown document has one record per (roll, column) cell::
 A verified table must contain every sequential two-dice roll (11-66) crossed
 with every :data:`~cna.rules.sec21_breakdown.COLUMN_BOUNDS` column.  Missing
 cells are an error, never a zero.
+
+The 8.89 Off-Map Land Unit Movement Distance Chart has one record per
+``(origin, destination, cpa)`` lookup.  The loader requires the complete
+matrix for the CPA values the table declares, so a missing cell is a data
+error rather than a guessed distance.
 """
 
 from __future__ import annotations
@@ -45,9 +50,20 @@ from cna.data.schema import (
     validate_table,
 )
 from cna.rules.sec08_movement import TEC, MovementError, TerrainRow
+from cna.rules.sec08_transport import (
+    MAP_EXIT_HEX,
+    TRIPOLI_TUNISIA_BOXES,
+    OffMapChart,
+    TransportError,
+)
 from cna.rules.sec21_breakdown import COLUMN_BOUNDS
 
-__all__ = ["BreakdownTable", "load_breakdown_table", "load_tec"]
+__all__ = [
+    "BreakdownTable",
+    "load_breakdown_table",
+    "load_off_map_chart",
+    "load_tec",
+]
 
 #: The only data-schema version these loaders understand.
 SCHEMA_VERSION = 1
@@ -276,3 +292,89 @@ def load_breakdown_table(table: Mapping[str, Any]) -> BreakdownTable:
         return BreakdownTable(percents, header.source)
     except DataError as exc:
         raise DataError(f"Breakdown Table: {exc}") from exc
+
+
+def load_off_map_chart(table: Mapping[str, Any], *,
+                        allow_synthetic: bool = False) -> OffMapChart:
+    """Load a verified 8.89 Off-Map Land Unit Movement Distance Chart.
+
+    Each record supplies ``origin``, ``destination``, ``cpa`` and ``stages``.
+    Origins and destinations are the four Tripoli/Tunisia boxes or the A2802
+    map exit; duplicate cells are refused.  The table must cover every ordered
+    pair for every CPA it declares, so a partial extraction cannot silently
+    return a guessed distance.  A runtime CPA outside the declared set raises
+    :class:`~cna.rules.sec08_transport.TransportError`.
+    """
+    _, records = _checked_records(table, kind="Off-Map Distance Chart",
+                                  allow_synthetic=allow_synthetic)
+    if not records:
+        raise DataError("Off-Map Distance Chart has no records")
+
+    positions = (*TRIPOLI_TUNISIA_BOXES, MAP_EXIT_HEX)
+    allowed = frozenset(positions)
+    values: dict[tuple[str, str, int], int] = {}
+    cpas: set[int] = set()
+    for index, record in enumerate(records):
+        origin = _required(record, "origin", kind="Off-Map Distance Chart",
+                           index=index)
+        destination = _required(record, "destination",
+                                kind="Off-Map Distance Chart", index=index)
+        for name, value in (("origin", origin), ("destination", destination)):
+            if not isinstance(value, str) or not value.strip():
+                raise DataError(
+                    f"Off-Map Distance Chart records[{index}] {name} must be "
+                    "a non-empty string")
+            if value not in allowed:
+                raise DataError(
+                    f"Off-Map Distance Chart records[{index}] {name} "
+                    f"{value!r} must be one of {positions}")
+        if origin == destination:
+            raise DataError(
+                f"Off-Map Distance Chart records[{index}] origin and "
+                "destination must differ")
+        cpa = _integer(
+            _required(record, "cpa", kind="Off-Map Distance Chart",
+                      index=index),
+            kind="Off-Map Distance Chart", index=index, name="cpa",
+            minimum=1,
+        )
+        stages = _integer(
+            _required(record, "stages", kind="Off-Map Distance Chart",
+                      index=index),
+            kind="Off-Map Distance Chart", index=index, name="stages",
+            minimum=1,
+        )
+        key = (origin, destination, cpa)
+        if key in values:
+            raise DataError(
+                f"Off-Map Distance Chart records[{index}] duplicates "
+                f"{origin!r} -> {destination!r} at CPA {cpa}")
+        values[key] = stages
+        cpas.add(cpa)
+
+    missing = [
+        (origin, destination, cpa)
+        for origin in positions
+        for destination in positions
+        if origin != destination
+        for cpa in sorted(cpas)
+        if (origin, destination, cpa) not in values
+    ]
+    if missing:
+        origin, destination, cpa = missing[0]
+        raise DataError(
+            f"Off-Map Distance Chart is missing {origin!r} -> "
+            f"{destination!r} at CPA {cpa}; {len(missing)} cell(s) absent")
+
+    def stages_for(origin: str, destination: str, cpa: int) -> int:
+        try:
+            return values[(origin, destination, cpa)]
+        except KeyError:
+            raise TransportError(
+                f"8.89: Off-Map Distance Chart has no entry for "
+                f"{origin!r} -> {destination!r} at CPA {cpa}") from None
+
+    try:
+        return OffMapChart(stages=stages_for)
+    except TransportError as exc:
+        raise DataError(f"Off-Map Distance Chart: {exc}") from exc

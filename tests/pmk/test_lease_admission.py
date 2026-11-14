@@ -35,7 +35,7 @@ def test_a_worktree_at_the_repository_root_is_refused(kernel, repo):
     assert exc.value.reason == "invalid_worktree"
 
     # The same tree named relatively, which is the shape seen in the ledger.
-    relative = make_card(kernel)
+    relative = make_card(kernel, scope={"write": ["src/other.py"], "read": []})
     with pytest.raises(KernelError) as exc:
         kernel.claim(relative.id, holder="p", worktree=".")
     assert exc.value.reason == "invalid_worktree"

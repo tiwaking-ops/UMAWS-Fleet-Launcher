@@ -1,0 +1,57 @@
+{
+  "task": "T-0155",
+  "fence": 130,
+  "base_commit": "4845758328312161c65c9f6e722cb23c284ada0b",
+  "outputs": [
+    {
+      "path": "src/cna/rules/sec07_initiative.py",
+      "sha256": "b9efc2978b65a12baf9763bfd1e1f4173c7a166e78eac55a50fbfcd6999b053e"
+    },
+    {
+      "path": "src/cna/rules/sec29_weather.py",
+      "sha256": "fd618f1237755ba4dbbc9deae53411b7bfdb2b48f4c196cf6988f7c060386830"
+    },
+    {
+      "path": "tests/test_initiative_weather.py",
+      "sha256": "5f582d49d23976cb8378bd54459b953c6ba0036264ad3bb32fa17a0eb2ad3bbc"
+    }
+  ],
+  "diff_scope_check": {
+    "violations": []
+  },
+  "commands": [
+    {
+      "cmd": "python -m pytest -q tests/test_initiative_weather.py",
+      "cwd": ".",
+      "exit": 0,
+      "stdout_hash": "5f582d49d23976cb",
+      "stderr_hash": ""
+    }
+  ],
+  "oracle_results": [
+    {
+      "cmd": "python -m pytest -q tests/test_initiative_weather.py",
+      "exit": 0,
+      "ok": true,
+      "stdout_hash": "5f582d49d23976cb",
+      "stderr_hash": "",
+      "note": "manual run"
+    }
+  ],
+  "premise_check": {
+    "refuted": false
+  },
+  "budget_used": {
+    "tokens": 0,
+    "wall_min": 0
+  },
+  "resolved_models": [
+    {
+      "provider": "local",
+      "model": "buffy"
+    }
+  ],
+  "constitution_hash": "cfa209a377a1a5ba4f4744822ea15490b44cd745528c523129e06fe43bba64bf",
+  "context_hash": "bcd8de7ea32626c2c6361bbffdfb55c1ab4aef4a27aa82704c0ea749a89825ec",
+  "note": "P1a manual implementation; full suite also passed"
+}

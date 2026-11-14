@@ -86,13 +86,34 @@ def test_a_dependent_overlap_is_reported_separately() -> None:
     assert report.conflicts[0]["dependent"] is True
 
 
-def test_briefing_shows_width_and_collision(kernel) -> None:
-    for name in ("A", "B"):
-        kernel.task_create(
-            title=f"Card {name}", goal_ref="G-001",
-            scope={"write": ["src/thing.py"], "read": []},
-            oracles=[f"pytest -q tests/test_{name.lower()}.py"],
-            budget={"tokens": 100, "wall_min": 5})
+def test_briefing_shows_width_and_collision(kernel, monkeypatch) -> None:
+    """Legacy logs may contain colliding cards; the briefing must show them.
+
+    Creation-time D-L6 now refuses the second card, so simulate a card
+    recorded before that refusal existed.
+    """
+    kernel.task_create(
+        title="Card A", goal_ref="G-001",
+        scope={"write": ["src/thing.py"], "read": []},
+        oracles=["pytest -q tests/test_a.py"],
+        budget={"tokens": 100, "wall_min": 5})
+    from pmk.api import Kernel
+    from pmk.models import ACTIVE_STATES, NON_TERMINAL_STATES
+    real_conflict = Kernel._scope_conflict
+
+    def legacy_conflict(self, card, state, states=ACTIVE_STATES):
+        if states == NON_TERMINAL_STATES:
+            # The creation-time check did not exist when this card was logged.
+            return []
+        return real_conflict(self, card, state)
+
+    monkeypatch.setattr(Kernel, "_scope_conflict", legacy_conflict)
+    kernel.task_create(
+        title="Card B", goal_ref="G-001",
+        scope={"write": ["src/thing.py"], "read": []},
+        oracles=["pytest -q tests/test_b.py"],
+        budget={"tokens": 100, "wall_min": 5})
+    monkeypatch.setattr(Kernel, "_scope_conflict", real_conflict)
     text = briefing.render(kernel, "overseer")
     assert "## Decomposition" in text
     assert "Leaseable width now: **1**" in text

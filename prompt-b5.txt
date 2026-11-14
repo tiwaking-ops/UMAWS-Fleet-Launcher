@@ -1,0 +1,1 @@
+You are working in C:\temp\projects\b5ccg. Read C:\temp\projects\b5ccg\.agent\AGENT_PROMPT.md and follow it exactly.

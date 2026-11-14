@@ -1,0 +1,75 @@
+diff --git a/src/console/app.py b/src/console/app.py
+index cd6759f..0aacc3d 100644
+--- a/src/console/app.py
++++ b/src/console/app.py
+@@ -26,7 +26,7 @@ from fastapi import FastAPI, HTTPException
+ from fastapi.responses import HTMLResponse, StreamingResponse
+ from pydantic import BaseModel
+ 
+-from pmk.api import Kernel, KernelError
++from pmk.api import Kernel, KernelError, KernelError
+ from pmk.events import Actor
+ from pmk.policy import enforce_fleet_config, load_agents
+ from fleet.conductor import Conductor
+@@ -76,6 +76,11 @@ class Console:
+         self.fixture_root = self.repo.root / "tests" / "fleet" / "fixtures"
+         self.dispatcher = Dispatcher(self.kernel, self.fleet_state,
+                                     fixture_root=self.fixture_root)
++        try:
++            self.dispatcher.reconcile()
++        except KernelError as exc:
++            if exc.reason != "stopped":
++                raise
+         self.overseer = OverseerRunner(self.kernel, self.fleet_state)
+         self.conductor = Conductor(self.kernel, self.dispatcher, self.overseer)
+         self.port = port
+diff --git a/tests/fleet/test_reconcile_startup.py b/tests/fleet/test_reconcile_startup.py
+new file mode 100644
+index 0000000..733871c
+--- /dev/null
++++ b/tests/fleet/test_reconcile_startup.py
+@@ -0,0 +1,44 @@
++"""H3: Console startup must reconcile before the loops begin."""
++
++from __future__ import annotations
++
++import subprocess
++from pathlib import Path
++
++from pmk.api import Kernel
++from pmk.clock import FakeClock
++
++from _fleet_fixtures import fake_profile, make_task, write_agents
++from console.app import Console
++from fleet.dispatcher import Dispatcher
++
++
++def _git(root: Path, *args: str) -> None:
++    subprocess.run(["git", "-C", str(root), *args], check=True,
++                   capture_output=True, text=True)
++
++
++def test_console_calls_reconcile_once_on_startup(tmp_path, monkeypatch):
++    repo = tmp_path / "repo"
++    repo.mkdir()
++    _git(repo, "init", "-b", "main")
++    (repo / "src").mkdir()
++    (repo / "src" / "thing.py").write_text("VALUE = 1\n", encoding="utf-8")
++    (repo / "README.md").write_text("# test\n", encoding="utf-8")
++    _git(repo, "add", "-A")
++    _git(repo, "commit", "-m", "initial")
++
++    kernel = Kernel(root=repo, clock=FakeClock())
++    kernel.init()
++    write_agents(kernel.repo, [fake_profile()])
++    make_task(kernel)
++
++    calls = []
++
++    def spy(self):
++        calls.append(self)
++        return {"adopted": [], "lost": []}
++
++    monkeypatch.setattr(Dispatcher, "reconcile", spy)
++    Console(root=repo)
++    assert len(calls) == 1

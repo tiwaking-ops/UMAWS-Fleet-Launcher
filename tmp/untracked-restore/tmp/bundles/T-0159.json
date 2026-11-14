@@ -1,0 +1,49 @@
+{
+  "task": "T-0159",
+  "fence": 134,
+  "base_commit": "f1a76041e4d11f6dd12db9d9d06719443d9ece62",
+  "outputs": [
+    {
+      "path": "coverage/rules_coverage.json",
+      "sha256": "e1143e0c98e66aba336702d387138afe38c31380c85a1d0e62d1ad3ffaf07f27"
+    }
+  ],
+  "diff_scope_check": {
+    "violations": []
+  },
+  "commands": [
+    {
+      "cmd": "python -m cna.tools.coverage --check",
+      "cwd": ".",
+      "exit": 0,
+      "stdout_hash": "e1143e0c98e66aba",
+      "stderr_hash": ""
+    }
+  ],
+  "oracle_results": [
+    {
+      "cmd": "python -m cna.tools.coverage --check",
+      "exit": 0,
+      "ok": true,
+      "stdout_hash": "e1143e0c98e66aba",
+      "stderr_hash": "",
+      "note": "manual run"
+    }
+  ],
+  "premise_check": {
+    "refuted": false
+  },
+  "budget_used": {
+    "tokens": 0,
+    "wall_min": 0
+  },
+  "resolved_models": [
+    {
+      "provider": "local",
+      "model": "buffy"
+    }
+  ],
+  "constitution_hash": "cfa209a377a1a5ba4f4744822ea15490b44cd745528c523129e06fe43bba64bf",
+  "context_hash": "bcd8de7ea32626c2c6361bbffdfb55c1ab4aef4a27aa82704c0ea749a89825ec",
+  "note": "coverage drift after P1a; 78/78 covered, 69 rule files"
+}

@@ -7,6 +7,7 @@ unit placement, not historical values.
 
 from __future__ import annotations
 
+import json
 import sys
 from fractions import Fraction
 from pathlib import Path
@@ -17,15 +18,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from cna.data import DataError, load_scenario  # noqa: E402
 from cna.rules.sec08_movement import MovingUnit  # noqa: E402
+from cna.rules.sec08_transport import (  # noqa: E402
+    MAP_EXIT_HEX,
+    TRIPOLI_TUNISIA_BOXES,
+)
 
 SOURCES = {
     "verified": ("rulebook:§60.22", "chart:R-04:TEC:fixture"),
     "synthetic": ("synthetic-test:scenario", "synthetic-test:tec"),
 }
 
+PARTIAL_FIXTURE = (Path(__file__).resolve().parent / "fixtures"
+                   / "scenario-60.22-partial.json")
+
 
 def scenario_document(*, status="verified", start=(1, 1), end=(1, 3),
-                      stages=3, hexes=None, units=None, tec=None):
+                      stages=3, hexes=None, units=None, tec=None,
+                      rail=None, off_map_chart=None):
     source, tec_source = SOURCES.get(
         status, (f"{status}:scenario", f"{status}:tec"))
 
@@ -61,7 +70,7 @@ def scenario_document(*, status="verified", start=(1, 1), end=(1, 3),
                  "stacking_limit": 4},
             ],
         }
-    return {
+    document = {
         "schema_version": 1,
         "kind": "scenario",
         "source": source,
@@ -75,6 +84,45 @@ def scenario_document(*, status="verified", start=(1, 1), end=(1, 3),
         "tec": tec,
         "map": hexes,
         "units": units,
+    }
+    if rail is not None:
+        document["rail"] = rail
+    if off_map_chart is not None:
+        document["off_map_chart"] = off_map_chart
+    return document
+
+
+def rail_table():
+    source = "chart:R-05:rail:fixture"
+    return {
+        "schema_version": 1,
+        "source": source,
+        "status": "verified",
+        "records": [{
+            "provenance": source,
+            "status": "verified",
+            "line": "alexandria_mersa_matruh",
+            "hexes": ["A", "B"],
+            "active": True,
+        }],
+    }
+
+
+def off_map_chart_table():
+    source = "chart:R-04:off-map:fixture"
+    positions = (*TRIPOLI_TUNISIA_BOXES, MAP_EXIT_HEX)
+    return {
+        "schema_version": 1,
+        "source": source,
+        "status": "verified",
+        "records": [
+            {"provenance": source, "status": "verified",
+             "origin": origin, "destination": destination,
+             "cpa": 12, "stages": 2}
+            for origin in positions
+            for destination in positions
+            if origin != destination
+        ],
     }
 
 
@@ -230,6 +278,17 @@ def test_sides_and_players_must_be_the_engine_sides():
         load_scenario(document)
 
 
+def test_partial_60_22_fixture_is_refused_with_the_missing_r05_hex():
+    document = json.loads(PARTIAL_FIXTURE.read_text(encoding="utf-8"))
+
+    with pytest.raises(DataError) as caught:
+        load_scenario(document)
+
+    assert str(caught.value) == (
+        "scenario unit 'ax-2' is on unknown hex 'C4218': "
+        "R05-S01: C4218 missing from R-05 map data")
+
+
 def test_document_kind_and_schema_version_are_enforced():
     document = scenario_document()
     document["kind"] = "chart"
@@ -240,3 +299,51 @@ def test_document_kind_and_schema_version_are_enforced():
     document["schema_version"] = 2
     with pytest.raises(DataError, match="schema_version"):
         load_scenario(document)
+
+
+def test_scenario_carries_verified_rail_and_off_map_chart():
+    loaded = load_scenario(scenario_document(
+        rail=rail_table(), off_map_chart=off_map_chart_table()))
+
+    assert loaded.rail is not None
+    assert loaded.off_map_chart is not None
+    stage = loaded.stage_scenario()
+    assert stage.rail is loaded.rail
+    assert stage.off_map_chart is loaded.off_map_chart
+    assert stage.rail.line("alexandria_mersa_matruh").hexes == ("A", "B")
+    assert stage.off_map_chart.stages_between("tripoli", "tunis", 12) == 2
+
+
+def test_scenario_without_transport_tables_leaves_them_disabled():
+    stage = load_scenario(scenario_document()).stage_scenario()
+
+    assert stage.rail is None
+    assert stage.off_map_chart is None
+
+
+def test_scenario_refuses_a_rail_table_with_a_mismatched_status():
+    rail = rail_table()
+    rail["status"] = "synthetic"
+    rail["source"] = "synthetic-test:rail"
+    for record in rail["records"]:
+        record["status"] = "synthetic"
+        record["provenance"] = "synthetic-test:rail"
+
+    with pytest.raises(DataError, match="status must match"):
+        load_scenario(scenario_document(rail=rail))
+
+
+def test_scenario_refuses_a_rail_hex_missing_from_the_map():
+    rail = rail_table()
+    rail["records"][0]["hexes"] = ["A", "Z"]
+
+    with pytest.raises(DataError, match="R05-S01"):
+        load_scenario(scenario_document(rail=rail))
+
+
+def test_scenario_refuses_an_off_map_chart_with_a_missing_cell():
+    chart = off_map_chart_table()
+    chart["records"].pop()
+
+    with pytest.raises(DataError, match="cell"):
+        load_scenario(scenario_document(off_map_chart=chart))

@@ -1,0 +1,22 @@
+Phase 7 — Worktree census reconciliation (CP-3 executed per D-81)
+
+Census (measured):
+- pmk worktrees: 32 total, 7 dirty (archived to stranded/), 25 clean
+- git worktrees: 44 entries (before prune)
+- Union: git knows 12 entries pmk does not (main, .claude worktree, 10 %TEMP%/pmk-merge-* trees)
+
+CP-3 Decision (per D-81): Delete all clean trees immediately as low-risk demonstration,
+EXCEPT T-0139-117 and T-0148-120 (unmerged branches — preserved per census safety).
+
+Actions taken:
+1. `git worktree prune` — cleaned stale git worktree entries
+2. Removed 16 of 17 %TEMP%/pmk-merge-* scratch trees via Remove-Item
+3. 1 tree (%TEMP%/pmk-merge-xee2qqej, ~17MB) locked by another process — NOT removed
+
+Remaining:
+- work/ directory: empty (all worktree dirs removed)
+- %TEMP%/pmk-merge-xee2qqej: locked by another process (likely lingering pytest/git process)
+- T-0139-117, T-0148-120: preserved (unmerged branches)
+
+DoD-4: Census reconciled — difference fully explained. Dirty trees archived (REC-02 before REC-01).
+No dirty worktree deleted without capture-and-verify.

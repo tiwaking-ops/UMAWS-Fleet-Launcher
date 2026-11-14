@@ -327,7 +327,7 @@ def test_task_admit_refuses_bad_oracle(tmp_path):
         title="Good oracle task",
         type="implement",
         goal_ref="G-001",
-        scope={"write": ["src/thing.py"], "read": ["src/"]},
+        scope={"write": ["src/other.py"], "read": ["src/"]},
         oracles=[T0145_ORACLE],
         budget={"tokens": 10000, "wall_min": 10},
     )

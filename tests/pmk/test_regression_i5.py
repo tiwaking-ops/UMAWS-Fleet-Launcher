@@ -480,6 +480,96 @@ def test_task_create_type_check_runs_before_admission(kernel):
 
 
 # ---------------------------------------------------------------------------
+# D-L6 at creation time: refuse scope-overlapping cards outright
+# ---------------------------------------------------------------------------
+
+def _created_events(kernel) -> list:
+    return [e for e in kernel.events() if e.type == "TASK_CREATED"]
+
+
+def test_task_create_refuses_scope_overlap_with_nonterminal_card(kernel):
+    """A card whose write scope overlaps a non-terminal card is refused.
+
+    Unlike admission failure, this is a hard refusal: no card is recorded
+    and no TASK_CREATED event is appended (mirroring invalid_task_type).
+    The refusal carries the conflicts in the claim-time shape.
+    """
+    first = kernel.task_create(title="first", type="implement",
+                               scope={"write": ["src/pmk"], "read": []},
+                               oracles=["echo"], goal_ref="G-1",
+                               budget={"tokens": 1, "wall_min": 1})
+    with pytest.raises(KernelError) as exc:
+        kernel.task_create(title="second", type="implement",
+                           scope={"write": ["src/pmk/events.py"], "read": []},
+                           oracles=["echo"], goal_ref="G-1",
+                           budget={"tokens": 1, "wall_min": 1})
+    assert exc.value.reason == "scope_overlap"
+    conflicts = exc.value.details["conflicts"]
+    assert len(conflicts) == 1
+    conflict = conflicts[0]
+    assert conflict["task"] == first.id
+    assert conflict["state"] == first.state
+    assert conflict["this"] == "src/pmk/events.py"
+    assert conflict["other"] == "src/pmk"
+    # No card and no event for the refused card.
+    created = _created_events(kernel)
+    assert [e.subject for e in created] == [first.id]
+
+
+def test_task_create_scope_overlap_prefix_both_directions(kernel):
+    """Overlap is caught whether the existing card is wider or narrower."""
+    narrow = kernel.task_create(title="narrow", type="implement",
+                                scope={"write": ["docs/guide.md"], "read": []},
+                                oracles=["echo"], goal_ref="G-1",
+                                budget={"tokens": 1, "wall_min": 1})
+    with pytest.raises(KernelError) as exc:
+        kernel.task_create(title="wide", type="implement",
+                           scope={"write": ["docs"], "read": []},
+                           oracles=["echo"], goal_ref="G-1",
+                           budget={"tokens": 1, "wall_min": 1})
+    assert exc.value.details["conflicts"][0]["task"] == narrow.id
+
+
+def test_task_create_scope_overlap_ignores_adjacent_paths(kernel):
+    """src/pmkx must not collide with src/pmk (path-component prefix)."""
+    kernel.task_create(title="pmk", type="implement",
+                       scope={"write": ["src/pmk"], "read": []},
+                       oracles=["echo"], goal_ref="G-1",
+                       budget={"tokens": 1, "wall_min": 1})
+    card = kernel.task_create(title="pmkx", type="implement",
+                              scope={"write": ["src/pmkx"], "read": []},
+                              oracles=["echo"], goal_ref="G-1",
+                              budget={"tokens": 1, "wall_min": 1})
+    assert card.id
+
+
+def test_task_create_scope_overlap_ignores_terminal_cards(kernel):
+    """A VOID (or DONE) card no longer holds scope: the overlap is allowed."""
+    first = kernel.task_create(title="first", type="implement",
+                               scope={"write": ["src/pmk"], "read": []},
+                               oracles=["echo"], goal_ref="G-1",
+                               budget={"tokens": 1, "wall_min": 1})
+    kernel.task_void(first.id, reason="obsolete", actor=HUMAN)
+    second = kernel.task_create(title="second", type="implement",
+                                scope={"write": ["src/pmk"], "read": []},
+                                oracles=["echo"], goal_ref="G-1",
+                                budget={"tokens": 1, "wall_min": 1})
+    assert second.id != first.id
+
+
+def test_task_create_scope_overlap_disjoint_scopes_pass(kernel):
+    kernel.task_create(title="first", type="implement",
+                       scope={"write": ["src/pmk"], "read": []},
+                       oracles=["echo"], goal_ref="G-1",
+                       budget={"tokens": 1, "wall_min": 1})
+    card = kernel.task_create(title="second", type="implement",
+                              scope={"write": ["docs"], "read": []},
+                              oracles=["echo"], goal_ref="G-1",
+                              budget={"tokens": 1, "wall_min": 1})
+    assert card.id
+
+
+# ---------------------------------------------------------------------------
 # R1: B3 integrate commit validation tests
 # ---------------------------------------------------------------------------
 

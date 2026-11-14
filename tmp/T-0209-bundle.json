@@ -1,0 +1,78 @@
+{
+  "task": "T-0209",
+  "fence": 161,
+  "base_commit": "d05fc4e3ee46a73a892300b662a6e1f9b9b319f8",
+  "outputs": [
+    {
+      "path": "src/cna/engine/loop.py",
+      "sha256": "9aba9cae75a1e4ee8213a14f6ad37d7b58134cf09dd7d550094ff4115c31ac6f"
+    },
+    {
+      "path": "tests/test_stage_supply.py",
+      "sha256": "7932d51686e0c3950ff669b0b3c8bfa821be0a781e835e4b4ddde0300c4e84f2"
+    }
+  ],
+  "diff_scope_check": {
+    "violations": [],
+    "checked": [
+      "src/cna/engine/loop.py",
+      "tests/test_stage_supply.py"
+    ]
+  },
+  "commands": [
+    {
+      "cmd": "python -m pytest -q tests/test_stage_supply.py tests/test_stage_loop.py tests/test_abstract_supply_air.py",
+      "cwd": ".",
+      "exit": 0,
+      "stdout_hash": "7794d06855d2ab67cf60331853338eee94d118d4bb0f2bfb10bf8a6e05eb4e5f",
+      "stderr_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "cmd": "python -m cna.tools.coverage --check",
+      "cwd": ".",
+      "exit": 0,
+      "stdout_hash": "885d0f6d1678b4dba5ffb55cfd03bc15c26aec9911a3ec14059fb889902f4ca1",
+      "stderr_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "oracle_results": [
+    {
+      "cmd": "python -m pytest -q tests/test_stage_supply.py tests/test_stage_loop.py tests/test_abstract_supply_air.py",
+      "cwd": ".",
+      "exit": 0,
+      "stdout_hash": "7794d06855d2ab67cf60331853338eee94d118d4bb0f2bfb10bf8a6e05eb4e5f",
+      "stderr_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "ok": true,
+      "note": "run in the T-0209 lease at fence 161"
+    },
+    {
+      "cmd": "python -m cna.tools.coverage --check",
+      "cwd": ".",
+      "exit": 0,
+      "stdout_hash": "885d0f6d1678b4dba5ffb55cfd03bc15c26aec9911a3ec14059fb889902f4ca1",
+      "stderr_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "ok": true,
+      "note": "run in the T-0209 lease at fence 161"
+    }
+  ],
+  "premise_check": {
+    "refuted": false
+  },
+  "budget_used": {
+    "tokens": 0,
+    "wall_min": 0
+  },
+  "resolved_models": [
+    {
+      "provider": "local",
+      "model": "buffy"
+    }
+  ],
+  "constitution_hash": "cfa209a377a1a5ba4f4744822ea15490b44cd745528c523129e06fe43bba64bf",
+  "context_hash": "bcd8de7ea32626c2c6361bbffdfb55c1ab4aef4a27aa82704c0ea749a89825ec",
+  "known_gaps": [
+    "Abstract Supply Unit contents, movement categories, battalion equivalents and all tables remain caller-supplied; no R-04/R-05/R-06 values are asserted.",
+    "Unlinked units retain the legacy fuel-free path; abstract_supply is required only to ignore 32.9 Road/Track stacking.",
+    "Off-map linked fuel spending is implemented but has no dedicated test in this card; sec08_transport keeps its existing boolean fuel_required field."
+  ]
+}

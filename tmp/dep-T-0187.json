@@ -1,0 +1,300 @@
+{
+  "task": {
+    "id": "T-0187",
+    "title": "P1b.1: implement §29 weather effects behind synthetic map-section data",
+    "type": "implement",
+    "goal_ref": "G-001",
+    "risk_floor": "R2",
+    "scope": {
+      "read": [
+        "docs/rules/sections/section-29.adoc",
+        "docs/rules/sections/section-21.adoc",
+        "docs/plans/cna-p1b-p4-implementation-plan.md",
+        "docs/data-gaps.md",
+        "docs/release-status.md"
+      ],
+      "write": [
+        "src/cna/rules/sec29_weather.py",
+        "tests/test_weather_effects.py",
+        "src/cna/tools/coverage.py",
+        "coverage/rules_coverage.json"
+      ]
+    },
+    "acceptance": {
+      "evidence_required": [],
+      "oracles": [
+        "python -m pytest -q tests/test_weather_effects.py tests/test_initiative_weather.py",
+        "python -m cna.tools.coverage --check"
+      ]
+    },
+    "premises": [],
+    "budget": {
+      "tokens": 60000,
+      "wall_min": 240
+    },
+    "depends_on": [],
+    "attempts": {
+      "max": 3
+    },
+    "created_by": {
+      "agent": "",
+      "kind": "overseer",
+      "model": "",
+      "role": "",
+      "session": ""
+    },
+    "priority": 20,
+    "agent_hint": "Q-078 policy: use only clearly labelled synthetic weather/location fixtures; keep R-04-dependent storm-location cases partial and record exact reasons. No historical data invention.",
+    "hint_base_commit": "1e533ef087c8fa28bfa70442e92e58f474422a22",
+    "state": "DONE",
+    "attempt": 1,
+    "fence": 154,
+    "block_reason": "",
+    "stop_conditions": []
+  },
+  "lease": {
+    "task_id": "T-0187",
+    "fence": 154,
+    "holder": "buffy",
+    "agent": "buffy",
+    "role": "implementer",
+    "session": "",
+    "granted_at": "2026-11-09T05:58:34Z",
+    "renewed_at": "2026-11-09T05:58:34Z",
+    "expires_at": "",
+    "pid": null,
+    "creation_time": null,
+    "worktree": ".",
+    "restart_count": 0,
+    "failure_history": [],
+    "last_failure_class": "",
+    "attempt": 1
+  },
+  "events": [
+    {
+      "seq": 3453,
+      "prev_hash": "bd15a93e66a2791cdcdf25be40d2c9d9551c97d1f7902092f9664b9f45906a7c",
+      "ts": "2026-11-09T05:58:29Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_CREATED",
+      "subject": "T-0187",
+      "fence": null,
+      "payload": {
+        "admission_errors": [],
+        "card": {
+          "acceptance": {
+            "evidence_required": [],
+            "oracles": [
+              "python -m pytest -q tests/test_weather_effects.py tests/test_initiative_weather.py",
+              "python -m cna.tools.coverage --check"
+            ]
+          },
+          "agent_hint": "Q-078 policy: use only clearly labelled synthetic weather/location fixtures; keep R-04-dependent storm-location cases partial and record exact reasons. No historical data invention.",
+          "attempt": 0,
+          "attempts": {
+            "max": 3
+          },
+          "block_reason": "",
+          "budget": {
+            "tokens": 60000,
+            "wall_min": 240
+          },
+          "created_by": {
+            "agent": "",
+            "kind": "overseer",
+            "model": "",
+            "role": "",
+            "session": ""
+          },
+          "depends_on": [],
+          "fence": 0,
+          "goal_ref": "G-001",
+          "hint_base_commit": "1e533ef087c8fa28bfa70442e92e58f474422a22",
+          "id": "T-0187",
+          "premises": [],
+          "priority": 20,
+          "risk_floor": "R2",
+          "scope": {
+            "read": [
+              "docs/rules/sections/section-29.adoc",
+              "docs/rules/sections/section-21.adoc",
+              "docs/plans/cna-p1b-p4-implementation-plan.md",
+              "docs/data-gaps.md",
+              "docs/release-status.md"
+            ],
+            "write": [
+              "src/cna/rules/sec29_weather.py",
+              "tests/test_weather_effects.py",
+              "src/cna/tools/coverage.py",
+              "coverage/rules_coverage.json"
+            ]
+          },
+          "state": "PROPOSED",
+          "stop_conditions": [],
+          "title": "P1b.1: implement §29 weather effects behind synthetic map-section data",
+          "type": "implement"
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "efbe2fa66c06437ddb0b3f91a993ebcaf16a960603bc69be917a53a936ec2b9e"
+    },
+    {
+      "seq": 3454,
+      "prev_hash": "efbe2fa66c06437ddb0b3f91a993ebcaf16a960603bc69be917a53a936ec2b9e",
+      "ts": "2026-11-09T05:58:33Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_ADMITTED",
+      "subject": "T-0187",
+      "fence": null,
+      "payload": {},
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "60eb906349d86ae558cb853d6a3399c263c12e26b6803001932cc457896e7c7c"
+    },
+    {
+      "seq": 3455,
+      "prev_hash": "60eb906349d86ae558cb853d6a3399c263c12e26b6803001932cc457896e7c7c",
+      "ts": "2026-11-09T05:58:34Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "CLAIMED",
+      "subject": "T-0187",
+      "fence": 154,
+      "payload": {
+        "attempt": 1,
+        "base_commit": "1e533ef087c8fa28bfa70442e92e58f474422a22",
+        "fence": 154,
+        "lease": {
+          "agent": "buffy",
+          "attempt": 1,
+          "creation_time": null,
+          "expires_at": "",
+          "failure_history": [],
+          "fence": 154,
+          "granted_at": "2026-11-09T05:58:34Z",
+          "holder": "buffy",
+          "last_failure_class": "",
+          "pid": null,
+          "renewed_at": "2026-11-09T05:58:34Z",
+          "restart_count": 0,
+          "role": "implementer",
+          "session": "",
+          "task_id": "T-0187",
+          "worktree": "."
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "c9f2ac2961ba732001f9576f4554e0f50be55cf616c265f7fcca81fda1145f88"
+    },
+    {
+      "seq": 3456,
+      "prev_hash": "c9f2ac2961ba732001f9576f4554e0f50be55cf616c265f7fcca81fda1145f88",
+      "ts": "2026-11-09T06:12:15Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "SUBMITTED",
+      "subject": "T-0187",
+      "fence": 154,
+      "payload": {
+        "all_oracles_passed": true,
+        "bundle": "EB-T-0187-154",
+        "bundle_path": "C:\\temp\\projects\\testproject1\\.pm\\evidence\\EB-T-0187-154\\bundle.json",
+        "pid": null,
+        "session": ""
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "ef1cd1407bd88adcd2c4e30b8cb50fa1455ecaefd7b4e4f21fcdf20cff0ae6ee"
+    },
+    {
+      "seq": 3457,
+      "prev_hash": "ef1cd1407bd88adcd2c4e30b8cb50fa1455ecaefd7b4e4f21fcdf20cff0ae6ee",
+      "ts": "2026-11-09T06:12:17Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "VERIFIED",
+      "subject": "T-0187",
+      "fence": 154,
+      "payload": {
+        "class": "",
+        "ok": true,
+        "reasons": []
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "e2c2018a042803d81112eb4edf8e74bbd0bf27f40f69c9b89b66d8349bd62805"
+    },
+    {
+      "seq": 3458,
+      "prev_hash": "e2c2018a042803d81112eb4edf8e74bbd0bf27f40f69c9b89b66d8349bd62805",
+      "ts": "2026-11-09T06:12:18Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "INTEGRATING",
+      "subject": "T-0187",
+      "fence": 154,
+      "payload": {
+        "commit": "bba95b414799aa31112025c70c3b203659ee5c0b"
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "4de9e81506d0e3173479c0bc85941adb37c7d93dd4092759b035f14f09d86f2d"
+    },
+    {
+      "seq": 3459,
+      "prev_hash": "4de9e81506d0e3173479c0bc85941adb37c7d93dd4092759b035f14f09d86f2d",
+      "ts": "2026-11-09T06:12:18Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "INTEGRATED",
+      "subject": "T-0187",
+      "fence": 154,
+      "payload": {
+        "bundle": "EB-T-0187-154",
+        "commit": "bba95b414799aa31112025c70c3b203659ee5c0b"
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "3ef54a8d47fa0fec6bdeaf134ba753a84a2558ae8edea9c34909e2e3f1221b34"
+    }
+  ]
+}

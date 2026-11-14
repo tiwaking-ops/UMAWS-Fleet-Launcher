@@ -1,0 +1,73 @@
+........................................................................ [ 29%]
+........................................................................ [ 59%]
+........................................................................ [ 89%]
+...............F..........                                               [100%]
+================================== FAILURES ===================================
+_ test_a_failed_agent_started_write_kills_the_process_and_gives_up_the_lease __
+
+git_repo_master = Repo(root=WindowsPath('C:/Users/Tiwa Pene/AppData/Local/Temp/pytest-of-Tiwa Pene/pytest-2320/test_a_failed_agent_started_wr0/repo'))
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001C0AB02D550>
+
+    def test_a_failed_agent_started_write_kills_the_process_and_gives_up_the_lease(
+            git_repo_master, monkeypatch):
+        """A live writer the log cannot see must not outlive a failed record.
+    
+        ``_record_started`` is the only writer of ``AGENT_STARTED``, and the
+        reaper trusts that event before it deletes a worktree.  When the record
+        cannot be written, ``start()`` must kill the process it just spawned and
+        revoke/quarantine the lease.  The fake profile is the ``hang`` scenario,
+        so the process is still running when the record fails and only the kill
+        can stop it.
+        """
+        from fleet import spawn as spawn_mod
+        from fleet.harness import Harness
+        from fleet.profiles import Profile
+        from fleet.state import FleetState
+    
+        repo = git_repo_master
+        kernel = _make_kernel_from_repo(repo)
+        profile_dict = fake_profile(scenario="hang")
+        write_agents(repo, [profile_dict])
+    
+        task = make_task(kernel, scope={"write": ["out.txt"], "read": []})
+    
+        real_spawn = spawn_mod.spawn_slot
+        spawned = []
+    
+        def capture_spawn(*args, **kwargs):
+            slot = real_spawn(*args, **kwargs)
+            spawned.append((slot, kwargs["fence"]))
+            return slot
+    
+        monkeypatch.setattr(spawn_mod, "spawn_slot", capture_spawn)
+    
+        real_record_event = kernel.record_event
+    
+        def fail_agent_started(event_type, **kwargs):
+            if event_type == "AGENT_STARTED":
+                raise OSError("event log is read-only")
+            return real_record_event(event_type, **kwargs)
+    
+        monkeypatch.setattr(kernel, "record_event", fail_agent_started)
+    
+        harness = Harness(kernel, FleetState())
+>       run, result = harness.start(task, Profile.from_dict(profile_dict))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\fleet\test_regressions.py:1589: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\fleet\harness.py:434: in start
+    self.kernel.record_event(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+event_type = 'AGENT_STARTED'
+kwargs = {'subject': 'T-0001', 'fence': 1, 'payload': {'profile': 'fake-a', 'adapter': 'fake', 'pid': 3832, 'creation_time': 134387342498127223, ...}}
+
+    def fail_agent_started(event_type, **kwargs):
+        if event_type == "AGENT_STARTED":
+>           raise OSError("event log is read-only")
+E           OSError: event log is read-only
+
+tests\fleet\test_regressions.py:1583: OSError
+=========================== short test summary info ===========================
+FAILED tests/fleet/test_regressions.py::test_a_failed_agent_started_write_kills_the_process_and_gives_up_the_lease

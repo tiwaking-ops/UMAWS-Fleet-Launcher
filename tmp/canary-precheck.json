@@ -1,0 +1,36 @@
+{
+  "task": "T-0147",
+  "state": "PROPOSED",
+  "base_ref": "53871a7",
+  "scratch_ref": "53871a7",
+  "patch": "C:\\temp\\projects\\testproject1\\tmp\\canary-53871a7.patch",
+  "oracles": [
+    "python -c \"import pathlib; p=pathlib.Path('docs/reports/canary-53871a7.md'); t=p.read_text(encoding='utf-8'); assert 'base=53871a7a13e2d000b1b6a6231568a653a9c3334f' in t and 'corpus=docs/rules/CNA-Rules.adoc present' in t and 'rule_files=69' in t and 'gate=pytest -q' in t; print('verified')\""
+  ],
+  "base": {
+    "all_pass": false,
+    "oracles": [
+      {
+        "cmd": "python -c \"import pathlib; p=pathlib.Path('docs/reports/canary-53871a7.md'); t=p.read_text(encoding='utf-8'); assert 'base=53871a7a13e2d000b1b6a6231568a653a9c3334f' in t and 'corpus=docs/rules/CNA-Rules.adoc present' in t and 'rule_files=69' in t and 'gate=pytest -q' in t; print('verified')\"",
+        "exit": 1,
+        "ok": false,
+        "stdout_tail": "",
+        "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n  File \"C:\\Users\\Tiwa Pene\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\pathlib.py\", line 1027, in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors) as f:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Tiwa Pene\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\pathlib.py\", line 1013, in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nFileNotFoundError: [Errno 2] No such file or directory: 'docs\\\\reports\\\\canary-53871a7.md'\n"
+      }
+    ]
+  },
+  "scratch": {
+    "all_pass": true,
+    "oracles": [
+      {
+        "cmd": "python -c \"import pathlib; p=pathlib.Path('docs/reports/canary-53871a7.md'); t=p.read_text(encoding='utf-8'); assert 'base=53871a7a13e2d000b1b6a6231568a653a9c3334f' in t and 'corpus=docs/rules/CNA-Rules.adoc present' in t and 'rule_files=69' in t and 'gate=pytest -q' in t; print('verified')\"",
+        "exit": 0,
+        "ok": true,
+        "stdout_tail": "verified\n",
+        "stderr_tail": ""
+      }
+    ]
+  },
+  "canary_valid": true,
+  "reason": "the oracle fails at the base and passes on the scratch implementation"
+}

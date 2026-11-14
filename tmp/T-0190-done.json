@@ -1,0 +1,629 @@
+{
+  "task": {
+    "id": "T-0190",
+    "title": "Record the repaired dispatch verification v2 (supervised canary)",
+    "type": "implement",
+    "goal_ref": "G-001",
+    "risk_floor": "R2",
+    "scope": {
+      "read": [],
+      "write": [
+        "docs/reports/dispatch-repair-verification-v2.md"
+      ]
+    },
+    "acceptance": {
+      "evidence_required": [],
+      "oracles": [
+        "python -c \"import pathlib; p=pathlib.Path('docs/reports/dispatch-repair-verification-v2.md'); t=p.read_text(encoding='utf-8'); assert 'rule_files=69' in t and 'CNA-Rules.adoc' in t and 'base=' in t and 'gate=pytest -q' in t; print('verified')\""
+      ]
+    },
+    "premises": [],
+    "budget": {
+      "tokens": 0,
+      "wall_min": 0
+    },
+    "depends_on": [],
+    "attempts": {
+      "max": 1
+    },
+    "created_by": {
+      "agent": "",
+      "kind": "overseer",
+      "model": "",
+      "role": "",
+      "session": ""
+    },
+    "priority": 0,
+    "agent_hint": "Your worktree base is the repaired tree at the commit pinned when this card was created. docs/rules/CNA-Rules.adoc and docs/rules/sections/ (66 corpus files) ARE present; copy nothing. Operate only inside your worktree. Read coverage/rules_coverage.json and note rule_files=69. Write exactly one file, docs/reports/dispatch-repair-verification-v2.md, containing: base=<actual sha from git rev-parse HEAD>; corpus=docs/rules/CNA-Rules.adoc present; rule_files=69; gate=pytest -q. Do not edit any other file. Commit nothing; the harness commits. Then stop.",
+    "hint_base_commit": "e302119728dcdf066b7f5555a14df4e5424da1bc",
+    "state": "DONE",
+    "attempt": 1,
+    "fence": 157,
+    "block_reason": "",
+    "stop_conditions": []
+  },
+  "lease": {
+    "task_id": "T-0190",
+    "fence": 157,
+    "holder": "kilo-auto",
+    "agent": "kilo",
+    "role": "implement",
+    "session": "",
+    "granted_at": "2026-11-09T17:49:31Z",
+    "renewed_at": "2026-11-09T17:50:38Z",
+    "expires_at": "2026-11-09T18:10:38Z",
+    "pid": 10244,
+    "creation_time": 134387201730720581,
+    "worktree": "C:\\temp\\projects\\testproject1\\work\\T-0190-157",
+    "restart_count": 0,
+    "failure_history": [],
+    "last_failure_class": "",
+    "attempt": 1
+  },
+  "events": [
+    {
+      "seq": 3504,
+      "prev_hash": "d51283cb36b7e4a5a8d12659d7918a7bc0ba8d3d3584f38df42bda32aadf2ffd",
+      "ts": "2026-11-09T17:38:46Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_CREATED",
+      "subject": "T-0190",
+      "fence": null,
+      "payload": {
+        "admission_errors": [],
+        "card": {
+          "acceptance": {
+            "evidence_required": [],
+            "oracles": [
+              "python -c \"import pathlib; p=pathlib.Path('docs/reports/dispatch-repair-verification-v2.md'); t=p.read_text(encoding='utf-8'); assert 'rule_files=69' in t and 'CNA-Rules.adoc' in t and 'base=' in t and 'gate=pytest -q' in t; print('verified')\""
+            ]
+          },
+          "agent_hint": "Your worktree base is the repaired tree at the commit pinned when this card was created. docs/rules/CNA-Rules.adoc and docs/rules/sections/ (66 corpus files) ARE present; copy nothing. Operate only inside your worktree. Read coverage/rules_coverage.json and note rule_files=69. Write exactly one file, docs/reports/dispatch-repair-verification-v2.md, containing: base=<actual sha from git rev-parse HEAD>; corpus=docs/rules/CNA-Rules.adoc present; rule_files=69; gate=pytest -q. Do not edit any other file. Commit nothing; the harness commits. Then stop.",
+          "attempt": 0,
+          "attempts": {
+            "max": 1
+          },
+          "block_reason": "",
+          "budget": {
+            "tokens": 0,
+            "wall_min": 0
+          },
+          "created_by": {
+            "agent": "",
+            "kind": "overseer",
+            "model": "",
+            "role": "",
+            "session": ""
+          },
+          "depends_on": [],
+          "fence": 0,
+          "goal_ref": "G-001",
+          "hint_base_commit": "e302119728dcdf066b7f5555a14df4e5424da1bc",
+          "id": "T-0190",
+          "premises": [],
+          "priority": 0,
+          "risk_floor": "R2",
+          "scope": {
+            "read": [],
+            "write": [
+              "docs/reports/dispatch-repair-verification-v2.md"
+            ]
+          },
+          "state": "PROPOSED",
+          "stop_conditions": [],
+          "title": "Record the repaired dispatch verification v2 (supervised canary)",
+          "type": "implement"
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "6986bbef0a784374fe6351dcd46460777c5acac6a64d6a5ec6c26c785d7b235e"
+    },
+    {
+      "seq": 3507,
+      "prev_hash": "a30fca83ffebe7787764cd0e4f4e2ee388844f36b762dbdd4fc15e15dc2d53a7",
+      "ts": "2026-11-09T17:39:18Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_ADMITTED",
+      "subject": "T-0190",
+      "fence": null,
+      "payload": {},
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "8e10f9e894d067efc0ef3c894809cb5fe1b2d0b46d8b3817dd9759c7cbd8b865"
+    },
+    {
+      "seq": 3509,
+      "prev_hash": "0148545943598e628010f6a253bc86bc6b4e31cf7a1403f789462fca9428d05a",
+      "ts": "2026-11-09T17:49:32Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "CLAIMED",
+      "subject": "T-0190",
+      "fence": 157,
+      "payload": {
+        "attempt": 1,
+        "base_commit": "e302119728dcdf066b7f5555a14df4e5424da1bc",
+        "fence": 157,
+        "lease": {
+          "agent": "kilo",
+          "attempt": 1,
+          "creation_time": null,
+          "expires_at": "",
+          "failure_history": [],
+          "fence": 157,
+          "granted_at": "2026-11-09T17:49:31Z",
+          "holder": "kilo-auto",
+          "last_failure_class": "",
+          "pid": null,
+          "renewed_at": "2026-11-09T17:49:31Z",
+          "restart_count": 0,
+          "role": "implement",
+          "session": "",
+          "task_id": "T-0190",
+          "worktree": ""
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "f72468422b90d4d919fb2aa3a4e70df975198e17df52b48df8297bec4c88cf22"
+    },
+    {
+      "seq": 3510,
+      "prev_hash": "f72468422b90d4d919fb2aa3a4e70df975198e17df52b48df8297bec4c88cf22",
+      "ts": "2026-11-09T17:49:33Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "AGENT_STARTED",
+      "subject": "T-0190",
+      "fence": 157,
+      "payload": {
+        "adapter": "kilo",
+        "creation_time": 134387201730720581,
+        "degraded": false,
+        "log": "C:\\temp\\projects\\testproject1\\.pm\\fleet\\logs\\T-0190\\157-0.log",
+        "main_tree_status": {
+          "count": 650,
+          "hash": "ef8ab0da929504a6",
+          "paths": [
+            ".pm/events/2026-11-07.jsonl",
+            ".pm/views/ledger.md",
+            ".pm/views/queue.md",
+            ".pm/views/status.md",
+            "coverage/rules_coverage.json",
+            "src/cna/data/scenario.py",
+            "src/cna/engine/loop.py",
+            "src/cna/rules/sec08_transport.py",
+            "src/cna/tools/coverage.py",
+            "tests/test_scenario_loader.py",
+            "tests/test_subprocess_env_lint.py",
+            "tests/test_transport.py",
+            "tools/check_subprocess_env.py",
+            ".pm/events/2026-11-08.jsonl",
+            ".pm/events/2026-11-09.jsonl",
+            "EVENT_LOG_VIOLATION_REPORT.md",
+            "FINAL_REPORT-completed.md",
+            "HANDOFF.previous.md",
+            "assessment-claude-umaws-fleet-parallel-decomposition-v1.md",
+            "assessment-claude-umaws-fleet-patch-review-v1.1.md"
+          ]
+        },
+        "pid": 10244,
+        "profile": "kilo-auto",
+        "worktree": "C:\\temp\\projects\\testproject1\\work\\T-0190-157"
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "8e8598f92d26e8fa43411f1af3fd20439fa291c1dcf9b6c17491b55020a4a602"
+    },
+    {
+      "seq": 3511,
+      "prev_hash": "8e8598f92d26e8fa43411f1af3fd20439fa291c1dcf9b6c17491b55020a4a602",
+      "ts": "2026-11-09T17:49:33Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "FLEET_ASSIGNED",
+      "subject": "T-0190",
+      "fence": null,
+      "payload": {
+        "candidates": [
+          {
+            "eligible": true,
+            "idle_seconds": 41169,
+            "profile": "kilo-auto",
+            "reason": "",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": true,
+            "idle_seconds": 656219,
+            "profile": "hermes-solar-mini4",
+            "reason": "",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": true,
+            "idle_seconds": 656218,
+            "profile": "hermes-beam",
+            "reason": "",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": true,
+            "idle_seconds": 1794246569,
+            "profile": "hermes-stepfun",
+            "reason": "",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": true,
+            "idle_seconds": 1794246569,
+            "profile": "hermes-ornith",
+            "reason": "",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": true,
+            "idle_seconds": 1794246569,
+            "profile": "cline-solar-mini4",
+            "reason": "",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": true,
+            "idle_seconds": 1794246569,
+            "profile": "cline-beam",
+            "reason": "",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": true,
+            "idle_seconds": 1794246569,
+            "profile": "cline-nemo-lightning",
+            "reason": "",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": true,
+            "idle_seconds": 1794246569,
+            "profile": "cline-nemo-super",
+            "reason": "",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": true,
+            "idle_seconds": 764917,
+            "profile": "opencode-strongest",
+            "reason": "",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": true,
+            "idle_seconds": 1794246569,
+            "profile": "overseer-inkling",
+            "reason": "",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": true,
+            "idle_seconds": 1794246569,
+            "profile": "opencode-orca-auto",
+            "reason": "",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": true,
+            "idle_seconds": 816349,
+            "profile": "fake",
+            "reason": "",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": false,
+            "idle_seconds": 0,
+            "profile": "opencode-fallback",
+            "reason": "not eligible for type 'implement'",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": false,
+            "idle_seconds": 0,
+            "profile": "pi-orca-glm-5-3-flash",
+            "reason": "disabled",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": false,
+            "idle_seconds": 0,
+            "profile": "pi-orca-hy4-preview",
+            "reason": "disabled",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": false,
+            "idle_seconds": 0,
+            "profile": "pi-orca-hy3",
+            "reason": "disabled",
+            "running": 0,
+            "utilization": 0.0
+          },
+          {
+            "eligible": false,
+            "idle_seconds": 0,
+            "profile": "pi-orca-deepseek",
+            "reason": "disabled",
+            "running": 0,
+            "utilization": 0.0
+          }
+        ],
+        "profile": "kilo-auto",
+        "reason": "profile kilo-auto chosen (hint 'Your worktree base is the repaired tree at the commit pinned when this card was created. docs/rules/CNA-Rules.adoc and docs/rules/sections/ (66 corpus files) ARE present; copy nothing. Operate only inside your worktree. Read coverage/rules_coverage.json and note rule_files=69. Write exactly one file, docs/reports/dispatch-repair-verification-v2.md, containing: base=<actual sha from git rev-parse HEAD>; corpus=docs/rules/CNA-Rules.adoc present; rule_files=69; gate=pytest -q. Do not edit any other file. Commit nothing; the harness commits. Then stop.' not available)"
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "5b6ed58acacf1dfa1662b3ec8ee602dcff75a724d15cf4bebfdd07673241c93a"
+    },
+    {
+      "seq": 3512,
+      "prev_hash": "5b6ed58acacf1dfa1662b3ec8ee602dcff75a724d15cf4bebfdd07673241c93a",
+      "ts": "2026-11-09T17:50:39Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "RENEWED",
+      "subject": "T-0190",
+      "fence": 157,
+      "payload": {
+        "digest": "files_changed=0 log_bytes=640 wall_s=65",
+        "expires_at": "2026-11-09T18:10:38Z",
+        "ts": "2026-11-09T17:50:38Z"
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "bae8616613a820e9c01dc61d5124ffa5f090fe61aaa14d04b7e05d41e6295aa6"
+    },
+    {
+      "seq": 3513,
+      "prev_hash": "bae8616613a820e9c01dc61d5124ffa5f090fe61aaa14d04b7e05d41e6295aa6",
+      "ts": "2026-11-09T17:51:33Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "AGENT_EXITED",
+      "subject": "T-0190",
+      "fence": 157,
+      "payload": {
+        "class": "OK",
+        "exit_code": 0,
+        "log": "C:\\temp\\projects\\testproject1\\.pm\\fleet\\logs\\T-0190\\157-0.log",
+        "main_tree_new_changes_count": 0,
+        "main_tree_new_changes_in_scope": [],
+        "main_tree_status": {
+          "count": 651,
+          "hash": "644eda4b740b60fc",
+          "paths": [
+            ".pm/events/2026-11-07.jsonl",
+            ".pm/views/ledger.md",
+            ".pm/views/queue.md",
+            ".pm/views/status.md",
+            "coverage/rules_coverage.json",
+            "src/cna/data/scenario.py",
+            "src/cna/engine/loop.py",
+            "src/cna/rules/sec08_transport.py",
+            "src/cna/tools/coverage.py",
+            "tests/test_scenario_loader.py",
+            "tests/test_subprocess_env_lint.py",
+            "tests/test_transport.py",
+            "tools/check_subprocess_env.py",
+            ".pm/events/2026-11-08.jsonl",
+            ".pm/events/2026-11-09.jsonl",
+            "EVENT_LOG_VIOLATION_REPORT.md",
+            "FINAL_REPORT-completed.md",
+            "HANDOFF.previous.md",
+            "assessment-claude-umaws-fleet-parallel-decomposition-v1.md",
+            "assessment-claude-umaws-fleet-patch-review-v1.1.md"
+          ]
+        },
+        "profile": "kilo-auto",
+        "session": "",
+        "stalled": false
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "e224151618eadc765fb94863d0377a41879c927c4567c98e4e1cbfd3b34644d4"
+    },
+    {
+      "seq": 3514,
+      "prev_hash": "e224151618eadc765fb94863d0377a41879c927c4567c98e4e1cbfd3b34644d4",
+      "ts": "2026-11-09T17:51:33Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "MODEL_SERVED",
+      "subject": "T-0190",
+      "fence": 157,
+      "payload": {
+        "deployment": "",
+        "profile": "kilo-auto",
+        "served_models": [],
+        "source": "none",
+        "via_gateway": false
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "6080d43e1d06d27fb202c9fdf3582264a27f4f319ad3db0d6b813d82606da2ba"
+    },
+    {
+      "seq": 3515,
+      "prev_hash": "6080d43e1d06d27fb202c9fdf3582264a27f4f319ad3db0d6b813d82606da2ba",
+      "ts": "2026-11-09T17:51:34Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "AGENT_ADVISORY",
+      "subject": "T-0190",
+      "fence": 157,
+      "payload": {
+        "advisories": [
+          "RESULT.md does not mention the task id T-0190"
+        ],
+        "profile": "kilo-auto"
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "07e4e487553a16c77e4b89e6f83a8799b166e810ea55914c3d64f87175bf717c"
+    },
+    {
+      "seq": 3516,
+      "prev_hash": "07e4e487553a16c77e4b89e6f83a8799b166e810ea55914c3d64f87175bf717c",
+      "ts": "2026-11-09T17:51:35Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "SUBMITTED",
+      "subject": "T-0190",
+      "fence": 157,
+      "payload": {
+        "all_oracles_passed": true,
+        "bundle": "EB-T-0190-157",
+        "bundle_path": "C:\\temp\\projects\\testproject1\\.pm\\evidence\\EB-T-0190-157\\bundle.json",
+        "pid": 10244,
+        "session": ""
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "52ad6610e0960f0bc061607c00222b97458671b7b1856e95d859f2e47e2b863e"
+    },
+    {
+      "seq": 3518,
+      "prev_hash": "dffbf6e47e5b83f56b45ccf04479aa1d9900f3e92f89d979b19a2da239378839",
+      "ts": "2026-11-09T17:58:26Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "ORACLE_RESULT",
+      "subject": "T-0190",
+      "fence": 157,
+      "payload": {
+        "cmd": "pytest -q",
+        "no_ff_fallback": false,
+        "ok": true,
+        "reintegration": false,
+        "stage": "gate"
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "a7bca93cb4a35abab954d4d331e516a514c2f24c0694105a0aa269b2c56276f6"
+    },
+    {
+      "seq": 3519,
+      "prev_hash": "a7bca93cb4a35abab954d4d331e516a514c2f24c0694105a0aa269b2c56276f6",
+      "ts": "2026-11-09T17:58:27Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "INTEGRATING",
+      "subject": "T-0190",
+      "fence": 157,
+      "payload": {
+        "commit": "0edc0dc0f35b8f48b2f74f4f07f4a09bb087e723"
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "00d3aece4865a01dd9bf836338d9315f87ce152d889b022b8fd190f4e0ba82f3"
+    },
+    {
+      "seq": 3520,
+      "prev_hash": "00d3aece4865a01dd9bf836338d9315f87ce152d889b022b8fd190f4e0ba82f3",
+      "ts": "2026-11-09T17:58:27Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "INTEGRATED",
+      "subject": "T-0190",
+      "fence": 157,
+      "payload": {
+        "bundle": "EB-T-0190-157",
+        "commit": "0edc0dc0f35b8f48b2f74f4f07f4a09bb087e723"
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "2ade1d37cbf8d0aaca72f33845fdce88ff79819edd2f51b9dba5185a46f4083c"
+    }
+  ]
+}

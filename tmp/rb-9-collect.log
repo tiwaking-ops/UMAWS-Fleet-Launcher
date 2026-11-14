@@ -1,0 +1,131 @@
+tests/fleet/test_adapter_paths.py: 9
+tests/fleet/test_decompose_width.py: 12
+tests/fleet/test_harness_claims.py: 11
+tests/fleet/test_hermes_session.py: 13
+tests/fleet/test_identity_guard.py: 4
+tests/fleet/test_merge_gate_diagnostics.py: 3
+tests/fleet/test_merge_queue.py: 6
+tests/fleet/test_oracle_lint.py: 24
+tests/fleet/test_order_environment.py: 3
+tests/fleet/test_order_prompt_path.py: 2
+tests/fleet/test_overseer_profile_fallback.py: 2
+tests/fleet/test_provenance.py: 14
+tests/pmk/test_context.py: 32
+tests/pmk/test_context_limits.py: 3
+tests/pmk/test_context_negation.py: 6
+tests/pmk/test_context_real_caliber.py: 6
+tests/pmk/test_events.py: 10
+tests/pmk/test_load_agents.py: 7
+tests/pmk/test_pins.py: 3
+tests/pmk/test_pins_newline.py: 1
+tests/pmk/test_plat.py: 19
+tests/pmk/test_policy_invalid.py: 4
+tests/pmk/test_regression_i5.py: 35
+tests/pmk/test_sanitise.py: 8
+tests/pmk/test_sentinel_views.py: 21
+tests/pmk/test_tasks.py: 31
+tests/pmk/test_worktree_lifecycle.py: 46
+
+=================================== ERRORS ====================================
+____________ ERROR collecting tests/fleet/test_conductor_leases.py ____________
+ImportError while importing test module 'C:\temp\projects\testproject1\tests\fleet\test_conductor_leases.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\fleet\test_conductor_leases.py:29: in <module>
+    from conftest import FIXTURE_ROOT, fake_profile, make_task
+E   ImportError: cannot import name 'FIXTURE_ROOT' from 'conftest' (C:\temp\projects\testproject1\tests\pmk\conftest.py)
+____________ ERROR collecting tests/fleet/test_console_dispatch.py ____________
+ImportError while importing test module 'C:\temp\projects\testproject1\tests\fleet\test_console_dispatch.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\fleet\test_console_dispatch.py:23: in <module>
+    from conftest import fake_profile  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ImportError: cannot import name 'fake_profile' from 'conftest' (C:\temp\projects\testproject1\tests\pmk\conftest.py)
+_________________ ERROR collecting tests/fleet/test_fleet.py __________________
+ImportError while importing test module 'C:\temp\projects\testproject1\tests\fleet\test_fleet.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\fleet\test_fleet.py:25: in <module>
+    from conftest import FIXTURE_ROOT, fake_profile, make_task, write_agents
+E   ImportError: cannot import name 'FIXTURE_ROOT' from 'conftest' (C:\temp\projects\testproject1\tests\pmk\conftest.py)
+_____________ ERROR collecting tests/fleet/test_overseer_wake.py ______________
+ImportError while importing test module 'C:\temp\projects\testproject1\tests\fleet\test_overseer_wake.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\fleet\test_overseer_wake.py:18: in <module>
+    from conftest import FIXTURE_ROOT, make_task
+E   ImportError: cannot import name 'FIXTURE_ROOT' from 'conftest' (C:\temp\projects\testproject1\tests\pmk\conftest.py)
+________________ ERROR collecting tests/fleet/test_precheck.py ________________
+ImportError while importing test module 'C:\temp\projects\testproject1\tests\fleet\test_precheck.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\fleet\test_precheck.py:16: in <module>
+    from conftest import write_agents
+E   ImportError: cannot import name 'write_agents' from 'conftest' (C:\temp\projects\testproject1\tests\pmk\conftest.py)
+____________ ERROR collecting tests/fleet/test_precheck_dry_run.py ____________
+ImportError while importing test module 'C:\temp\projects\testproject1\tests\fleet\test_precheck_dry_run.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\fleet\test_precheck_dry_run.py:15: in <module>
+    from conftest import make_task
+E   ImportError: cannot import name 'make_task' from 'conftest' (C:\temp\projects\testproject1\tests\pmk\conftest.py). Did you mean: 'make_card'?
+______________ ERROR collecting tests/fleet/test_regressions.py _______________
+ImportError while importing test module 'C:\temp\projects\testproject1\tests\fleet\test_regressions.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\fleet\test_regressions.py:22: in <module>
+    from conftest import fake_profile, make_task, write_agents
+E   ImportError: cannot import name 'fake_profile' from 'conftest' (C:\temp\projects\testproject1\tests\pmk\conftest.py)
+___________ ERROR collecting tests/fleet/test_reintegration_gate.py ___________
+ImportError while importing test module 'C:\temp\projects\testproject1\tests\fleet\test_reintegration_gate.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\fleet\test_reintegration_gate.py:24: in <module>
+    from conftest import make_task
+E   ImportError: cannot import name 'make_task' from 'conftest' (C:\temp\projects\testproject1\tests\pmk\conftest.py). Did you mean: 'make_card'?
+______________ ERROR collecting tests/fleet/test_worktree_env.py ______________
+ImportError while importing test module 'C:\temp\projects\testproject1\tests\fleet\test_worktree_env.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\fleet\test_worktree_env.py:31: in <module>
+    from conftest import make_task
+E   ImportError: cannot import name 'make_task' from 'conftest' (C:\temp\projects\testproject1\tests\pmk\conftest.py). Did you mean: 'make_card'?
+=========================== short test summary info ===========================
+ERROR tests/fleet/test_conductor_leases.py
+ERROR tests/fleet/test_console_dispatch.py
+ERROR tests/fleet/test_fleet.py
+ERROR tests/fleet/test_overseer_wake.py
+ERROR tests/fleet/test_precheck.py
+ERROR tests/fleet/test_precheck_dry_run.py
+ERROR tests/fleet/test_regressions.py
+ERROR tests/fleet/test_reintegration_gate.py
+ERROR tests/fleet/test_worktree_env.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 9 errors during collection !!!!!!!!!!!!!!!!!!!

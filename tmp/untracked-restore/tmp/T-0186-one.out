@@ -1,0 +1,11 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.7.0 -- C:\temp\projects\testproject1\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\temp\projects\testproject1
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: anyio-4.15.1
+collecting ... collected 1 item
+
+tests/fleet/test_harness_claims.py::test_other_task_types_skip_the_change_check PASSED [100%]
+
+============================== 1 passed in 0.34s ==============================

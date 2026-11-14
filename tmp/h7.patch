@@ -1,0 +1,70 @@
+diff --git a/src/pmk/worktrees.py b/src/pmk/worktrees.py
+index 8bb5caa..edfe04c 100644
+--- a/src/pmk/worktrees.py
++++ b/src/pmk/worktrees.py
+@@ -877,6 +877,25 @@ def reclaim_after_capture(repo, state, path: Path, *,
+         _release_lock(lock)
+ 
+ 
++def merge_trees(temp_root: str | Path | None = None) -> list[dict]:
++    """Read-only inventory of merge scratch trees under ``%TEMP%``."""
++    root = Path(temp_root) if temp_root else Path(tempfile.gettempdir())
++    if not root.is_dir():
++        return []
++    found = []
++    for path in sorted(root.glob("pmk-merge-*")):
++        if not path.is_dir():
++            continue
++        try:
++            total = sum(p.stat().st_size for p in path.rglob("*")
++                        if p.is_file())
++        except OSError:
++            total = 0
++        found.append({"name": path.name, "path": str(path),
++                      "bytes": total})
++    return found
++
++
+ def prune(repo, state, *, dry_run: bool = True,
+           older_than_days: float | None = None,
+           keep_unmerged: bool = True,
+@@ -958,4 +977,5 @@ def prune(repo, state, *, dry_run: bool = True,
+         "counts": {"candidates": len(candidates), "removed": len(removed),
+                    "archived": len(archived), "skipped": len(skipped)},
+         "recoverable_bytes": sum(c["bytes"] for c in candidates),
++        "merge_trees": merge_trees(),
+     }
+diff --git a/tests/pmk/test_prune_merge_trees.py b/tests/pmk/test_prune_merge_trees.py
+new file mode 100644
+index 0000000..5f16275
+--- /dev/null
++++ b/tests/pmk/test_prune_merge_trees.py
+@@ -0,0 +1,28 @@
++"""H7: prune reports pmk-merge trees without deleting them."""
++
++from __future__ import annotations
++
++from pmk import worktrees
++
++
++def test_prune_reports_temp_merge_trees_without_removing_them(
++        kernel, repo, monkeypatch, tmp_path):
++    temp_root = tmp_path / "temp"
++    temp_root.mkdir()
++    merge = temp_root / "pmk-merge-abc"
++    merge.mkdir()
++    (merge / "file.txt").write_text("scratch\n", encoding="utf-8")
++    unrelated = temp_root / "not-a-merge-tree"
++    unrelated.mkdir()
++    (unrelated / "keep.txt").write_text("keep\n", encoding="utf-8")
++
++    monkeypatch.setattr(worktrees.tempfile, "gettempdir",
++                        lambda: str(temp_root))
++    result = worktrees.prune(repo, kernel.state())
++
++    assert result["dry_run"] is True
++    assert [item["name"] for item in result["merge_trees"]] == [
++        "pmk-merge-abc"]
++    assert merge.is_dir()
++    assert (merge / "file.txt").is_file()
++    assert unrelated.is_dir()

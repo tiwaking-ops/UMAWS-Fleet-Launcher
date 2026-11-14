@@ -5,7 +5,7 @@
 **Branch:** `repair/fleet-launcher-2026-11-09`, fast-forwarded to `main` locally
 **Entry base:** `e7d272504f16d6c75a0805b56f01ad5ba7f10be6` (`main`)
 **Gated code base:** `09cca8515d6d8dd75f1c412db72a98867e5a6a3d`
-**Status:** **repair landed; clean-base gate green; H2 conftest split fixed; H6 gate-output persistence is implemented and proven by the fresh supervised canary `T-0191` (`DONE`, merge `c7fcdf3`, bundle `EB-T-0191-158` with non-empty `gate_output`); H1/H3/H4/H7 are captured as prechecked `PROPOSED` cards `T-0192`–`T-0195`; Phase 6 hardening remains deferred.** No push. Project remains `PAUSED`.
+**Status:** **repair landed; clean-base gate green; H2 conftest split fixed; H6 gate-output persistence is implemented and proven by `T-0191` and re-proven by the fresh supervised canary `T-0196` (`DONE`, merge `951d1ee`, bundle `EB-T-0196-159` with non-empty `gate_output`); H1/H3/H4/H7 are captured as prechecked `PROPOSED` cards `T-0192`–`T-0195`; Phase 6 hardening remains deferred.** No push. Project remains `PAUSED`.
 
 All claims below are labelled **Confirmed** (measured in this execution), **Derived** (inferred from measurements), or **Unknown**.
 
@@ -54,6 +54,7 @@ Before this canary record, the remaining dirty files were exactly the Kernel-wri
 | `712ca1a` | S5 fix: verify loaded module files (cna is a namespace package) | gate **exit 0** |
 | `f5f414c` | Phase 8 records (census, inventory, erratum, D-70/D-71) | documentary |
 | `09cca85` | LF restoration for `pilot/decisions.md` | documentary |
+| `e302119` | H2: shared fleet/pmk fixture helpers moved out of `conftest.py` so both suites collect together | `tmp/dod2-collection-20261110-113301.log` (collect-only exit 0, 500 collected) |
 
 ## 4. Phase 6 verify-first measurements (deferred)
 
@@ -64,7 +65,7 @@ Before this canary record, the remaining dirty files were exactly the Kernel-wri
 | H3 reconcile wiring | `Dispatcher.reconcile()` exists at `src/fleet/dispatcher.py:520`; no startup caller in `src/fleet`. Unwired. |
 | H4 model attribution | `provenance.served_models*` can return an empty set and `harness.py:767` writes `sorted(models)`; no non-empty guard. Unimplemented. |
 | H5 env lint | `tools/check_subprocess_env.py` exists, 7 allowlisted exceptions, exits 0. Partially satisfied (extension not attempted). |
-| H6 gate output in bundles | **Resolved and proven** — `merge.integrate()` builds `gate_output` from `_gate_diagnostics()` and writes it to `Bundle.gate_output` on success, gate failure, and launch failure. Regression: `tests/fleet/test_merge_queue.py::test_gate_output_is_persisted_in_the_bundle` covers both outcomes. Fresh canary T-0191 produced `EB-T-0191-158` with a non-empty `gate_output`; the historical T-0190 bundle remains unchanged. |
+| H6 gate output in bundles | **Resolved and proven** — `merge.integrate()` builds `gate_output` from `_gate_diagnostics()` and writes it to `Bundle.gate_output` on success, gate failure, and launch failure. Regression: `tests/fleet/test_merge_queue.py::test_gate_output_is_persisted_in_the_bundle` covers both outcomes. Fresh canaries `T-0191` (`EB-T-0191-158`) and `T-0196` on `9bb0139` (`EB-T-0196-159`, merge `951d1ee`) produced non-empty `gate_output`; the historical T-0190 bundle remains unchanged. |
 | H7 prune awareness | `src/pmk/worktrees.py` has `prune`/`archive`, no `%TEMP%/pmk-merge-*` awareness. Unimplemented. |
 
 Deferral reason: H1/H3/H4/H7 remain new work under A-5; they are now captured as focused `PROPOSED` cards T-0192–T-0195 and prechecked at base `9b92c936`, but none was admitted in this programme. H2 was fixed in the repair; H6 was implemented directly for the operator's requested hardening and is covered by a focused regression.
@@ -100,21 +101,27 @@ No source or documentation changes are associated with the cards themselves; the
 
 The bundle `.pm/evidence/EB-T-0191-158/bundle.json` carries non-empty `gate_output` with `cmd: "pytest -q"`, `exit: 0`, `ok: true`, `failed_tests: []`, 17 stdout-tail lines ending at `[100%]`, and an empty stderr tail. The historical T-0190 bundle remains unchanged and lacks `gate_output`; it is superseded for DoD-6, not retrofitted.
 
-Deviation: after submission, the separate `pmk dispatch run` loop was stopped before the gate started, as in the T-0190 run, so the Console Conductor could integrate. No second dispatch or card was admitted; project state remains `PAUSED` with 0 active leases.
+**Fresh re-run on the H6-enabled base (2026-11-10).** `T-0196` was created at `9bb0139a16bb6fa6d6a2fda2ef29a1a3b653db3b`, which contains H6 `ce22591`, and prechecked with base oracle exit 1 and scratch oracle exit 0 (`canary_valid: true`). It was admitted as the only READY card and claimed at fence 159 under `kilo-auto`/`kilo`; the agent exited 0 and `SUBMITTED` was recorded at seq 3554. The Console Conductor ran the merge gate; `ORACLE_RESULT` (seq 3556) was `ok: true`, exit 0, `INTEGRATING`/`INTEGRATED` were seq 3557/3558, and the merge landed as `951d1ee5b40aff2d24eb5807195fd4999d33705c` (`umaws-pilot <umaws-pilot@localhost>`); task state is `DONE`.
+
+The fresh bundle `.pm/evidence/EB-T-0196-159/bundle.json` carries non-empty `gate_output` with `cmd: "pytest -q"`, `exit: 0`, `ok: true`, `failed_tests: []`, 17 stdout-tail lines ending at `[100%]`, and an empty stderr tail. This is the fresh closure evidence for DoD-6; T-0191 remains the original proof.
+
+Deviation: during T-0191, after submission, the separate `pmk dispatch run` loop was stopped before the gate started, as in the T-0190 run, so the Console Conductor could integrate. In the fresh T-0196 run, the dispatch and Console processes were stopped only after `DONE`; no second dispatch or card was admitted. The only advisory was `RESULT.md does not mention the task id T-0196`, which did not affect acceptance. Project state remains `PAUSED` with 0 active leases.
 
 ## 7. Definition-of-done matrix
 
 | DoD | Criterion | Measured | Evidence |
 |---|---|---|---|
 | DoD-1 | Gate green in a detached clean worktree at the recorded base; imports inside | **PASS** — exit 0 at `712ca1a` and `09cca85`; `cna.engine.loop` and `pmk` both inside the worktree | `tmp/clean-base-1794224200.log`, `tmp/clean-base-1794225200.log` |
-| DoD-2 | Combined fleet+pmk collection | **PASS** — exit 0 after the H2 fixture split | `tmp/combined-collection-only.log` |
+| DoD-2 | Combined fleet+pmk collection | **PASS** — H2 at `e302119`; collect-only exit 0, 500 tests collected (2026-11-10); combined execution also exit 0 | `tmp/combined-collection-only.log`; `tmp/dod2-collection-20261110-113301.log` |
 | DoD-3 | Env invariant | **PASS** — exit 0, 7 allowlisted | tool output |
 | DoD-4 | Censuses explained; no un-captured deletion | **PASS (measure/capture)** — 32 vs 44, 12-entry difference explained; 7 dirty trees archived; no deletion | `tmp/rb-7-*`, `tmp/capture-pmk-archive.txt` |
 | DoD-5 | Lease admission check; `active_leases: 0` | **PARTIAL** — 0 leases confirmed; admission check absent (H1) | `pmk status` |
-| DoD-6 | Supervised canary `DONE` with bundle `gate_output` | **PASS** — T-0191 `DONE`, merge `c7fcdf3`; bundle `EB-T-0191-158` carries non-empty `gate_output` (`pytest -q`, exit 0); events seq 3534–3537 | `.pm/evidence/EB-T-0191-158/bundle.json`; `tests/fleet/test_merge_queue.py` |
+| DoD-6 | Supervised canary `DONE` with bundle `gate_output` | **PASS** — fresh T-0196 `DONE`, merge `951d1ee`; bundle `EB-T-0196-159` carries non-empty `gate_output` (`pytest -q`, exit 0); events seq 3554–3558. T-0191 remains the original proof (`EB-T-0191-158`) | `.pm/evidence/EB-T-0196-159/bundle.json`; `tests/fleet/test_merge_queue.py` |
 | DoD-7 | Decision drafted; checklist evidence-linked | **PASS (draft)** — D-72 drafted; items 13/15/16 updated | this report, `pilot/decisions.md`, checklist |
-| DoD-8 | In-scope items closed or deferred with reason | **PARTIAL** — H1/H3/H4/H7 deferred; H6 implemented and regression-tested; fresh canary T-0191 proves gate-output persistence | §4, §6 |
+| DoD-8 | In-scope items closed or deferred with reason | **PARTIAL** — H1/H3/H4/H7 deferred; H6 implemented and regression-tested; fresh canaries T-0191 and T-0196 prove gate-output persistence | §4, §6 |
 | DoD-9 | Decision-before/evidence-after per irreversible action | **PASS except CP-3** — capture, slices, gate, landing, canary evidenced; deletion not attempted | §2, §5, §6 |
+
+**DoD-2 closure (2026-11-10).** `e302119` is an ancestor of `HEAD`, and no test imports a bare `conftest` module. The exact oracle `python -m pytest -q --collect-only tests/fleet tests/pmk` exited 0 with 500 tests collected; the combined execution `python -m pytest -q tests/fleet tests/pmk` also exited 0. The original 2026-11-09 evidence remains `tmp/combined-collection-only.log`; the fresh re-verification is `tmp/dod2-collection-20261110-113301.log`.
 
 ## 8. Record-only observations
 

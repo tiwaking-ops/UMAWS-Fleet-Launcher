@@ -1,0 +1,46 @@
+{
+  "id": "T-0211",
+  "title": "P1b.2: lock §11 combat framework and resolver contract",
+  "type": "implement",
+  "goal_ref": "G-001",
+  "risk_floor": "R2",
+  "scope": {
+    "write": [
+      "tests/test_p1b2_combat_contracts.py"
+    ],
+    "read": []
+  },
+  "acceptance": {
+    "oracles": [
+      "python -m pytest -q tests/test_p1b2_combat_contracts.py tests/test_combat.py tests/test_engine_contract.py",
+      "python -m cna.tools.coverage --check"
+    ],
+    "evidence_required": []
+  },
+  "premises": [],
+  "budget": {
+    "tokens": 60000,
+    "wall_min": 120
+  },
+  "depends_on": [
+    "T-0170"
+  ],
+  "attempts": {
+    "max": 3
+  },
+  "created_by": {
+    "kind": "overseer",
+    "agent": "",
+    "model": "",
+    "session": "",
+    "role": ""
+  },
+  "priority": 10,
+  "agent_hint": "P1b.2 contract-lock card; do not change production rules or coverage data. Add tests/test_p1b2_combat_contracts.py using synthetic CombatUnit fixtures and caller-supplied R-04/R-06 values. Lock the existing section 11 interfaces together: 11.11-11.16 ratings, 11.21-11.27 CP costs, 11.31-11.38 raw/actual strength, and a resolved Close Assault path through resolve_close_assault. Assert rule citations returned by the existing APIs; do not invent TEC, CRT or unit ratings. If a contract cannot pass without a production change, record the exact gap in RESULT.md and stop rather than weakening the test.",
+  "hint_base_commit": "d280365c9102a28ade9bd47fd78bc22fd34a8283",
+  "state": "PROPOSED",
+  "attempt": 0,
+  "fence": 0,
+  "block_reason": "",
+  "stop_conditions": []
+}

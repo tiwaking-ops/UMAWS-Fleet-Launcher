@@ -1,9 +1,10 @@
 # D-69 operator packet — T-0146 disposition and supervised canary
 
-**Status:** DRAFT for operator review. This file executes nothing.
+**Status:** DRAFT — retained for the record; A8 is applied. This file executes nothing.
 **Drafted:** 2026-11-08T21:52Z (UTC)
-**Measured base:** `HEAD` = `7910de5` (2026-11-08)
-**Authoritative state:** `pmk` / the hash-chained event log. The notes below were measured at drafting time.
+**Refreshed:** 2026-11-10 — post-A8 state: `core.hooksPath` = `.githooks`; current `HEAD` = `91e5e14`
+**Measured base:** `HEAD` at drafting = `7910de5` (2026-11-08); current `HEAD` = `91e5e14` (2026-11-10)
+**Authoritative state:** `pmk` / the hash-chained event log. Re-measure before any run; do not re-derive by hand.
 
 ## 0. Current state (do not re-derive by hand)
 
@@ -11,11 +12,11 @@
 |---|---|
 | T-0146 | `VOID`, fence 125, `block_reason = "superseded by T-0159 coverage regeneration"` |
 | T-0146 void event | `TASK_VOIDED` at seq 3315, `2026-11-08T12:40:44Z`, actor `operator` / `human` |
-| Project | `PAUSED`; 32 `DONE`, 10 `PROPOSED`, 143 `VOID`; 0 `READY`; 0 active leases; 0 open queue items |
-| Chain | verifies (3434 events at drafting time) |
-| Sentinel | `pmk sentinel` currently `ok: true`, no findings; the red baseline in D-68 is historical |
-| Identity guard | `core.hooksPath` is **empty**; A8 is outstanding |
-| Fleet | `dispatch_paused: false`, `slots_in_use: 0`, cap 10; `kilo-auto` ready at priority 0 |
+| Project | `PAUSED`; 155 `VOID`, 43 `DONE`, 12 `READY`, 1 `VERIFYING`, 1 `LEASED`; 2 active leases; 0 open queue items |
+| Chain | `I1 chain verifies (3630 events)` (2026-11-10) |
+| Sentinel | `pmk sentinel` `ok: true`, no findings (2026-11-10); the red baseline in D-68 is historical |
+| Identity guard | `core.hooksPath` = `.githooks`; **A8 applied 2026-11-09** (D-69) |
+| Fleet | `dispatch_paused: false`, `slots_in_use: 0`, cap 10; `kilo-auto` ready at priority 0 (2026-11-10) |
 | Corpus at HEAD | `docs/rules/CNA-Rules.adoc` + 65 files under `docs/rules/sections/` |
 | Coverage at HEAD | `rule_files: 69` (the canary oracle's fact) |
 | Canary target | `docs/reports/dispatch-repair-verification-v1.md`; exact path is clean |
@@ -86,11 +87,11 @@ Expected:
 | `pmk pins check` | `ok: true` | Stop |
 | `pmk sentinel` | `ok: true`, no findings (measured at drafting time); the D-68 red baseline is historical | Stop if any finding appears; compare it with the D-68 baseline |
 | `pytest -q` | green; record the count | Stop if red |
-| `core.hooksPath` | `.githooks`; **currently empty**, so A8 is not applied | Run `git config core.hooksPath .githooks`, then re-check; stop while empty |
+| `core.hooksPath` | `.githooks` (A8 applied 2026-11-09) | If empty, run `git config core.hooksPath .githooks`, then re-check; stop while empty |
 | `pilot/STOP` | absent | If present, stop; do not delete it silently |
 | canary target path | empty `git status` output | Stop if the file already exists or is modified |
 
-**Current blocker:** A8 is not applied in this tree (`core.hooksPath` is empty). Run `git config core.hooksPath .githooks` before creating the canary; D-69's identity-guard precondition is not met until it is set. Re-check with `git config --get core.hooksPath`.
+**A8 status (refreshed 2026-11-10):** applied in this tree on 2026-11-09 — `core.hooksPath` is `.githooks` (D-69), so the drafting-time identity-guard blocker is cleared. Re-check with `git config --get core.hooksPath` before any run.
 
 **Do not run `pmk project resume` for the canary.** The project stays `PAUSED`; `pmk dispatch run` is the explicit supervised dispatch action, and the Console's Conductor still drains the merge queue while the project is paused. `pmk project resume` is part of A10, after D-69 passes.
 

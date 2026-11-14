@@ -1,0 +1,292 @@
+{
+  "task": {
+    "id": "T-0182",
+    "title": "Add a full-product release-status note",
+    "type": "implement",
+    "goal_ref": "G-001",
+    "risk_floor": "R2",
+    "scope": {
+      "read": [
+        "docs/PDD.md",
+        "docs/reports/project-evaluation-2026-11-08-v1.md",
+        "docs/data-gaps.md",
+        "docs/plans/cna-p1b-p4-implementation-plan.md"
+      ],
+      "write": [
+        "docs/release-status.md",
+        "tests/test_release_status.py"
+      ]
+    },
+    "acceptance": {
+      "evidence_required": [],
+      "oracles": [
+        "python -m pytest -q tests/test_release_status.py"
+      ]
+    },
+    "premises": [],
+    "budget": {
+      "tokens": 60000,
+      "wall_min": 240
+    },
+    "depends_on": [],
+    "attempts": {
+      "max": 3
+    },
+    "created_by": {
+      "agent": "",
+      "kind": "overseer",
+      "model": "",
+      "role": "",
+      "session": ""
+    },
+    "priority": 10,
+    "agent_hint": "Keep the PDD-scoped release (G-001/G-002) separate from full-product status. Link the phase backlog and docs/data-gaps.md; do not claim full completion.",
+    "hint_base_commit": "7910de5531f2be30948feefb9656106ae8ec5f9e",
+    "state": "DONE",
+    "attempt": 1,
+    "fence": 151,
+    "block_reason": "",
+    "stop_conditions": []
+  },
+  "lease": {
+    "task_id": "T-0182",
+    "fence": 151,
+    "holder": "opencode-strongest",
+    "agent": "buffy",
+    "role": "implement",
+    "session": "",
+    "granted_at": "2026-11-09T05:01:01Z",
+    "renewed_at": "2026-11-09T05:01:01Z",
+    "expires_at": "",
+    "pid": null,
+    "creation_time": null,
+    "worktree": "C:\\temp\\projects\\testproject1",
+    "restart_count": 0,
+    "failure_history": [],
+    "last_failure_class": "",
+    "attempt": 1
+  },
+  "events": [
+    {
+      "seq": 3431,
+      "prev_hash": "24d847009c52a75cec399128bc6f832e88899d41639fd1ef67141c0b0800a9c6",
+      "ts": "2026-11-08T21:31:19Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_CREATED",
+      "subject": "T-0182",
+      "fence": null,
+      "payload": {
+        "admission_errors": [],
+        "card": {
+          "acceptance": {
+            "evidence_required": [],
+            "oracles": [
+              "python -m pytest -q tests/test_release_status.py"
+            ]
+          },
+          "agent_hint": "Keep the PDD-scoped release (G-001/G-002) separate from full-product status. Link the phase backlog and docs/data-gaps.md; do not claim full completion.",
+          "attempt": 0,
+          "attempts": {
+            "max": 3
+          },
+          "block_reason": "",
+          "budget": {
+            "tokens": 60000,
+            "wall_min": 240
+          },
+          "created_by": {
+            "agent": "",
+            "kind": "overseer",
+            "model": "",
+            "role": "",
+            "session": ""
+          },
+          "depends_on": [],
+          "fence": 0,
+          "goal_ref": "G-001",
+          "hint_base_commit": "7910de5531f2be30948feefb9656106ae8ec5f9e",
+          "id": "T-0182",
+          "premises": [],
+          "priority": 10,
+          "risk_floor": "R2",
+          "scope": {
+            "read": [
+              "docs/PDD.md",
+              "docs/reports/project-evaluation-2026-11-08-v1.md",
+              "docs/data-gaps.md",
+              "docs/plans/cna-p1b-p4-implementation-plan.md"
+            ],
+            "write": [
+              "docs/release-status.md",
+              "tests/test_release_status.py"
+            ]
+          },
+          "state": "PROPOSED",
+          "stop_conditions": [],
+          "title": "Add a full-product release-status note",
+          "type": "implement"
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "076891ad61a2c0ea2ffb413c5a81666910f13bac037f130b20efe983dffbf32c"
+    },
+    {
+      "seq": 3438,
+      "prev_hash": "a90c0af0b9e1286d52d9f81ef925158293c2b99c55e55bc3ca096dcaec70e461",
+      "ts": "2026-11-09T05:01:01Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_ADMITTED",
+      "subject": "T-0182",
+      "fence": null,
+      "payload": {},
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "8b619e727355d83e5bc60b0696fb59e75b7168ab039048f19cfe9767a9b1887e"
+    },
+    {
+      "seq": 3439,
+      "prev_hash": "8b619e727355d83e5bc60b0696fb59e75b7168ab039048f19cfe9767a9b1887e",
+      "ts": "2026-11-09T05:01:01Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "CLAIMED",
+      "subject": "T-0182",
+      "fence": 151,
+      "payload": {
+        "attempt": 1,
+        "base_commit": "5cecf7eee6758afafe31e70975ce316ec66f51c5",
+        "fence": 151,
+        "lease": {
+          "agent": "buffy",
+          "attempt": 1,
+          "creation_time": null,
+          "expires_at": "",
+          "failure_history": [],
+          "fence": 151,
+          "granted_at": "2026-11-09T05:01:01Z",
+          "holder": "opencode-strongest",
+          "last_failure_class": "",
+          "pid": null,
+          "renewed_at": "2026-11-09T05:01:01Z",
+          "restart_count": 0,
+          "role": "implement",
+          "session": "",
+          "task_id": "T-0182",
+          "worktree": "C:\\temp\\projects\\testproject1"
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "626b562c0f104cde4c16bfad603a0efec4d8c85f42c9738b684854ad70f04ad6"
+    },
+    {
+      "seq": 3487,
+      "prev_hash": "6afcf2a0a5f005b50ddf7b1afc54e7c5f6a28ffee85e6b815ba40bf5131b444c",
+      "ts": "2026-11-09T09:09:11Z",
+      "actor": {
+        "kind": "worker",
+        "agent": "buffy",
+        "model": "",
+        "session": "",
+        "role": "worker"
+      },
+      "type": "SUBMITTED",
+      "subject": "T-0182",
+      "fence": 151,
+      "payload": {
+        "all_oracles_passed": true,
+        "bundle": "EB-T-0182-151",
+        "bundle_path": "C:\\temp\\projects\\testproject1\\.pm\\evidence\\EB-T-0182-151\\bundle.json",
+        "pid": null,
+        "session": ""
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "e47ad68757df630700d4d326ea45af6ae32449e6b0cdbd8aa56d2d94a811302c"
+    },
+    {
+      "seq": 3488,
+      "prev_hash": "e47ad68757df630700d4d326ea45af6ae32449e6b0cdbd8aa56d2d94a811302c",
+      "ts": "2026-11-09T09:09:11Z",
+      "actor": {
+        "kind": "worker",
+        "agent": "buffy",
+        "model": "",
+        "session": "",
+        "role": "worker"
+      },
+      "type": "VERIFIED",
+      "subject": "T-0182",
+      "fence": 151,
+      "payload": {
+        "class": "",
+        "ok": true,
+        "reasons": []
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "5cc0c30b785318311a889b05f58d1cd19e211ed7c01fb592825556d89f9dea9d"
+    },
+    {
+      "seq": 3489,
+      "prev_hash": "5cc0c30b785318311a889b05f58d1cd19e211ed7c01fb592825556d89f9dea9d",
+      "ts": "2026-11-09T09:09:11Z",
+      "actor": {
+        "kind": "worker",
+        "agent": "buffy",
+        "model": "",
+        "session": "",
+        "role": "worker"
+      },
+      "type": "INTEGRATING",
+      "subject": "T-0182",
+      "fence": 151,
+      "payload": {
+        "commit": "06d3e93e23020a0b9245b7760ed500c45c8165f6"
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "059ef24dd1b183fae763ab742e32d84178d773bc2bfc9293882aa92d903cd2fd"
+    },
+    {
+      "seq": 3490,
+      "prev_hash": "059ef24dd1b183fae763ab742e32d84178d773bc2bfc9293882aa92d903cd2fd",
+      "ts": "2026-11-09T09:09:12Z",
+      "actor": {
+        "kind": "worker",
+        "agent": "buffy",
+        "model": "",
+        "session": "",
+        "role": "worker"
+      },
+      "type": "INTEGRATED",
+      "subject": "T-0182",
+      "fence": 151,
+      "payload": {
+        "bundle": "EB-T-0182-151",
+        "commit": "06d3e93e23020a0b9245b7760ed500c45c8165f6"
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "7384d1b0d374b03c650418988c003202aaad02518a1661ff6e71803cc7f45c11"
+    }
+  ]
+}

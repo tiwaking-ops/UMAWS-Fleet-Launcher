@@ -1,0 +1,484 @@
+From 3e9c6bcc28f1be680731e5373a86402b69ffef23 Mon Sep 17 00:00:00 2001
+From: umaws-pilot <umaws-pilot@localhost>
+Date: Wed, 11 Nov 2026 03:00:33 +1300
+Subject: [PATCH] fleet: budget every merge gate and record gate evidence
+
+The 900 s gate timeout was a single constant although every merge gate runs
+through it; T-0150's passing gate exceeded that span when queue, bundle and
+verification work are included. Rename the fleet setting to gate_timeout_s,
+record base/merged heads and measured gate duration on every ORACLE_RESULT, and
+refuse a gate or precheck whose imports resolve outside its worktree.
+---
+ agents.toml                                |  1 +
+ pilot/cards/canary-replacement-v1.md       |  5 +-
+ pilot/repair-canary-runbook-v1.md          |  7 ++
+ src/fleet/merge.py                         | 98 ++++++++++++++++++----
+ src/fleet/precheck.py                      |  7 ++
+ src/fleet/runenv.py                        | 95 ++++++++++++++++++++-
+ tests/fleet/test_merge_gate_diagnostics.py | 20 ++++-
+ tests/fleet/test_merge_queue.py            | 25 ++++++
+ tests/fleet/test_worktree_env.py           | 31 +++++++
+ 9 files changed, 268 insertions(+), 21 deletions(-)
+
+diff --git a/agents.toml b/agents.toml
+index 7c0264f..57b3222 100644
+--- a/agents.toml
++++ b/agents.toml
+@@ -22,6 +22,7 @@
+ max_total_agents   = 10        # Reduced from 100: free models too slow at high concurrency. Sun Nov 01 20:49:25 NZDT 2026 Tiwa has increased this from 6 to 10
+ dispatch_tick_s    = 5       # [GUESS]
+ precheck_satisfied = true    # S8: refuse a lease whose oracles already pass on main (fleet config, not pinned policy)
++gate_timeout_s     = 1200    # Budget every merge gate at 20 minutes
+ stall_minutes      = 15      # [GUESS]
+ fix_rounds         = 2       # [GUESS]
+ max_restarts_per_task = 5    # [GUESS]
+diff --git a/pilot/cards/canary-replacement-v1.md b/pilot/cards/canary-replacement-v1.md
+index a439c91..cfb351d 100644
+--- a/pilot/cards/canary-replacement-v1.md
++++ b/pilot/cards/canary-replacement-v1.md
+@@ -136,8 +136,9 @@ Expected event sequence for `<NEW-ID>` (all at one fence):
+ | `INTEGRATING` → `INTEGRATED` | commit authored `umaws-pilot <umaws-pilot@localhost>` |
+ | `TASK_DONE` | state `DONE` |
+ 
+-Budget: agent typically 1–3 minutes, gate ≈ 4 minutes (measured 3 m 59 s on the canary of
+-2026-11-07), merge seconds. If the agent has not exited after 15 minutes the stall bound revokes it.
++Budget: agent typically 1–3 minutes; the gate ran between 12.5 and 15 minutes,
++unknown. The 3 m 59 s figure in the earlier card was the failed T-0148 gate. Merge
++seconds. If the agent has not exited after 15 minutes the stall bound revokes it.
+ 
+ ## 5. Abort immediately if
+ 
+diff --git a/pilot/repair-canary-runbook-v1.md b/pilot/repair-canary-runbook-v1.md
+index a7bdec6..4406137 100644
+--- a/pilot/repair-canary-runbook-v1.md
++++ b/pilot/repair-canary-runbook-v1.md
+@@ -56,6 +56,13 @@
+    ./.venv/Scripts/pmk.exe sentinel
+    ```
+ 
++## Gate budget
++
++The gate ran between 12.5 and 15 minutes, unknown. The 4-minute figure came from the
++failed T-0148 gate; measured SUBMITTED→ORACLE_RESULT spans include queue and bundle
++work, so they do not establish the gate subprocess duration. The fleet setting is
++`gate_timeout_s = 1200`.
++
+ ## Abort immediately if any of these is true
+ 
+ - the worktree path is outside `work/`;
+diff --git a/src/fleet/merge.py b/src/fleet/merge.py
+index e28f786..49ef20c 100644
+--- a/src/fleet/merge.py
++++ b/src/fleet/merge.py
+@@ -50,12 +50,13 @@ from __future__ import annotations
+ import os
+ import shutil
+ import tempfile
++import time
+ from dataclasses import dataclass, field
+ from pathlib import Path
+ 
+ from pmk.api import Kernel, KernelError
+ 
+-from .runenv import worktree_env
++from .runenv import import_origin_problems, worktree_env
+ 
+ #: The identity every pipeline-landed commit must carry.  Four commits in the
+ #: incident window (e08fa8d, ebe46ce, 82f6be1, 9893d94) were authored as the
+@@ -66,6 +67,34 @@ PIPELINE_EMAIL = "umaws-pilot@localhost"
+ PIPELINE_IDENTITY = ("-c", f"user.name={PIPELINE_NAME}",
+                      "-c", f"user.email={PIPELINE_EMAIL}")
+ 
++#: The merge gate is budgeted for the 12.5-minute pass observed on T-0150,
++#: not the 4-minute failure on T-0148. Twenty minutes leaves headroom without
++#: letting a genuinely hung gate hold the serial merge queue indefinitely.
++DEFAULT_GATE_TIMEOUT_S = 1200
++
++
++def gate_timeout(kernel) -> int:
++    """The configured per-gate timeout, bounded to a practical default."""
++    from pmk.policy import load_agents
++    default = DEFAULT_GATE_TIMEOUT_S
++    repo = getattr(kernel, "repo", kernel)
++    try:
++        config = load_agents(repo)
++    except Exception:
++        return default
++    fleet = config.get("fleet") if isinstance(config, dict) else None
++    value = (fleet or {}).get("gate_timeout_s", default)
++    try:
++        return max(1, int(value))
++    except (TypeError, ValueError):
++        return default
++
++
++def _gate_evidence(base_head: str, merged_head: str, duration_s: float) -> dict:
++    """The timing and tree identities shared by every gate event."""
++    return {"base_head": base_head, "merged_head": merged_head,
++            "duration_s": round(max(0.0, float(duration_s)), 3)}
++
+ 
+ def identity_anomaly(repo, worktree) -> str:
+     """The effective identity when it is *not* the pipeline's, else ``""``.
+@@ -308,27 +337,56 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
+                     merge_commit = merge_commit.strip()
+ 
+                 # Step 3: Run the gate in the temp worktree
++                gate_duration = 0.0
+                 if gate_cmd:
+                     import subprocess
++                    origin_problems = import_origin_problems(temp_wt)
++                    if origin_problems:
++                        result.message = ("import-origin preflight failed: "
++                                          + "; ".join(origin_problems))
++                        result.failure_class = "INFRASTRUCTURE_FAILED"
++                        kernel.record_event("INFRASTRUCTURE_FAILED", subject=task.id,
++                                            fence=lease.fence,
++                                            payload={"stage": "import-origin",
++                                                     "message": result.message,
++                                                     "base_head": base_head,
++                                                     "merged_head": merge_commit})
++                        repo.git("merge", "--abort", cwd=temp_wt)
++                        return result
++
++                    gate_started = time.monotonic()
+                     try:
+                         gate_env = worktree_env(temp_wt)
+                         proc = subprocess.run(
+                             gate_cmd, shell=True,
+                             cwd=str(Path(temp_wt).resolve()),
+-                            capture_output=True, timeout=900,
+-                                              text=True, encoding="utf-8",
+-                                              errors="replace",
+-                                              env=gate_env)
++                            capture_output=True,
++                            timeout=gate_timeout(kernel),
++                            text=True, encoding="utf-8", errors="replace",
++                            env=gate_env)
+                         result.gate_cmd = gate_cmd
+                         result.gate_exit = proc.returncode
+                     except (subprocess.SubprocessError, OSError) as exc:
++                        gate_duration = time.monotonic() - gate_started
+                         result.gate_cmd = gate_cmd
+                         result.gate_exit = 127
+                         result.message = f"the gate command failed to run: {exc}"
++                        kernel.record_event(
++                            "ORACLE_RESULT", subject=task.id,
++                            fence=lease.fence,
++                            payload={"stage": "gate", "ok": False,
++                                     "cmd": gate_cmd,
++                                     "exit": result.gate_exit,
++                                     "message": result.message,
++                                     "reintegration": changed_nothing,
++                                     **_gate_evidence(base_head, merge_commit,
++                                                      gate_duration)})
+                         _persist_gate_output(
+                             bundle, kernel,
+                             _gate_output(gate_cmd, 127, "", str(exc)))
++                        repo.git("merge", "--abort", cwd=temp_wt)
+                         return result
++                    gate_duration = time.monotonic() - gate_started
+                     diagnostics = _gate_diagnostics(proc.stdout, proc.stderr)
+                     _persist_gate_output(
+                         bundle, kernel,
+@@ -338,13 +396,16 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
+                         result.message = (f"the gate command {gate_cmd!r} exited "
+                                           f"{result.gate_exit}")
+                         result.failure_class = "GATE_FAILED"
+-                        kernel.record_event("ORACLE_RESULT", subject=task.id,
+-                                            fence=lease.fence,
+-                                            payload={"stage": "gate", "ok": False,
+-                                                     "cmd": gate_cmd,
+-                                                     "exit": result.gate_exit,
+-                                                     "reintegration": changed_nothing,
+-                                                     **diagnostics})
++                        kernel.record_event(
++                            "ORACLE_RESULT", subject=task.id,
++                            fence=lease.fence,
++                            payload={"stage": "gate", "ok": False,
++                                     "cmd": gate_cmd,
++                                     "exit": result.gate_exit,
++                                     "reintegration": changed_nothing,
++                                     **_gate_evidence(base_head, merge_commit,
++                                                      gate_duration),
++                                     **diagnostics})
+                         # Abort the merge in temp worktree
+                         repo.git("merge", "--abort", cwd=temp_wt)
+                         return result
+@@ -405,11 +466,14 @@ def integrate(kernel: Kernel, task, lease, worktree: str | Path, *,
+                                       else "the worker changed nothing")
+                 else:
+                     result.message = "merged"
+-                kernel.record_event("ORACLE_RESULT", subject=task.id, fence=lease.fence,
+-                                    payload={"stage": "gate", "ok": True,
+-                                             "cmd": gate_cmd,
+-                                             "reintegration": already_merged,
+-                                             "no_ff_fallback": False})
++                kernel.record_event(
++                    "ORACLE_RESULT", subject=task.id, fence=lease.fence,
++                    payload={"stage": "gate", "ok": True,
++                             "cmd": gate_cmd,
++                             "reintegration": already_merged,
++                             "no_ff_fallback": False,
++                             **_gate_evidence(base_head, merge_commit,
++                                              gate_duration)})
+                 return result
+ 
+             finally:
+diff --git a/src/fleet/precheck.py b/src/fleet/precheck.py
+index e094000..465b70d 100644
+--- a/src/fleet/precheck.py
++++ b/src/fleet/precheck.py
+@@ -29,6 +29,7 @@ def oracles_already_pass(kernel, task, *, timeout: int = 600) -> tuple[bool, lis
+     # Imported here: harness imports this module from ``start``; a module-level
+     # import would close the cycle.
+     from .harness import run_command
++    from .runenv import import_origin_problems
+ 
+     repo = kernel.repo
+     oracles = list(getattr(task, "oracles", []) or [])
+@@ -44,6 +45,12 @@ def oracles_already_pass(kernel, task, *, timeout: int = 600) -> tuple[bool, lis
+ 
+     results: list[dict] = []
+     try:
++        origin_problems = import_origin_problems(worktree)
++        if origin_problems:
++            results.append({"cmd": "<import-origin>", "exit": 1, "ok": False,
++                            "error": "; ".join(origin_problems)})
++            return False, results
++
+         for oracle in oracles:
+             exit_code, _stdout, _stderr = run_command(oracle, worktree, timeout=timeout)
+             results.append({"cmd": oracle, "exit": exit_code, "ok": exit_code == 0})
+diff --git a/src/fleet/runenv.py b/src/fleet/runenv.py
+index 532926d..9511bfe 100644
+--- a/src/fleet/runenv.py
++++ b/src/fleet/runenv.py
+@@ -15,10 +15,38 @@ mutated: a copy is returned.
+ 
+ from __future__ import annotations
+ 
++import json
+ import os
++import subprocess
++import sys
+ from pathlib import Path
+ 
+-__all__ = ["WORKTREE_PATH_ENTRIES", "worktree_env"]
++__all__ = ["DEFAULT_IMPORT_PROBES", "WORKTREE_PATH_ENTRIES",
++           "import_origin_problems", "worktree_env"]
++
++#: The imports that have historically resolved to main through the editable
++#: install.  A worktree that has the top-level package but not the probed
++#: module is exactly where the namespace-package trap appears.
++DEFAULT_IMPORT_PROBES = ("cna.tools.coverage", "pmk.api")
++
++_IMPORT_PROBE = r'''
++import importlib, json, pathlib, sys
++out = {}
++for name in sys.argv[1:]:
++    try:
++        module = importlib.import_module(name)
++    except Exception as exc:
++        out[name] = {"error": f"{type(exc).__name__}: {exc}"}
++        continue
++    paths = []
++    filename = getattr(module, "__file__", None)
++    if filename:
++        paths.append(str(pathlib.Path(filename).resolve()))
++    for entry in getattr(module, "__path__", []):
++        paths.append(str(pathlib.Path(entry).resolve()))
++    out[name] = {"paths": paths}
++print(json.dumps(out))
++'''
+ 
+ #: Prepended to ``PYTHONPATH``, in this order, for every worktree spawn.
+ WORKTREE_PATH_ENTRIES = ("src", "tests")
+@@ -48,3 +76,68 @@ def worktree_env(worktree: str | Path, *,
+     env["PYTHONPATH"] = os.pathsep.join(entries)
+     env["PYTHONIOENCODING"] = "utf-8"
+     return env
++
++
++def _is_under(path: Path, root: Path) -> bool:
++    try:
++        path.resolve().relative_to(root.resolve())
++    except ValueError:
++        return False
++    return True
++
++
++def import_origin_problems(worktree: str | Path, *,
++                           modules: tuple[str, ...] | None = None,
++                           timeout: int = 30) -> list[str]:
++    """Return the probed modules that resolve outside *worktree*.
++
++    ``cna`` is a namespace package.  A missing module in the worktree can
++    therefore be supplied by the editable install in main even when
++    ``PYTHONPATH`` starts with the worktree.  This preflight checks the
++    actual module file/path, not just the environment setup.
++
++    Modules whose top-level package is absent from the worktree are skipped:
++    small fixture repositories do not carry the project packages, and a
++    precheck must not refuse work merely because the project is not CNA.
++    """
++    wt = Path(worktree).resolve()
++    selected = tuple(modules or DEFAULT_IMPORT_PROBES)
++    selected = tuple(
++        name for name in selected
++        if (wt / "src" / name.split(".", 1)[0]).exists()
++        or (wt / name.split(".", 1)[0]).exists()
++    )
++    if not selected:
++        return []
++
++    try:
++        proc = subprocess.run(
++            [sys.executable, "-c", _IMPORT_PROBE, *selected],
++            cwd=str(wt), capture_output=True, text=True, encoding="utf-8",
++            errors="replace", timeout=timeout, env=worktree_env(wt))
++    except (OSError, subprocess.SubprocessError) as exc:
++        return [f"import-origin probe failed: {type(exc).__name__}: {exc}"]
++    if proc.returncode != 0:
++        detail = (proc.stderr or proc.stdout or "").strip()
++        return [f"import-origin probe exited {proc.returncode}: {detail[:300]}"]
++
++    try:
++        payload = json.loads(proc.stdout)
++    except (TypeError, ValueError) as exc:
++        return [f"import-origin probe returned invalid JSON: {exc}"]
++
++    problems: list[str] = []
++    for name in selected:
++        row = payload.get(name, {}) if isinstance(payload, dict) else {}
++        if row.get("error"):
++            problems.append(f"{name}: {row['error']}")
++            continue
++        paths = [Path(entry) for entry in row.get("paths", [])]
++        if not paths:
++            problems.append(f"{name}: no import path")
++            continue
++        outside = [str(path) for path in paths if not _is_under(path, wt)]
++        if outside:
++            problems.append(
++                f"{name}: resolves outside the worktree: " + ", ".join(outside))
++    return problems
+diff --git a/tests/fleet/test_merge_gate_diagnostics.py b/tests/fleet/test_merge_gate_diagnostics.py
+index 2f08cc8..427c6e2 100644
+--- a/tests/fleet/test_merge_gate_diagnostics.py
++++ b/tests/fleet/test_merge_gate_diagnostics.py
+@@ -4,7 +4,10 @@ T-0148 was requeued with `pytest -q` exit 1 and nothing else; reconstructing
+ why took a full afternoon of archaeology.  These tests pin the diagnostics.
+ """
+ 
+-from fleet.merge import _gate_diagnostics
++from types import SimpleNamespace
++
++from fleet.merge import (DEFAULT_GATE_TIMEOUT_S, _gate_diagnostics,
++                         gate_timeout)
+ 
+ 
+ def test_records_failing_tests_and_tails():
+@@ -32,3 +35,18 @@ def test_tails_are_bounded():
+     diag = _gate_diagnostics(stdout, "", lines=40)
+     assert len(diag["stdout_tail"]) == 40
+     assert diag["stdout_tail"][-1] == "line 499"
++
++
++def test_gate_timeout_reads_fleet_config(tmp_path):
++    path = tmp_path / "agents.toml"
++    path.write_text("[fleet]\ngate_timeout_s = 1234\n", encoding="utf-8")
++    repo = SimpleNamespace(agents_path=path)
++
++    assert gate_timeout(repo) == 1234
++
++
++def test_gate_timeout_defaults_to_twenty_minutes(tmp_path):
++    repo = SimpleNamespace(agents_path=tmp_path / "missing.toml")
++
++    assert DEFAULT_GATE_TIMEOUT_S == 1200
++    assert gate_timeout(repo) == 1200
+diff --git a/tests/fleet/test_merge_queue.py b/tests/fleet/test_merge_queue.py
+index cc2b91d..9b2fc79 100644
+--- a/tests/fleet/test_merge_queue.py
++++ b/tests/fleet/test_merge_queue.py
+@@ -383,5 +383,30 @@ def test_merge_conflict_clean():
+     assert status_after == status_before, f"main working tree changed despite conflict: {status_after}"
+ 
+ 
++def test_gate_event_records_duration_and_both_heads():
++    """A green gate event must carry the timing and the two tree identities."""
++    kernel, repo = _make_kernel_with_git()
++    _create_uncommitted_file_in_main(repo, "unrelated.txt")
++    card, lease, worktree = _create_task_and_bundle(kernel, ["src/thing.py"])
++    _, before, _ = _git(repo, "rev-parse", "HEAD")
++    before = before.strip()
++
++    result = integrate(kernel, card, lease, worktree, gate_cmd="exit 0")
++
++    assert result.ok, result.message
++    gate_events = [
++        event for event in kernel.events()
++        if event.type == "ORACLE_RESULT" and event.subject == card.id
++        and event.payload.get("stage") == "gate"
++        and event.payload.get("ok") is True
++    ]
++    assert gate_events, "no successful gate event"
++    payload = gate_events[-1].payload
++    assert payload["base_head"] == before
++    assert payload["merged_head"] == result.commit
++    assert isinstance(payload["duration_s"], (int, float))
++    assert payload["duration_s"] >= 0
++
++
+ if __name__ == "__main__":
+     pytest.main([__file__, "-v"])
+diff --git a/tests/fleet/test_worktree_env.py b/tests/fleet/test_worktree_env.py
+index 79e4d9b..1a57646 100644
+--- a/tests/fleet/test_worktree_env.py
++++ b/tests/fleet/test_worktree_env.py
+@@ -27,6 +27,7 @@ from pmk.models import Lease
+ 
+ from fleet.harness import Harness, run_command
+ from fleet.merge import integrate
++from fleet.runenv import import_origin_problems
+ 
+ from _fleet_fixtures import make_task
+ 
+@@ -177,3 +178,33 @@ def test_worker_env_scrubs_gateway_profile_then_prepends(tmp_path, monkeypatch):
+     assert "OPENAI_API_KEY" not in env
+     assert "ANYROUTER_API_KEY" not in env
+     assert env["PYTHONPATH"].startswith(str(wt / "src"))
++
++
++# ---------------------------------------------------------------------------
++# import-origin preflight (R-02)
++# ---------------------------------------------------------------------------
++
++def test_import_origin_accepts_modules_under_the_worktree(tmp_path):
++    wt = tmp_path / "wt"
++    (wt / "src" / "cna" / "tools").mkdir(parents=True)
++    (wt / "src" / "cna" / "tools" / "coverage.py").write_text(
++        "VALUE = 1\n", encoding="utf-8")
++    (wt / "src" / "pmk").mkdir(parents=True)
++    (wt / "src" / "pmk" / "__init__.py").write_text("", encoding="utf-8")
++    (wt / "src" / "pmk" / "api.py").write_text("VALUE = 2\n", encoding="utf-8")
++
++    assert import_origin_problems(wt) == []
++
++
++def test_import_origin_rejects_a_module_resolved_from_main(tmp_path, monkeypatch):
++    host = tmp_path / "host"
++    (host / "cna" / "tools").mkdir(parents=True)
++    (host / "cna" / "tools" / "coverage.py").write_text(
++        "VALUE = 3\n", encoding="utf-8")
++    wt = tmp_path / "wt"
++    (wt / "src" / "cna").mkdir(parents=True)
++    monkeypatch.setenv("PYTHONPATH", str(host))
++
++    problems = import_origin_problems(wt)
++
++    assert any("cna.tools.coverage" in problem for problem in problems)
+-- 
+2.56.0.windows.2
+

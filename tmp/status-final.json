@@ -1,0 +1,20 @@
+{
+  "root": "C:\\temp\\projects\\testproject1",
+  "project_state": "PAUSED",
+  "tasks": {
+    "VOID": 143,
+    "DONE": 24,
+    "PROPOSED": 13
+  },
+  "task_total": 180,
+  "active_leases": 0,
+  "open_queue_items": 1,
+  "incidents": 103,
+  "stopped": false,
+  "chain": "I1 chain verifies (3377 events)",
+  "worktrees": {
+    "count": 15,
+    "bytes": 162196098,
+    "dirty": null
+  }
+}

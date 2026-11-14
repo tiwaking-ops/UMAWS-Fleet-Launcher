@@ -1,0 +1,2 @@
+cna= None
+pmk= C:\temp\projects\testproject1\src\pmk\__init__.py

@@ -1,0 +1,47 @@
+{
+  "id": "T-0195",
+  "title": "H7: report %TEMP%/pmk-merge trees from worktree prune",
+  "type": "implement",
+  "goal_ref": "G-001",
+  "risk_floor": "R2",
+  "scope": {
+    "write": [
+      "src/pmk/worktrees.py",
+      "tests/pmk/test_prune_merge_trees.py"
+    ],
+    "read": [
+      "src/pmk/cli.py",
+      "tests/pmk/test_worktree_lifecycle.py"
+    ]
+  },
+  "acceptance": {
+    "oracles": [
+      "python -m pytest -q tests/pmk/test_prune_merge_trees.py tests/pmk/test_worktree_lifecycle.py"
+    ],
+    "evidence_required": []
+  },
+  "premises": [],
+  "budget": {
+    "tokens": 8000,
+    "wall_min": 15
+  },
+  "depends_on": [],
+  "attempts": {
+    "max": 2
+  },
+  "created_by": {
+    "kind": "overseer",
+    "agent": "",
+    "model": "",
+    "session": "",
+    "role": ""
+  },
+  "priority": 40,
+  "agent_hint": "Base 9b92c936. pmk worktree prune scans only repo.work_dir via src/pmk/worktrees.py:prune; merge scratch trees under %TEMP%/pmk-merge-* are invisible. Add read-only discovery of those directories (e.g. helper in worktrees.py) and include them in prune result under merge_trees with name/path/bytes; keep dry_run default and never remove them. Actual deletion is deferred to Phase 7/CP-3. Add tests/pmk/test_prune_merge_trees.py proving a temp pmk-merge-* is reported, unrelated temp dirs are not, and nothing is deleted; keep lifecycle tests green. The CLI already prints prune result; no new destructive flag.",
+  "hint_base_commit": "9b92c936036c2c9046b63a8e120a0eb760e01f58",
+  "state": "PROPOSED",
+  "attempt": 0,
+  "fence": 0,
+  "block_reason": "",
+  "stop_conditions": []
+}

@@ -1,0 +1,57 @@
+{
+  "task": "T-0151",
+  "fence": 126,
+  "base_commit": "4845758328312161c65c9f6e722cb23c284ada0b",
+  "outputs": [
+    {
+      "path": "src/cna/core/__init__.py",
+      "sha256": "6fa29811901bb01410fa545470efea31f61a2ba0e6cf0da106a7192bc8811004"
+    },
+    {
+      "path": "src/cna/core/dice.py",
+      "sha256": "7be0b5f63954bd9094e0cbf6c141e73e6120407c4c6fa31fa031f5e44fc3d2ac"
+    },
+    {
+      "path": "tests/test_dice.py",
+      "sha256": "94eae8f9c88ccfe32e2aab0b9993b9a6c0b6434efc37bf5625fa51e6cfadfcf0"
+    }
+  ],
+  "diff_scope_check": {
+    "violations": []
+  },
+  "commands": [
+    {
+      "cmd": "python -m pytest -q tests/test_dice.py",
+      "cwd": ".",
+      "exit": 0,
+      "stdout_hash": "94eae8f9c88ccfe3",
+      "stderr_hash": ""
+    }
+  ],
+  "oracle_results": [
+    {
+      "cmd": "python -m pytest -q tests/test_dice.py",
+      "exit": 0,
+      "ok": true,
+      "stdout_hash": "94eae8f9c88ccfe3",
+      "stderr_hash": "",
+      "note": "manual run"
+    }
+  ],
+  "premise_check": {
+    "refuted": false
+  },
+  "budget_used": {
+    "tokens": 0,
+    "wall_min": 0
+  },
+  "resolved_models": [
+    {
+      "provider": "local",
+      "model": "buffy"
+    }
+  ],
+  "constitution_hash": "cfa209a377a1a5ba4f4744822ea15490b44cd745528c523129e06fe43bba64bf",
+  "context_hash": "bcd8de7ea32626c2c6361bbffdfb55c1ab4aef4a27aa82704c0ea749a89825ec",
+  "note": "P1a manual implementation; full suite also passed"
+}

@@ -1,0 +1,46 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\python.exe
+cachedir: .pytest_cache
+hypothesis profile 'default'
+rootdir: C:\temp\projects\testproject1\work\H1-H4-clean-1794215552
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: anyio-4.14.2, Faker-40.38.0, hypothesis-6.170.2, langsmith-0.11.1, cov-7.1.0
+collecting ... collected 1 item
+
+tests/fleet/test_conductor_leases.py::test_reap_reclaims_the_worktree_when_policy_enables_it FAILED [100%]
+
+================================== FAILURES ===================================
+___________ test_reap_reclaims_the_worktree_when_policy_enables_it ____________
+
+fake_kernel = <pmk.api.Kernel object at 0x00000227E023D460>
+clock = <pmk.clock.FakeClock object at 0x00000227E023D670>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000227E023D550>
+
+    def test_reap_reclaims_the_worktree_when_policy_enables_it(
+            fake_kernel, clock, monkeypatch):
+        task, tree, lease = _orphan_with_worktree(fake_kernel, "a")
+        _enable_reclaim(fake_kernel, monkeypatch)
+        conductor = _conductor(fake_kernel)
+        clock.advance(TTL_S + 1)
+    
+        results = conductor.reap_expired_leases()
+    
+        assert results[0]["reaped"] is True
+>       assert not tree.exists()
+E       AssertionError: assert not True
+E        +  where True = exists()
+E        +    where exists = WindowsPath('C:/Users/Tiwa Pene/AppData/Local/Temp/pytest-of-Tiwa Pene/pytest-2179/test_reap_reclaims_the_worktre0/repo/work/T-0001-reclaim').exists
+
+clock      = <pmk.clock.FakeClock object at 0x00000227E023D670>
+conductor  = Conductor(kernel=<pmk.api.Kernel object at 0x00000227E023D460>, dispatcher=<fleet.dispatcher.Dispatcher object at 0x00...arted=0.0, wakes=[], session='', pending_reason=''), replan_rounds=0, last_periodic=0.0, last_wake_reason='', notes=[])
+fake_kernel = <pmk.api.Kernel object at 0x00000227E023D460>
+lease      = Lease(task_id='T-0001', fence=1, holder='fake-a', agent='fake', role='implement', session='', granted_at='2026-10-22T1...laims_the_worktre0\\repo\\work\\T-0001-reclaim', restart_count=0, failure_history=[], last_failure_class='', attempt=1)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000227E023D550>
+results    = [{'task': 'T-0001', 'fence': 1, 'age_s': 601, 'new_fence': 2, ...}]
+task       = TaskCard(id='T-0001', title='Do the thing', type='implement', goal_ref='G-001', risk_floor='R2', scope={'write': ['src...iority=100, agent_hint='', hint_base_commit='', state='READY', attempt=0, fence=0, block_reason='', stop_conditions=[])
+tree       = WindowsPath('C:/Users/Tiwa Pene/AppData/Local/Temp/pytest-of-Tiwa Pene/pytest-2179/test_reap_reclaims_the_worktre0/repo/work/T-0001-reclaim')
+
+tests\fleet\test_conductor_leases.py:333: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/fleet/test_conductor_leases.py::test_reap_reclaims_the_worktree_when_policy_enables_it
+============================== 1 failed in 1.52s ==============================

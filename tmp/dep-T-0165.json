@@ -1,0 +1,284 @@
+{
+  "task": {
+    "id": "T-0165",
+    "title": "Add provenance-aware CNA data schemas and validators",
+    "type": "implement",
+    "goal_ref": "G-001",
+    "risk_floor": "R2",
+    "scope": {
+      "read": [],
+      "write": [
+        "src/cna/data/__init__.py",
+        "src/cna/data/schema.py",
+        "tests/test_data_schema.py"
+      ]
+    },
+    "acceptance": {
+      "evidence_required": [],
+      "oracles": [
+        "python -m pytest -q tests/test_data_schema.py"
+      ]
+    },
+    "premises": [],
+    "budget": {
+      "tokens": 20000,
+      "wall_min": 30
+    },
+    "depends_on": [],
+    "attempts": {
+      "max": 3
+    },
+    "created_by": {
+      "agent": "",
+      "kind": "overseer",
+      "model": "",
+      "role": "",
+      "session": ""
+    },
+    "priority": 1,
+    "agent_hint": "",
+    "hint_base_commit": "",
+    "state": "DONE",
+    "attempt": 1,
+    "fence": 140,
+    "block_reason": "",
+    "stop_conditions": []
+  },
+  "lease": {
+    "task_id": "T-0165",
+    "fence": 140,
+    "holder": "buffy-manual",
+    "agent": "buffy",
+    "role": "implement",
+    "session": "",
+    "granted_at": "2026-11-08T13:05:45Z",
+    "renewed_at": "2026-11-08T13:05:45Z",
+    "expires_at": "",
+    "pid": null,
+    "creation_time": null,
+    "worktree": "",
+    "restart_count": 0,
+    "failure_history": [],
+    "last_failure_class": "",
+    "attempt": 1
+  },
+  "events": [
+    {
+      "seq": 3343,
+      "prev_hash": "5f07a40f4f38b5d982e1715c1d821660b8f9470fbf8d75d75d6f196d00cf5873",
+      "ts": "2026-11-08T13:05:45Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_CREATED",
+      "subject": "T-0165",
+      "fence": null,
+      "payload": {
+        "admission_errors": [],
+        "card": {
+          "acceptance": {
+            "evidence_required": [],
+            "oracles": [
+              "python -m pytest -q tests/test_data_schema.py"
+            ]
+          },
+          "agent_hint": "",
+          "attempt": 0,
+          "attempts": {
+            "max": 3
+          },
+          "block_reason": "",
+          "budget": {
+            "tokens": 20000,
+            "wall_min": 30
+          },
+          "created_by": {
+            "agent": "",
+            "kind": "overseer",
+            "model": "",
+            "role": "",
+            "session": ""
+          },
+          "depends_on": [],
+          "fence": 0,
+          "goal_ref": "G-001",
+          "hint_base_commit": "",
+          "id": "T-0165",
+          "premises": [],
+          "priority": 1,
+          "risk_floor": "R2",
+          "scope": {
+            "read": [],
+            "write": [
+              "src/cna/data/__init__.py",
+              "src/cna/data/schema.py",
+              "tests/test_data_schema.py"
+            ]
+          },
+          "state": "PROPOSED",
+          "stop_conditions": [],
+          "title": "Add provenance-aware CNA data schemas and validators",
+          "type": "implement"
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "4dfca1c50f6cdef21a895f8451848f46a5b1a93db62589d9b008aa61c67a9d44"
+    },
+    {
+      "seq": 3344,
+      "prev_hash": "4dfca1c50f6cdef21a895f8451848f46a5b1a93db62589d9b008aa61c67a9d44",
+      "ts": "2026-11-08T13:05:45Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_ADMITTED",
+      "subject": "T-0165",
+      "fence": null,
+      "payload": {},
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "32026ea2121a4d400962031a3963011c51504660c88a5e9760facc1bcc9e8654"
+    },
+    {
+      "seq": 3345,
+      "prev_hash": "32026ea2121a4d400962031a3963011c51504660c88a5e9760facc1bcc9e8654",
+      "ts": "2026-11-08T13:05:46Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "CLAIMED",
+      "subject": "T-0165",
+      "fence": 140,
+      "payload": {
+        "attempt": 1,
+        "base_commit": "c53c01e23a7bfb68c97b78f15a3006ee6a356708",
+        "fence": 140,
+        "lease": {
+          "agent": "buffy",
+          "attempt": 1,
+          "creation_time": null,
+          "expires_at": "",
+          "failure_history": [],
+          "fence": 140,
+          "granted_at": "2026-11-08T13:05:45Z",
+          "holder": "buffy-manual",
+          "last_failure_class": "",
+          "pid": null,
+          "renewed_at": "2026-11-08T13:05:45Z",
+          "restart_count": 0,
+          "role": "implement",
+          "session": "",
+          "task_id": "T-0165",
+          "worktree": ""
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "4c4443be1c3a87ffe3cf32fa3e5a405acb563427cc18fe4575ef37a264b1e599"
+    },
+    {
+      "seq": 3352,
+      "prev_hash": "9be5b172e40f0af4607a0fbf77b2683be3d09807e2e97f605d90abe6f49c6d97",
+      "ts": "2026-11-08T13:12:18Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "SUBMITTED",
+      "subject": "T-0165",
+      "fence": 140,
+      "payload": {
+        "all_oracles_passed": true,
+        "bundle": "EB-T-0165-140",
+        "bundle_path": "C:\\temp\\projects\\testproject1\\.pm\\evidence\\EB-T-0165-140\\bundle.json",
+        "pid": null,
+        "session": ""
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "a984966cb24a55ef078c318cf102dd0cb03f0681174b0cd7747f0eb8998a015b"
+    },
+    {
+      "seq": 3353,
+      "prev_hash": "a984966cb24a55ef078c318cf102dd0cb03f0681174b0cd7747f0eb8998a015b",
+      "ts": "2026-11-08T13:12:18Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "VERIFIED",
+      "subject": "T-0165",
+      "fence": 140,
+      "payload": {
+        "class": "",
+        "ok": true,
+        "reasons": []
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "5c8d787b81e7c0de284b76ba17d12a2b6967b3214b257f3a3a573efe8db0d685"
+    },
+    {
+      "seq": 3354,
+      "prev_hash": "5c8d787b81e7c0de284b76ba17d12a2b6967b3214b257f3a3a573efe8db0d685",
+      "ts": "2026-11-08T13:12:19Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "INTEGRATING",
+      "subject": "T-0165",
+      "fence": 140,
+      "payload": {
+        "commit": "fdcec478dc2ddfa66c2b8926b329b0153de3b47a"
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "6286a1edd990da0937d9fba3db10da74175ca8f0e3bbfac3c972552bc7aeea47"
+    },
+    {
+      "seq": 3355,
+      "prev_hash": "6286a1edd990da0937d9fba3db10da74175ca8f0e3bbfac3c972552bc7aeea47",
+      "ts": "2026-11-08T13:12:19Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "INTEGRATED",
+      "subject": "T-0165",
+      "fence": 140,
+      "payload": {
+        "bundle": "EB-T-0165-140",
+        "commit": "fdcec478dc2ddfa66c2b8926b329b0153de3b47a"
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "f8387d32e169577eb3d6d9a94a0796ffead628f5f0f3c54780f59be15f62bfe5"
+    }
+  ]
+}

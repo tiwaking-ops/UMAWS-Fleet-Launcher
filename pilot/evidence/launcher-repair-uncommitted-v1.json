@@ -1,0 +1,96 @@
+{
+  "document": {
+    "title": "Launcher repair \u2014 uncommitted working-tree capture",
+    "version": "1.0.0",
+    "captured_at": "2026-11-09T09:23:49Z",
+    "base_commit": "06d3e93e23020a0b9245b7760ed500c45c8165f6",
+    "base_subject": "merge: T-0182 full-product release-status note",
+    "author": "Buffy (Freebuff)"
+  },
+  "scope": [
+    "agents.toml",
+    "src/fleet",
+    "src/pmk",
+    "tools/check_subprocess_env.py",
+    "tests/fleet",
+    "tests/pmk",
+    "tests/test_subprocess_env_lint.py"
+  ],
+  "excluded": [
+    ".pm/ Kernel state",
+    "HANDOFF.md",
+    "pilot/decisions.md",
+    "pilot reports",
+    "docs/",
+    "tmp/",
+    "untracked root scripts/reports"
+  ],
+  "patch": {
+    "path": "pilot/evidence/launcher-repair-uncommitted-v1.patch",
+    "bytes": 105594,
+    "sha256": "8a7c5d43fe8c2dbb857308cc3026c627a6839c4d9aefb3389313168e36df5a50"
+  },
+  "diffstat": [
+    "agents.toml                          |  10 +-",
+    " src/fleet/conductor.py               |  90 ++--",
+    " src/fleet/dispatcher.py              |  23 +-",
+    " src/fleet/harness.py                 |  68 +++-",
+    " src/fleet/legacy.py                  |  16 +-",
+    " src/fleet/merge.py                   |   6 +-",
+    " src/fleet/project.py                 |   1 +",
+    " src/fleet/spawn.py                   |   7 +-",
+    " src/pmk/events.py                    |   4 +-",
+    " src/pmk/worktrees.py                 | 770 ++++++++++++++++++++++++++++++-----",
+    " tests/fleet/test_adapter_paths.py    |  34 ++",
+    " tests/fleet/test_conductor_leases.py | 156 ++++++-",
+    " tests/fleet/test_fleet.py            |   5 +",
+    " tests/fleet/test_regressions.py      |  69 ++++",
+    " tests/pmk/test_worktree_lifecycle.py | 402 +++++++++++++++++-",
+    " tests/test_subprocess_env_lint.py    |  97 ++++-",
+    " tools/check_subprocess_env.py        | 135 +++++-",
+    " 17 files changed, 1702 insertions(+), 191 deletions(-)"
+  ],
+  "name_status": [
+    "M\tagents.toml",
+    "M\tsrc/fleet/conductor.py",
+    "M\tsrc/fleet/dispatcher.py",
+    "M\tsrc/fleet/harness.py",
+    "M\tsrc/fleet/legacy.py",
+    "M\tsrc/fleet/merge.py",
+    "M\tsrc/fleet/project.py",
+    "M\tsrc/fleet/spawn.py",
+    "M\tsrc/pmk/events.py",
+    "M\tsrc/pmk/worktrees.py",
+    "M\ttests/fleet/test_adapter_paths.py",
+    "M\ttests/fleet/test_conductor_leases.py",
+    "M\ttests/fleet/test_fleet.py",
+    "M\ttests/fleet/test_regressions.py",
+    "M\ttests/pmk/test_worktree_lifecycle.py",
+    "M\ttests/test_subprocess_env_lint.py",
+    "M\ttools/check_subprocess_env.py"
+  ],
+  "status_snapshot": [
+    "M agents.toml",
+    " M src/fleet/conductor.py",
+    " M src/fleet/dispatcher.py",
+    " M src/fleet/harness.py",
+    " M src/fleet/legacy.py",
+    " M src/fleet/merge.py",
+    " M src/fleet/project.py",
+    " M src/fleet/spawn.py",
+    " M src/pmk/events.py",
+    " M src/pmk/worktrees.py",
+    " M tests/fleet/test_adapter_paths.py",
+    " M tests/fleet/test_conductor_leases.py",
+    " M tests/fleet/test_fleet.py",
+    " M tests/fleet/test_regressions.py",
+    " M tests/pmk/test_worktree_lifecycle.py",
+    " M tests/test_subprocess_env_lint.py",
+    " M tools/check_subprocess_env.py"
+  ],
+  "untracked_in_scope": [],
+  "verification": {
+    "apply_check": "ok",
+    "method": "clean detached worktree at the base commit; git apply --check then git apply"
+  }
+}

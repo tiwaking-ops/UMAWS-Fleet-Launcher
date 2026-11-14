@@ -1,0 +1,65 @@
+=== 2026-11-09T11:08:06Z ===
+--- git ---
+e7d272504f16d6c75a0805b56f01ad5ba7f10be6
+main
+e7d2725 docs(evidence): add H1-H4 deletion-safety patch at c1fac8f
+4e72901 test(fleet): cover AGENT_STARTED write failure
+06d3e93 merge: T-0182 full-product release-status note
+6cabebb docs: add full-product release-status note (T-0182)
+de107f8 fix(cna): commit the transport-dependent rules and data layer
+9b3b70d fix(coverage): track the §8 transport layer its baseline cites
+c1fac8f docs: record D-69 canary result and operator packet
+bcf145c chore(coverage): account for structural §6 headings
+bba95b4 feat(rules): implement §29 weather effects on synthetic location data
+1e533ef chore(coverage): record the LAND_ABSTRACT §32 implementation
+--- dirty ---
+284
+ 31 files changed, 2298 insertions(+), 451 deletions(-)
+--- worktrees ---
+C:/temp/projects/testproject1                                              e7d2725 [main]
+C:/temp/projects/testproject1/.claude/worktrees/agent-a8ea164055f940daf    aa09a8a [worktree-agent-a8ea164055f940daf]
+C:/temp/projects/testproject1/work/gate-1794216849                         06d3e93 (detached HEAD)
+C:/temp/projects/testproject1/work/gate-1794219368                         4e72901 (detached HEAD)
+C:/temp/projects/testproject1/work/h1-h4-branch-1794218000                 39c0dc1 [h1-h4-deletion-safety-v1]
+C:/temp/projects/testproject1/work/H1-H4-clean-1794215552                  c1fac8f (detached HEAD)
+C:/temp/projects/testproject1/work/H1-H4-clean-1794218904                  c1fac8f (detached HEAD)
+C:/temp/projects/testproject1/work/launcher-repair-clean-1794220000        06d3e93 (detached HEAD)
+C:/temp/projects/testproject1/work/legacy-launcher-cwd-fallback-1794222000 fa8362f [legacy-launcher-cwd-fallback]
+C:/temp/projects/testproject1/work/T-0118-100                              7c4be9a [pmk/T-0118-107]
+C:/temp/projects/testproject1/work/T-0119-101                              37fb2f8 [pmk/T-0119-101]
+C:/temp/projects/testproject1/work/T-0130-102                              f759039 [pmk/T-0130-102]
+C:/temp/projects/testproject1/work/T-0136-113                              77a56db [pmk/T-0136-113]
+C:/temp/projects/testproject1/work/T-0136-114                              77a56db [pmk/T-0136-114]
+C:/temp/projects/testproject1/work/T-0136-115                              77a8659 [pmk/T-0136-115]
+C:/temp/projects/testproject1/work/T-0139-116                              77a8659 [pmk/T-0139-116]
+C:/temp/projects/testproject1/work/T-0139-117                              2a0f6fa [pmk/T-0139-117]
+C:/temp/projects/testproject1/work/T-0141-118                              977b83b [pmk/T-0141-118]
+C:/temp/projects/testproject1/work/T-0142-119                              977b83b [pmk/T-0142-119]
+C:/temp/projects/testproject1/work/T-0145-122                              e31d70a [pmk/T-0145-122]
+C:/temp/projects/testproject1/work/T-0145-123                              e08fa8d [pmk/T-0145-123]
+C:/temp/projects/testproject1/work/T-0146-124                              e08fa8d [pmk/T-0146-124]
+C:/temp/projects/testproject1/work/T-0148-120                              13b8959 [pmk/T-0148-120]
+C:/temp/projects/testproject1/work/T-0150-121                              e2091fd [pmk/T-0150-121]
+C:/temp/projects/testproject1/work/T-0169-145                              486021d [pmk/T-0169-145]
+C:/temp/projects/testproject1/work/T-0170-146                              9d66fea [pmk/T-0170-146]
+C:/temp/projects/testproject1/work/T-0171-147                              4972c22 [pmk/T-0171-147]
+C:/temp/projects/testproject1/work/T-0172-148                              7f4fc51 [pmk/T-0172-148]
+C:/temp/projects/testproject1/work/T-0173-149                              73c5c83 [pmk/T-0173-149]
+C:/temp/projects/testproject1/work/T-0174-150                              7910de5 [pmk/T-0174-150]
+C:/temp/projects/testproject1/work/T-0181-144                              2fe17f1 [pmk/T-0181-144]
+C:/temp/projects/testproject1/work/T-0182-151                              6cabebb [pmk/T-0182-151]
+C:/temp/projects/testproject1/work/T-0189-156                              f67dc36 [pmk/T-0189-156]
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-3osjhcw2/merge             96eb2f2 (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-cvq31iha/merge             ecdb893 (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-dciu4suz/merge             d34177a (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-e0p8986h/merge             9861d06 (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-gku44cl4/merge             8fdf9fe (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-hbl3vdbg/merge             a7381e0 (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-k6ls53bl/merge             0912000 (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-m2sanimo/merge             bd2b576 (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-oo2s1qwx/merge             79b29cf (detached HEAD)
+C:/Users/Tiwa Pene/AppData/Local/Temp/pmk-merge-poc6l9gt/merge             dc45fab (detached HEAD)
+--- identity ---
+umaws-pilot <umaws-pilot@localhost> 1794222487 +1300
+--- transport tracked ---
+tests/test_transport.py

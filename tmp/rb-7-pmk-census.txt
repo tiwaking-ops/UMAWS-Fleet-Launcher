@@ -1,0 +1,35 @@
+worktree          task    fence  state     dirty  entries    MiB  age_d
+gate-1794216849   gate-1794216849 None   ?         no           0   18.7    0.1
+gate-1794219368   gate-1794219368 None   ?         no           0   18.7    0.0
+gate-e7d2725-1794222600 gate-e7d2725-1794222600 None   ?         no           0   18.7    0.0
+h1-h4-branch-1794218000 h1-h4-branch-1794218000 None   ?         no           0   16.2    0.0
+H1-H4-clean-1794215552 H1-H4-clean-1794215552 None   ?         yes          5   16.2    0.1
+H1-H4-clean-1794218904 H1-H4-clean-1794218904 None   ?         yes          5   16.2    0.0
+launcher-repair-clean-1794220000 launcher-repair-clean-1794220000 None   ?         yes         17   16.8    0.0
+legacy-launcher-cwd-fallback-1794222000 legacy-launcher-cwd-fallback-1794222000 None   ?         no           0   14.8    0.0
+T-0118-100        T-0118  100    DONE      no           0    8.8    8.0
+T-0119-101        T-0119  101    DONE      no           0   10.3    8.1
+T-0130-102        T-0130  102    DONE      no           0    8.8    8.1
+T-0136-113        T-0136  113    VOID      no           0    8.8    7.6
+T-0136-114        T-0136  114    VOID      no           0    8.8    7.5
+T-0136-115        T-0136  115    VOID      no           0    8.8    7.4
+T-0139-116        T-0139  116    DONE      no           0    8.8    7.3
+T-0139-117        T-0139  117    DONE      no           0    9.6    7.3
+T-0141-118        T-0141  118    VOID      no           0    8.9    7.3
+T-0142-119        T-0142  119    VOID      yes          2    8.9    7.3
+T-0145-122        T-0145  122    VOID      yes          2   12.7    1.6
+T-0145-123        T-0145  123    VOID      no           0   12.8    1.5
+T-0146-124        T-0146  124    VOID      yes          1   12.6    1.5
+T-0148-120        T-0148  120    VOID      no           0   14.0    1.6
+T-0150-121        T-0150  121    DONE      no           0   12.0    1.6
+T-0169-145        T-0169  145    DONE      no           0   13.9    0.6
+T-0170-146        T-0170  146    DONE      no           0   14.2    0.6
+T-0171-147        T-0171  147    DONE      no           0   14.0    0.6
+T-0172-148        T-0172  148    DONE      no           0   14.1    0.6
+T-0173-149        T-0173  149    DONE      no           0   14.1    0.6
+T-0174-150        T-0174  150    DONE      no           0   14.2    0.6
+T-0181-144        T-0181  144    DONE      no           0   13.9    0.6
+T-0182-151        T-0182  151    DONE      no           0   14.0    0.1
+T-0189-156        T-0189  156    READY     yes          1   14.3    0.2
+
+32 worktrees, 417.6 MiB, 7 dirty

@@ -1,0 +1,68 @@
+{
+  "archived": [
+    {
+      "name": "H1-H4-clean-1794215552",
+      "archived": true,
+      "dest": "C:\\temp\\projects\\testproject1\\stranded\\H1-H4-clean-1794215552",
+      "diff_bytes": 60399,
+      "untracked_count": 0,
+      "ignored_count": 96,
+      "tree_digest": "d3d4d7740c04290dab635ed57ef5d797ef047f1e1d8b501184879eb951f7104b"
+    },
+    {
+      "name": "H1-H4-clean-1794218904",
+      "archived": true,
+      "dest": "C:\\temp\\projects\\testproject1\\stranded\\H1-H4-clean-1794218904",
+      "diff_bytes": 60399,
+      "untracked_count": 0,
+      "ignored_count": 94,
+      "tree_digest": "0f482c9fc1d97515605f4f592dd7b56d7165b0f1bbdb5f06a86a3b193d7279c8"
+    },
+    {
+      "name": "launcher-repair-clean-1794220000",
+      "archived": true,
+      "dest": "C:\\temp\\projects\\testproject1\\stranded\\launcher-repair-clean-1794220000",
+      "diff_bytes": 104995,
+      "untracked_count": 0,
+      "ignored_count": 114,
+      "tree_digest": "0764d907ca6a80b99f6af09c66a142d0e4eb8c4dcd26880730a295956ccb5cb4"
+    },
+    {
+      "name": "T-0142-119",
+      "archived": true,
+      "dest": "C:\\temp\\projects\\testproject1\\stranded\\T-0142-119.2",
+      "diff_bytes": 2134,
+      "untracked_count": 0,
+      "ignored_count": 8,
+      "tree_digest": "2756eeced025278ec44befcf5c743e5a80cb54e1607231d28ceb8321bf29ba40"
+    },
+    {
+      "name": "T-0145-122",
+      "archived": true,
+      "dest": "C:\\temp\\projects\\testproject1\\stranded\\T-0145-122",
+      "diff_bytes": 663460,
+      "untracked_count": 0,
+      "ignored_count": 10,
+      "tree_digest": "5b124a0ae8024fe28eb2f7181ff4591d32b9333103923753bedd534b3d1cdb4f"
+    },
+    {
+      "name": "T-0146-124",
+      "archived": true,
+      "dest": "C:\\temp\\projects\\testproject1\\stranded\\T-0146-124",
+      "diff_bytes": 4083,
+      "untracked_count": 0,
+      "ignored_count": 2,
+      "tree_digest": "9edf1a055ebd974ad55d3a0fe676a9d2be3e44d9344b6bc7adc036dd5c7793f2"
+    },
+    {
+      "name": "T-0189-156",
+      "archived": true,
+      "dest": "C:\\temp\\projects\\testproject1\\stranded\\T-0189-156",
+      "diff_bytes": 460,
+      "untracked_count": 0,
+      "ignored_count": 11,
+      "tree_digest": "ae52a8a3fa5624ea57ba49e815f385f92de2440cdbd5af6b4f8f70f084c88a53"
+    }
+  ],
+  "count": 7
+}

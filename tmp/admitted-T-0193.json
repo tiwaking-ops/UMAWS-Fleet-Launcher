@@ -1,0 +1,139 @@
+{
+  "task": {
+    "id": "T-0193",
+    "title": "H3: reconcile live workers during Console startup",
+    "type": "implement",
+    "goal_ref": "G-001",
+    "risk_floor": "R2",
+    "scope": {
+      "read": [
+        "src/fleet/dispatcher.py",
+        "tests/fleet/test_console_dispatch.py"
+      ],
+      "write": [
+        "src/console/app.py",
+        "tests/fleet/test_reconcile_startup.py"
+      ]
+    },
+    "acceptance": {
+      "evidence_required": [],
+      "oracles": [
+        "python -m pytest -q tests/fleet/test_reconcile_startup.py tests/fleet/test_console_dispatch.py"
+      ]
+    },
+    "premises": [],
+    "budget": {
+      "tokens": 8000,
+      "wall_min": 15
+    },
+    "depends_on": [],
+    "attempts": {
+      "max": 2
+    },
+    "created_by": {
+      "agent": "",
+      "kind": "overseer",
+      "model": "",
+      "role": "",
+      "session": ""
+    },
+    "priority": 20,
+    "agent_hint": "Base 9b92c936. Dispatcher.reconcile() exists at src/fleet/dispatcher.py:520 and already re-adopts only leases whose pid/creation_time match a live process; nothing calls it from Console startup. Call it exactly once in Console.__init__ immediately after self.dispatcher is constructed (before Conductor/loops), so a restart adopts live workers and marks lost ones. Do not spawn a second worker for an adopted worktree; reconcile does that. Add tests/fleet/test_reconcile_startup.py that constructs Console with the fake CLI and proves reconcile ran once; keep tests/fleet/test_console_dispatch.py green. Do not change dispatcher adoption semantics.",
+    "hint_base_commit": "9b92c936036c2c9046b63a8e120a0eb760e01f58",
+    "state": "READY",
+    "attempt": 0,
+    "fence": 0,
+    "block_reason": "",
+    "stop_conditions": []
+  },
+  "lease": null,
+  "events": [
+    {
+      "seq": 3539,
+      "prev_hash": "44100472fce930e14d6b994de48247b4b763c546ff1bc00655c0b023c198a3da",
+      "ts": "2026-11-09T19:05:48Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_CREATED",
+      "subject": "T-0193",
+      "fence": null,
+      "payload": {
+        "admission_errors": [],
+        "card": {
+          "acceptance": {
+            "evidence_required": [],
+            "oracles": [
+              "python -m pytest -q tests/fleet/test_reconcile_startup.py tests/fleet/test_console_dispatch.py"
+            ]
+          },
+          "agent_hint": "Base 9b92c936. Dispatcher.reconcile() exists at src/fleet/dispatcher.py:520 and already re-adopts only leases whose pid/creation_time match a live process; nothing calls it from Console startup. Call it exactly once in Console.__init__ immediately after self.dispatcher is constructed (before Conductor/loops), so a restart adopts live workers and marks lost ones. Do not spawn a second worker for an adopted worktree; reconcile does that. Add tests/fleet/test_reconcile_startup.py that constructs Console with the fake CLI and proves reconcile ran once; keep tests/fleet/test_console_dispatch.py green. Do not change dispatcher adoption semantics.",
+          "attempt": 0,
+          "attempts": {
+            "max": 2
+          },
+          "block_reason": "",
+          "budget": {
+            "tokens": 8000,
+            "wall_min": 15
+          },
+          "created_by": {
+            "agent": "",
+            "kind": "overseer",
+            "model": "",
+            "role": "",
+            "session": ""
+          },
+          "depends_on": [],
+          "fence": 0,
+          "goal_ref": "G-001",
+          "hint_base_commit": "9b92c936036c2c9046b63a8e120a0eb760e01f58",
+          "id": "T-0193",
+          "premises": [],
+          "priority": 20,
+          "risk_floor": "R2",
+          "scope": {
+            "read": [
+              "src/fleet/dispatcher.py",
+              "tests/fleet/test_console_dispatch.py"
+            ],
+            "write": [
+              "src/console/app.py",
+              "tests/fleet/test_reconcile_startup.py"
+            ]
+          },
+          "state": "PROPOSED",
+          "stop_conditions": [],
+          "title": "H3: reconcile live workers during Console startup",
+          "type": "implement"
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "b25fa03f661bdf5eb9fad553e842695c1b2299a5a3235aa740117e998268ba79"
+    },
+    {
+      "seq": 3588,
+      "prev_hash": "e1efc1b4d772b18d01ab5c37fcb71c0c95bfa8b865f1fcf0a85a39279b0ed2ee",
+      "ts": "2026-11-10T06:21:59Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_ADMITTED",
+      "subject": "T-0193",
+      "fence": null,
+      "payload": {},
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "8fe98fb1e9b2f2c33a3771d5eb0ee5ec22f1f28124f53ce5fbf15412189e75a1"
+    }
+  ]
+}

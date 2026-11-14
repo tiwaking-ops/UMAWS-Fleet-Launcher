@@ -1,0 +1,56 @@
+{
+  "task": "T-0160",
+  "fence": 135,
+  "base_commit": "856e88328d6fcc378535febe8b52e8e2985ef987",
+  "outputs": [
+    {
+      "path": "src/pmk/views.py",
+      "sha256": "0b9034532cd98eb3e4dcfc092928a01505ac7b4a8d843edae4193ddd66c43c36"
+    },
+    {
+      "path": "src/pmk/sentinel.py",
+      "sha256": "2241614a4c2ac7f3c22a4570ec7c2f6386cc08be81bd9654528a0d295ab49600"
+    },
+    {
+      "path": "tests/pmk/test_sentinel_views.py",
+      "sha256": "570824ddcae792a0c5d74045bd05f20222c70fa3ed9535a6219f05c52ec01586"
+    }
+  ],
+  "diff_scope_check": {
+    "violations": []
+  },
+  "commands": [
+    {
+      "cmd": "python -m pytest -q tests/pmk/test_sentinel_views.py",
+      "cwd": ".",
+      "exit": 0,
+      "stdout_hash": "b5467385ad6de061556c81f90956b72c81a7fb9db2bb98fb31fde924a774ae66",
+      "stderr_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "oracle_results": [
+    {
+      "cmd": "python -m pytest -q tests/pmk/test_sentinel_views.py",
+      "exit": 0,
+      "ok": true,
+      "stdout_hash": "b5467385ad6de061556c81f90956b72c81a7fb9db2bb98fb31fde924a774ae66",
+      "stderr_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "note": "manual run after commit a3a387b"
+    }
+  ],
+  "premise_check": {
+    "refuted": false
+  },
+  "budget_used": {
+    "tokens": 0,
+    "wall_min": 0
+  },
+  "resolved_models": [
+    {
+      "provider": "local",
+      "model": "buffy"
+    }
+  ],
+  "constitution_hash": "cfa209a377a1a5ba4f4744822ea15490b44cd745528c523129e06fe43bba64bf",
+  "context_hash": "bcd8de7ea32626c2c6361bbffdfb55c1ab4aef4a27aa82704c0ea749a89825ec"
+}

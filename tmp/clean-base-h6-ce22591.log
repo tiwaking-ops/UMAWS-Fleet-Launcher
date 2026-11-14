@@ -1,0 +1,15 @@
+Preparing worktree (detached HEAD ce22591)
+HEAD is now at ce22591 fix(fleet): persist merge gate output in evidence bundles
+C:\temp\projects\umaws-gate-h6-ce22591\src\cna\engine\loop.py
+C:\temp\projects\umaws-gate-h6-ce22591\src\pmk\__init__.py
+gate worktree kept for inspection: C:\temp\projects\umaws-gate-h6-ce22591
+gate log: C:\temp\projects\testproject1\tmp\clean-base-h6-ce22591.log
+out-file : The process cannot access the file 'C:\temp\projects\testproject1\tmp\clean-base-h6-ce22591.log' because it 
+is being used by another process.
+At C:\temp\projects\testproject1\tools\check_clean_base.ps1:73 char:13
++             & $Python -m pytest -q *> $log
++             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (:) [Out-File], IOException
+    + FullyQualifiedErrorId : FileOpenFailure,Microsoft.PowerShell.Commands.OutFileCommand
+ 
+clean_base_exit=1

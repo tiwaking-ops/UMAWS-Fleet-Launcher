@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "reasons": [
+    "Independent re-run: both acceptance oracles exit 0 and reproduce the bundle stdout/stderr hashes exactly.",
+    "Output file hashes and diff scope match the bundle; targeted stage/transport/movement/stacking/ZOC/abstract-supply, T-0208, rules-baseline and smoke tests pass.",
+    "A full-suite run was attempted but did not complete within the tool timeout (stopped at 39%, no failures observed); card acceptance is based on the required oracles.",
+    "Known gaps acknowledged: caller-supplied Bn-Eq/supply data; captured supply points are logged but not credited to a captor ledger."
+  ]
+}

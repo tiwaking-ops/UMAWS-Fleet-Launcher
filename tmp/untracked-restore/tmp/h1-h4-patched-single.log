@@ -1,0 +1,35 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\temp\projects\testproject1\work\H1-H4-clean-1794215552
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: anyio-4.14.2, Faker-40.38.0, hypothesis-6.170.2, langsmith-0.11.1, cov-7.1.0
+collected 1 item
+
+tests\fleet\test_conductor_leases.py F                                   [100%]
+
+================================== FAILURES ===================================
+___________ test_reap_reclaims_the_worktree_when_policy_enables_it ____________
+
+fake_kernel = <pmk.api.Kernel object at 0x0000026DBC9B4560>
+clock = <pmk.clock.FakeClock object at 0x0000026DBC9B44D0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000026DBC9B45C0>
+
+    def test_reap_reclaims_the_worktree_when_policy_enables_it(
+            fake_kernel, clock, monkeypatch):
+        task, tree, lease = _orphan_with_worktree(fake_kernel, "a")
+        _enable_reclaim(fake_kernel, monkeypatch)
+        conductor = _conductor(fake_kernel)
+        clock.advance(TTL_S + 1)
+    
+        results = conductor.reap_expired_leases()
+    
+        assert results[0]["reaped"] is True
+>       assert not tree.exists()
+E       AssertionError: assert not True
+E        +  where True = exists()
+E        +    where exists = WindowsPath('C:/Users/Tiwa Pene/AppData/Local/Temp/pytest-of-Tiwa Pene/pytest-2178/test_reap_reclaims_the_worktre0/repo/work/T-0001-reclaim').exists
+
+tests\fleet\test_conductor_leases.py:333: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/fleet/test_conductor_leases.py::test_reap_reclaims_the_worktree_when_policy_enables_it
+============================== 1 failed in 6.72s ==============================

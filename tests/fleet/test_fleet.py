@@ -756,14 +756,26 @@ def test_removing_pilot_stop_resumes_dispatch(fake_kernel):
     assert agent_started
 
 
-def test_blocked_task_backoff_no_spam(fake_kernel, clock):
+def test_blocked_task_backoff_no_spam(fake_kernel, clock, monkeypatch):
     """D-A1: a task blocked by an overlap for 10 simulated minutes produces no more than 5 events."""
     # T1 holds an active lease (the blocker).
     task1 = make_task(fake_kernel, scope={"write": ["src/thing.py"], "read": []})
     fake_kernel.claim(task1.id, holder="fake-a", agent="fake", role="implement")
 
     # T2 has the same write scope -> claim will be refused with scope_overlap.
+    # Simulate a card recorded before the creation-time D-L6 refusal existed.
+    from pmk.api import Kernel
+    from pmk.models import ACTIVE_STATES, NON_TERMINAL_STATES
+    real_conflict = Kernel._scope_conflict
+
+    def legacy_conflict(self, card, state, states=ACTIVE_STATES):
+        if states == NON_TERMINAL_STATES:
+            return []
+        return real_conflict(self, card, state)
+
+    monkeypatch.setattr(Kernel, "_scope_conflict", legacy_conflict)
     task2 = make_task(fake_kernel, scope={"write": ["src/thing.py"], "read": []})
+    monkeypatch.setattr(Kernel, "_scope_conflict", real_conflict)
 
     dispatcher = Dispatcher(fake_kernel, FleetState(), fixture_root=FIXTURE_ROOT)
 

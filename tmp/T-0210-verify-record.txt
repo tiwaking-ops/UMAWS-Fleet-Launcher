@@ -1,0 +1,8 @@
+{
+  "ok": true,
+  "reasons": [
+    "Independent re-run: both acceptance oracles exit 0 and reproduce the bundle stdout/stderr hashes exactly.",
+    "The output SHA-256 and diff scope match the submitted bundle; the single test file covers all requested sections 8-10 and 29 cases.",
+    "No production rules or coverage data were changed by this card; the earlier full-suite run with this test file present passed 1281 tests."
+  ]
+}

@@ -1,6 +1,6 @@
 # Free LLM Models (UMAWS Fleet reference)
 
-Last updated: 2026-10-30 (operator Tiwa Pene).
+Last updated: 2026-11-12 (operator Tiwa Pene).
 
 ## Hermes CLI — Nous portal (access via `hermes -m <model_id>`)
 
@@ -8,10 +8,13 @@ Last updated: 2026-10-30 (operator Tiwa Pene).
 - poolside/laguna-xs-2.1:free
 - poolside/laguna-s-2.1:free
 - stepfun/step-3.7-flash:free
-- reflection/beam-1.0-501b-a23b:free
-- ornith/ornith-1.5-122b:free
+- meituan/longcat-2.5-preview:free
 
-> **Note (2026-10-30)**: `meituan/longcat-2.5-preview:free` is no longer available on Hermes (Nous portal).
+> **Note (2026-11-12)**: The following Hermes (Nous portal) models are no longer available:
+> - `ornith/ornith-1.5-122b:free`
+> - `reflection/beam-1.0-501b-a23b:free`
+>
+> `meituan/longcat-2.5-preview:free` is available again on Hermes.
 
 ## Kenari provider — 50 requests/day, account-wide
 
@@ -438,6 +441,8 @@ These are Google Gemini models. They are rate limited.
 | Gemini 3.1 Flash Lite | 17 | 250K | 500 |
 | Gemini 3.8 Flash | 5 | 250K | 20 |
 | Gemini 3.5 Flash Lite | 15 | 250K | 500 |
+
+Gemini 3.8 generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 250000
 
 Token limits verified from Google's official model documentation:
 - All four Gemini 3 models: context 1,048,576; max output 65,536.

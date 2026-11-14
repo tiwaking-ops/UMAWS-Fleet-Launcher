@@ -1,0 +1,149 @@
+{
+  "task": {
+    "id": "T-0205",
+    "title": "Complete the scenario loader and structured setup acceptance (sections 59-60)",
+    "type": "implement",
+    "goal_ref": "G-001",
+    "risk_floor": "R2",
+    "scope": {
+      "read": [
+        "src/cna/data/schema.py",
+        "docs/plans/cna-p1b-p4-implementation-plan.md"
+      ],
+      "write": [
+        "src/cna/data/scenario.py",
+        "tests/test_scenario_loader.py"
+      ]
+    },
+    "acceptance": {
+      "evidence_required": [],
+      "oracles": [
+        "python -m pytest -q tests/test_scenario_loader.py"
+      ]
+    },
+    "premises": [],
+    "budget": {
+      "tokens": 60000,
+      "wall_min": 240
+    },
+    "depends_on": [
+      "T-0165",
+      "T-0168",
+      "T-0169",
+      "T-0187"
+    ],
+    "attempts": {
+      "max": 3
+    },
+    "created_by": {
+      "agent": "",
+      "kind": "overseer",
+      "model": "",
+      "role": "",
+      "session": ""
+    },
+    "priority": 30,
+    "agent_hint": "Extend the existing loader in src/cna/data/scenario.py; do not create a parallel src/cna/scenario package. Cover section 59 validation/refusal and section 60 structured setup with synthetic or partial fixtures; real 60.22 data stays blocked on R-04/R-05/R-06 and must not be fabricated. Keep the loader oracle green.",
+    "hint_base_commit": "a4cbd0ae44dca915693e6dcfb0c36393eea482b3",
+    "state": "READY",
+    "attempt": 0,
+    "fence": 0,
+    "block_reason": "",
+    "stop_conditions": []
+  },
+  "lease": null,
+  "events": [
+    {
+      "seq": 3582,
+      "prev_hash": "19fcbd6ddb18c976a5baf8b363cd5596f207f7cffe51c39294c8bc01c9ad7ef5",
+      "ts": "2026-11-10T05:20:44Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_CREATED",
+      "subject": "T-0205",
+      "fence": null,
+      "payload": {
+        "admission_errors": [],
+        "card": {
+          "acceptance": {
+            "evidence_required": [],
+            "oracles": [
+              "python -m pytest -q tests/test_scenario_loader.py"
+            ]
+          },
+          "agent_hint": "Extend the existing loader in src/cna/data/scenario.py; do not create a parallel src/cna/scenario package. Cover section 59 validation/refusal and section 60 structured setup with synthetic or partial fixtures; real 60.22 data stays blocked on R-04/R-05/R-06 and must not be fabricated. Keep the loader oracle green.",
+          "attempt": 0,
+          "attempts": {
+            "max": 3
+          },
+          "block_reason": "",
+          "budget": {
+            "tokens": 60000,
+            "wall_min": 240
+          },
+          "created_by": {
+            "agent": "",
+            "kind": "overseer",
+            "model": "",
+            "role": "",
+            "session": ""
+          },
+          "depends_on": [
+            "T-0165",
+            "T-0168",
+            "T-0169",
+            "T-0187"
+          ],
+          "fence": 0,
+          "goal_ref": "G-001",
+          "hint_base_commit": "a4cbd0ae44dca915693e6dcfb0c36393eea482b3",
+          "id": "T-0205",
+          "premises": [],
+          "priority": 30,
+          "risk_floor": "R2",
+          "scope": {
+            "read": [
+              "src/cna/data/schema.py",
+              "docs/plans/cna-p1b-p4-implementation-plan.md"
+            ],
+            "write": [
+              "src/cna/data/scenario.py",
+              "tests/test_scenario_loader.py"
+            ]
+          },
+          "state": "PROPOSED",
+          "stop_conditions": [],
+          "title": "Complete the scenario loader and structured setup acceptance (sections 59-60)",
+          "type": "implement"
+        }
+      },
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "20c1a374a5565b4fcaa308cc12a564ec8e60f42676234756a655eac5d3ba13e9"
+    },
+    {
+      "seq": 3595,
+      "prev_hash": "5d4da4a8a0bc21f418b5277ad61f6151eeaaaa4a4c9dba999a8487ea08ccba2b",
+      "ts": "2026-11-10T06:22:03Z",
+      "actor": {
+        "kind": "kernel",
+        "agent": "",
+        "model": "",
+        "session": "",
+        "role": "kernel"
+      },
+      "type": "TASK_ADMITTED",
+      "subject": "T-0205",
+      "fence": null,
+      "payload": {},
+      "policy_hash": "a348c4c78e911f9cf732143c04d6378636e09646195c41e60664f9d8d0547811",
+      "kernel_version": "0.1.0",
+      "hash": "9ce535fc1397452a32e5253ed47d711d7f8143885d46b1778b8d5649377be889"
+    }
+  ]
+}

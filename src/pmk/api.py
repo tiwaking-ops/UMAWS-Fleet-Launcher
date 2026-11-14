@@ -31,6 +31,7 @@ from .bundle import Bundle, CommandResult, OracleResult
 from .clock import Clock, parse_iso, to_iso
 from .events import Actor, Event, EventLog
 from .models import (ACTIVE_STATES, BLOCKED, DONE, INTEGRATING, LEASED,
+                      NON_TERMINAL_STATES,
                       PROPOSED, READY, REWORK, SUBMITTED, VERIFYING, VOID,
                       TASK_TYPES, Lease, TaskCard, next_task_id, scope_overlaps)
 from .plat import FileLock, LockTimeout, atomic_write_text
@@ -284,8 +285,14 @@ class Kernel:
 
         The Kernel allocates the id.  A card is created in PROPOSED and
         becomes READY only if it passes admission (goal_ref, scope, oracle,
-        budget).  A card that fails admission is still recorded â€” the
-        Overseer can see why it was refused.
+        budget).  A card that fails admission is still recorded as the
+        reason it was refused.  Raises ``KernelError("scope_overlap",
+        conflicts=[...])`` when the declared write scope overlaps a
+        non-terminal card, before any event is appended: no card is
+        recorded.  Each conflict carries ``{task, state, this, other}`` —
+        the overlapping card's id and state plus the two overlapping
+        paths — in the same shape the claim-time check returns, so a
+        caller can narrow the scope and retry.
         """
         with self._locked():
             state = self.state()
@@ -317,6 +324,16 @@ class Kernel:
                 raise KernelError("invalid_task_type", task=card.id,
                                   type=card.type,
                                   valid=list(TASK_TYPES))
+            # D-L6 at creation time: overlap is detected at claim time only
+            # after duplicate cards already exist, and a never-running card
+            # cannot be corrected — only voided and recreated.  Refuse the
+            # card outright (no TASK_CREATED event, mirroring the type
+            # check above) and report the conflicting card and paths so the
+            # caller can narrow the scope and retry instead of guessing.
+            conflicts = self._scope_conflict(card, state,
+                                             states=NON_TERMINAL_STATES)
+            if conflicts:
+                raise KernelError("scope_overlap", conflicts=conflicts)
             problems = card.admission_errors()
             # R3: Oracle lint at creation time (before auto-admit)
             if not problems:
@@ -460,18 +477,22 @@ class Kernel:
         card = state.tasks.get(task_id)
         return card.fence if card is not None else 0
 
-    def _scope_conflict(self, card: TaskCard, state: State) -> list[dict]:
-        """Write-scope conflicts with tasks that already hold a lease.
+    def _scope_conflict(self, card: TaskCard, state: State,
+                        states: tuple[str, ...] = ACTIVE_STATES) -> list[dict]:
+        """Write-scope conflicts with tasks in *states*.
 
         Fleet amendment D-L6: many parallel agents on one repository produce
         merge conflicts by construction unless overlapping write scopes are
-        refused at claim time.
+        refused at claim time.  Creation time uses the same check with
+        ``NON_TERMINAL_STATES`` — a card that can never run is refused
+        before it exists, with the conflicting card and paths in the
+        refusal.
         """
         conflicts = []
         for other in state.task_list():
             if other.id == card.id:
                 continue
-            if other.state not in ACTIVE_STATES:
+            if other.state not in states:
                 continue
             hits = scope_overlaps(card.write_scope, other.write_scope)
             for left, right in hits:

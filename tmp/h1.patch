@@ -1,0 +1,115 @@
+diff --git a/src/pmk/api.py b/src/pmk/api.py
+index ee841eb..bd69917 100644
+--- a/src/pmk/api.py
++++ b/src/pmk/api.py
+@@ -512,7 +512,7 @@ class Kernel:
+     def claim(self, task_id: str, *, holder: str, agent: str = "",
+               role: str = "", session: str = "", worktree: str = "",
+               pid: int | None = None, creation_time: int | None = None,
+-              actor: Actor | None = None,
++              expires_at: str = "", actor: Actor | None = None,
+               allow_scope_conflict: bool = False,
+               allow_stale_hint: bool = False) -> Lease:
+         """Claim a task for a lease, with a fencing token.
+@@ -548,6 +548,29 @@ class Kernel:
+                     raise KernelError("scope_overlap", task=task_id,
+                                       conflicts=conflicts)
+ 
++            if worktree:
++                root = Path(self.repo.root).resolve()
++                target = Path(worktree).resolve()
++                if target == root:
++                    self._append("LEASE_REFUSED", subject=task_id,
++                                 payload={"reason": "repo_root_worktree",
++                                          "worktree": str(target)})
++                    raise KernelError(
++                        "invalid_worktree", task=task_id,
++                        worktree=str(target),
++                        detail="a lease worktree cannot be the repository root")
++                if self.project_state() != "RUNNING" and (pid is None or not expires_at):
++                    reason = ("worktree grant needs pid and expires_at while "
++                              "the project is not RUNNING")
++                    self._append("LEASE_REFUSED", subject=task_id,
++                                 payload={"reason": "incomplete_worktree_grant",
++                                          "worktree": str(target),
++                                          "pid": pid,
++                                          "expires_at": expires_at})
++                    raise KernelError(
++                        "lease_incomplete", task=task_id,
++                        worktree=str(target), detail=reason)
++
+             fence = self._next_fence()
+             attempt = card.attempt + 1
+             now = self.clock.now_iso()
+@@ -555,7 +578,7 @@ class Kernel:
+                 task_id=task_id, fence=fence, holder=holder, agent=agent,
+                 role=role, session=session, granted_at=now, renewed_at=now,
+                 pid=pid, creation_time=creation_time, worktree=worktree,
+-                attempt=attempt,
++                expires_at=expires_at, attempt=attempt,
+             )
+             self._append("CLAIMED", actor=actor, subject=task_id, fence=fence,
+                          payload={"lease": lease.to_obj(), "fence": fence,
+diff --git a/tests/pmk/test_lease_admission.py b/tests/pmk/test_lease_admission.py
+new file mode 100644
+index 0000000..e44b5c3
+--- /dev/null
++++ b/tests/pmk/test_lease_admission.py
+@@ -0,0 +1,57 @@
++"""H1: Kernel admission checks for worktree-bearing lease grants."""
++
++from __future__ import annotations
++
++import os
++
++import pytest
++
++from pmk.api import KernelError
++from _pmk_fixtures import make_card
++
++
++def _tree(kernel, name="tree"):
++    return str(kernel.repo.root.parent / name)
++
++
++def test_repo_root_worktree_is_refused(kernel):
++    card = make_card(kernel)
++    with pytest.raises(KernelError) as exc:
++        kernel.claim(card.id, holder="p", worktree=str(kernel.repo.root))
++    assert exc.value.reason == "invalid_worktree"
++    assert card.id not in kernel.state().leases
++    assert [e for e in kernel.events() if e.type == "LEASE_REFUSED"]
++
++
++def test_worktree_grant_without_pid_is_refused(kernel):
++    card = make_card(kernel)
++    with pytest.raises(KernelError) as exc:
++        kernel.claim(card.id, holder="p", worktree=_tree(kernel))
++    assert exc.value.reason == "lease_incomplete"
++    assert "pid" in exc.value.details["detail"]
++    assert card.id not in kernel.state().leases
++
++
++def test_worktree_grant_without_expiry_is_refused_even_with_pid(kernel):
++    card = make_card(kernel)
++    with pytest.raises(KernelError) as exc:
++        kernel.claim(card.id, holder="p", worktree=_tree(kernel),
++                     pid=os.getpid())
++    assert exc.value.reason == "lease_incomplete"
++    assert "expires_at" in exc.value.details["detail"]
++
++
++def test_complete_paused_worktree_grant_is_allowed(kernel):
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p", worktree=_tree(kernel),
++                         pid=os.getpid(),
++                         expires_at="2099-01-01T00:00:00+00:00")
++    assert lease.worktree
++    assert lease.expires_at == "2099-01-01T00:00:00+00:00"
++
++
++def test_running_project_worktree_grant_needs_no_process_fields(kernel):
++    kernel.project_set_state("RUNNING")
++    card = make_card(kernel)
++    lease = kernel.claim(card.id, holder="p", worktree=_tree(kernel))
++    assert lease.worktree

@@ -1,0 +1,185 @@
+T-0001  VOID        implement  pi live dispatch test: write hello.txt
+T-0002  VOID        implement  pi live dispatch test: write hello.txt
+T-0003  VOID        implement  pi live dispatch test: write pi-test.txt
+T-0004  VOID        implement  pi live dispatch test: write pi-test.txt (portable oracle)
+T-0005  VOID        implement  pi live dispatch test: write hello.txt (portable oracle)
+T-0006  VOID        implement  pi live dispatch test: write hello.txt (portable oracle)
+T-0007  VOID        plan       Write the project design document at docs/PDD.md
+T-0008  VOID        implement  Repo skeleton, pyproject.toml, .gitattributes, AGENTS.md, CLAUDE.md
+T-0009  VOID        implement  Vendor rules at pinned commit into docs/rules/ with checksums manifest
+T-0010  VOID        implement  Rules indexer: sections, case anchors, xrefs, tables to docs/rules/index.json
+T-0011  VOID        implement  show_rule tool: case plus cross-references
+T-0012  VOID        implement  Coverage tool and initial coverage/rules_coverage.json
+T-0013  VOID        implement  Core: ids, errors, dice (d6, 2d6, sequential 11-66), seeded RNG
+T-0014  VOID        implement  State model, JSON serialisation with schema version, state hash
+T-0015  VOID        implement  Event log and replay
+T-0016  VOID        implement  Data schemas, validators, provenance/status fields
+T-0017  VOID        implement  Gap register generator and first Class K queue item for R-02..R-05
+T-0018  VOID        implement  Decision-point model: Decision, Action, pending, legal_actions, apply
+T-0019  VOID        implement  Sequence-of-play state machine from section 5.2 (Appendix B as data)
+T-0020  VOID        implement  Initiative (section 7) and Weather (section 29), using synthetic tables where real ones missing
+T-0021  VOID        implement  Hidden information: view(), sealed commitments
+T-0022  VOID        implement  RandomLegalPlayer, headless runner, soak tool
+T-0023  VOID        implement  Rulesets module (LAND_ABSTRACT only) and section 2.0 combination check logged as RD
+T-0024  VOID        implement  Repo skeleton, pyproject.toml, .gitattributes, AGENTS.md, CLAUDE.md
+T-0025  VOID        implement  Vendor rules at pinned commit into docs/rules/ with checksums manifest
+T-0026  VOID        implement  Rules indexer: sections, case anchors, xrefs, tables to docs/rules/index.json
+T-0027  VOID        implement  show_rule tool: case plus cross-references
+T-0028  VOID        implement  Coverage tool and initial coverage/rules_coverage.json
+T-0029  VOID        implement  Core: ids, errors, dice (d6, 2d6, sequential 11-66), seeded RNG
+T-0030  VOID        implement  State model, JSON serialisation with schema version, state hash
+T-0031  VOID        implement  Event log and replay
+T-0032  VOID        implement  Data schemas, validators, provenance/status fields
+T-0033  VOID        implement  Gap register generator and first Class K queue item for R-02..R-05
+T-0034  VOID        implement  Decision-point model: Decision, Action, pending, legal_actions, apply
+T-0035  VOID        implement  Sequence-of-play state machine from section 5.2 (Appendix B as data)
+T-0036  VOID        implement  Initiative (section 7) and Weather (section 29), using synthetic tables where real ones missing
+T-0037  VOID        implement  Hidden information: view(), sealed commitments
+T-0038  VOID        implement  RandomLegalPlayer, headless runner, soak tool
+T-0039  VOID        implement  Rulesets module (LAND_ABSTRACT only) and section 2.0 combination check logged as RD
+T-0040  VOID        implement  Vendor rules at pinned commit into docs/rules/ with checksums manifest
+T-0041  VOID        implement  Vendor rules at pinned commit into docs/rules/ with checksums manifest
+T-0042  VOID        implement  Rules indexer: sections, case anchors, xrefs, tables to docs/rules/index.json
+T-0043  VOID        implement  show_rule tool: case plus cross-references
+T-0044  VOID        implement  Coverage tool and initial coverage/rules_coverage.json
+T-0045  VOID        implement  test creation probe
+T-0046  VOID        implement  probe
+T-0047  VOID        implement  Repo skeleton, pyproject.toml, .gitattributes, AGENTS.md, CLAUDE.md
+T-0048  VOID        implement  simpletitle
+T-0049  VOID        implement  Vendor rules at pinned commit into docs/rules/ with checksums manifest
+T-0050  VOID        implement  Rules indexer: sections, case anchors, xrefs, tables to docs/rules/index.json
+T-0051  VOID        implement  Repo skeleton, pyproject.toml, .gitattributes, AGENTS.md, CLAUDE.md
+T-0052  VOID        implement  quote test3
+T-0053  VOID        implement  Vendor rules at pinned commit into docs/rules/ with checksums manifest
+T-0054  VOID        implement  Rules indexer: sections, case anchors, xrefs, tables to docs/rules/index.json
+T-0055  VOID        implement  show_rule tool: case plus cross-references
+T-0056  VOID        implement  Coverage tool and initial coverage/rules_coverage.json
+T-0057  VOID        implement  Core: ids, errors, dice (d6, 2d6, sequential 11-66), seeded RNG
+T-0058  VOID        implement  State model, JSON serialisation with schema version, state hash
+T-0059  VOID        implement  Event log and replay
+T-0060  VOID        implement  Data schemas, validators, provenance/status fields
+T-0061  VOID        implement  Gap register generator and first Class K queue item for R-02..R-05
+T-0062  VOID        implement  Decision-point model: Decision, Action, pending, legal_actions, apply
+T-0063  VOID        implement  Sequence-of-play state machine from section 5.2 (Appendix B as data)
+T-0064  VOID        implement  Initiative (section 7) and Weather (section 29), using synthetic tables where real ones missing
+T-0065  VOID        implement  show_rule tool: case plus cross-references
+T-0066  VOID        implement  Hidden information: view(), sealed commitments
+T-0067  VOID        implement  Coverage tool and initial coverage/rules_coverage.json
+T-0068  VOID        implement  RandomLegalPlayer, headless runner, soak tool
+T-0069  VOID        implement  Rulesets module (LAND_ABSTRACT only) and section 2.0 combination check logged as RD
+T-0070  VOID        implement  Core: ids, errors, dice (d6, 2d6, sequential 11-66), seeded RNG
+T-0071  VOID        implement  State model, JSON serialisation with schema version, state hash
+T-0072  VOID        implement  Event log and replay
+T-0073  VOID        implement  Data schemas, validators, provenance/status fields
+T-0074  VOID        implement  Gap register generator and first Class K queue item for R-02..R-05
+T-0075  VOID        implement  Decision-point model: Decision, Action, pending, legal_actions, apply
+T-0076  VOID        implement  Sequence-of-play state machine from section 5.2 (Appendix B as data)
+T-0077  VOID        implement  Initiative (section 7) and Weather (section 29), using synthetic tables where real ones missing
+T-0078  VOID        implement  Hidden information: view(), sealed commitments
+T-0079  VOID        implement  RandomLegalPlayer, headless runner, soak tool
+T-0080  VOID        implement  Rulesets module (LAND_ABSTRACT only) and section 2.0 combination check logged as RD
+T-0081  VOID        implement  Vendor rules at pinned commit into docs/rules/ with checksums manifest
+T-0082  VOID        implement  Vendor rules at pinned commit into docs/rules/ with checksums manifest
+T-0083  VOID        implement  show_rule tool: case plus cross-references
+T-0084  VOID        implement  Coverage tool and initial coverage/rules_coverage.json
+T-0085  VOID        implement  Core: ids, errors, dice (d6, 2d6, sequential 11-66), seeded RNG
+T-0086  VOID        implement  State model, JSON serialisation with schema version, state hash
+T-0087  VOID        implement  Event log and replay
+T-0088  VOID        implement  Data schemas, validators, provenance/status fields
+T-0089  VOID        implement  Gap register generator and first Class K queue item for R-02..R-05
+T-0090  VOID        implement  Decision-point model: Decision, Action, pending, legal_actions, apply
+T-0091  VOID        implement  Sequence-of-play state machine from section 5.2 (Appendix B as data)
+T-0092  VOID        implement  Initiative (section 7) and Weather (section 29), using synthetic tables where real ones missing
+T-0093  VOID        implement  Hidden information: view(), sealed commitments
+T-0094  VOID        implement  RandomLegalPlayer, headless runner, soak tool
+T-0095  VOID        implement  Rulesets module (LAND_ABSTRACT only) and section 2.0 combination check logged as RD
+T-0096  VOID        implement  Repo skeleton, pyproject.toml, .gitattributes, AGENTS.md, CLAUDE.md
+T-0097  VOID        implement  Vendor rules at pinned commit into docs/rules/ with checksums manifest
+T-0098  VOID        implement  Rules indexer: sections, case anchors, xrefs, tables to docs/rules/index.json
+T-0099  VOID        implement  show_rule tool: case plus cross-references
+T-0100  VOID        implement  Coverage tool and initial coverage/rules_coverage.json
+T-0101  VOID        implement  Core: ids, errors, dice (d6, 2d6, sequential 11-66), seeded RNG
+T-0102  VOID        implement  State model, JSON serialisation with schema version, state hash
+T-0103  VOID        implement  Event log and replay
+T-0104  VOID        implement  Data schemas, validators, provenance/status fields
+T-0105  VOID        implement  Gap register generator and first Class K queue item for R-02..R-05
+T-0106  VOID        implement  Decision-point model: Decision, Action, pending, legal_actions, apply
+T-0107  VOID        implement  Sequence-of-play state machine from section 5.2 (Appendix B as data)
+T-0108  VOID        implement  Initiative (section 7) and Weather (section 29), using synthetic tables
+T-0109  VOID        implement  Hidden information: view(), sealed commitments
+T-0110  VOID        implement  RandomLegalPlayer, headless runner, soak tool
+T-0111  VOID        implement  Rulesets module (LAND_ABSTRACT only) and section 2.0 combination check logged as RD
+T-0112  VOID        implement  Repo skeleton, pyproject.toml, .gitattributes, AGENTS.md, CLAUDE.md
+T-0113  VOID        implement  Vendor rules at pinned commit into docs/rules/ with checksums manifest
+T-0114  VOID        implement  test task
+T-0115  VOID        implement  test write
+T-0116  VOID        implement  test no-oracle
+T-0117  VOID        implement  test oracle2
+T-0118  DONE        implement  Coverage tool and initial coverage/rules_coverage.json
+T-0119  DONE        implement  Decision-point model: Decision, Action, pending, legal_actions, apply
+T-0120  VOID        implement  test-var3
+T-0121  VOID        implement  Vendor rules at pinned commit into docs/rules/ with checksums manifest
+T-0122  VOID        implement  Generate docs/rules/index.json via rules indexer
+T-0123  VOID        implement  Vendor rules checksums manifest at docs/rules/manifest.json
+T-0124  VOID        implement  Generate docs/rules/index.json via rules indexer
+T-0125  VOID        implement  Coverage tool and initial coverage/rules_coverage.json
+T-0126  VOID        implement  Core engine module: Decision, Action, pending, legal_actions, apply
+T-0127  DONE        implement  Repo skeleton, pyproject.toml, .gitattributes, AGENTS.md, CLAUDE.md
+T-0128  VOID        implement  Vendor rules at pinned commit into docs/rules/ with checksums manifest
+T-0129  DONE        implement  Vendor rules at pinned commit into docs/rules/ with checksums manifest
+T-0130  DONE        implement  Generate docs/rules/index.json from the integrated rules corpus (indexer tool already in main)
+T-0131  VOID        implement  Vendor full 66-file CNA corpus into docs/rules/ at pinned commit 75a037f with checksums manifest
+T-0132  VOID        implement  Extend rules_index tool to index the full 66-file AsciiDoc corpus and regenerate docs/rules/index.json
+T-0133  VOID        implement  Extend coverage tool to account for the full 66-file AsciiDoc corpus and regenerate coverage/rules_coverage.json
+T-0134  VOID        implement  Extend the coverage tool to report per-case coverage over the AsciiDoc CNA corpus and regenerate coverage/rules_coverage.json
+T-0135  VOID        implement  Extend the rules indexer to index the AsciiDoc CNA corpus and regenerate docs/rules/index.json
+T-0136  VOID        implement  Vendor full 66-file CNA corpus into docs/rules/ at pinned commit 75a037f with checksums manifest
+T-0137  VOID        implement  Extend rules_index tool to index the full 66-file AsciiDoc corpus and regenerate docs/rules/index.json
+T-0138  VOID        implement  Extend coverage tool to account for the full 66-file AsciiDoc corpus and regenerate coverage/rules_coverage.json
+T-0139  DONE        implement  Vendor full 66-file CNA corpus into docs/rules/ at pinned commit 75a037f with checksums manifest (replacement for T-0136)
+T-0140  VOID        implement  Extend rules_index tool to index the full 66-file AsciiDoc corpus and regenerate docs/rules/index.json
+T-0141  VOID        implement  Extend rules_index tool to index the full 66-file AsciiDoc corpus and regenerate docs/rules/index.json
+T-0142  VOID        implement  Extend coverage tool to account for the full 66-file AsciiDoc corpus and regenerate coverage/rules_coverage.json
+T-0143  VOID        implement  Extend rules_index tool to index the full 66-file AsciiDoc corpus and regenerate docs/rules/index.json
+T-0144  VOID        implement  Extend coverage tool to account for the full 66-file AsciiDoc corpus and regenerate coverage/rules_coverage.json
+T-0145  VOID        implement  Extend rules_index tool to index the full 66-file AsciiDoc corpus and regenerate docs/rules/index.json
+T-0146  VOID        implement  Extend coverage tool to account for the full 66-file AsciiDoc corpus and regenerate coverage/rules_coverage.json
+T-0147  VOID        implement  Canary title test
+T-0148  VOID        implement  Canary tiny harmless documentation card for supervised end-to-end run
+T-0149  VOID        implement  Canary tiny harmless documentation card for supervised end-to-end run
+T-0150  DONE        implement  Canary tiny harmless documentation card for supervised end-to-end run (attempt 2, 15-minute gate budget)
+T-0151  DONE        implement  Core dice and seeded RNG for CNA (d6, 2d6, sequential 11-66)
+T-0152  DONE        implement  State model: schema version, canonical JSON, hash, save/load
+T-0153  DONE        implement  Append-only event log and deterministic replay
+T-0154  DONE        implement  Sequence of play from rule 5.2 (three Operations Stages, A then B)
+T-0155  DONE        implement  Initiative (7.14) and weather (29.1) with synthetic-table provenance
+T-0156  DONE        implement  Hidden information view and sealed simultaneous commitments
+T-0157  DONE        implement  RandomLegalPlayer, headless soak, and deterministic AI-vs-AI games
+T-0158  DONE        implement  Rulesets module with LAND_ABSTRACT first and recorded combination ruling
+T-0159  DONE        implement  Regenerate coverage report after P1a source modules
+T-0160  DONE        implement  Harden sentinel bundle lookup and generated table cells
+T-0161  DONE        implement  Fix synthetic soak actor bookkeeping across segments
+T-0162  DONE        implement  Prevent hidden opponent hands from leaking through view
+T-0163  DONE        implement  Generate per-case rule implementation coverage
+T-0164  DONE        implement  Harden sentinel against bundle-less non-repair integrations
+T-0165  DONE        implement  Add provenance-aware CNA data schemas and validators
+T-0166  DONE        implement  Generate the CNA data-gap register for missing R-04/R-05 resources
+T-0167  DONE        implement  Add show_rule case lookup with cross-references
+T-0168  DONE        implement  Implement Capability Point allowance and disorganization (§6)
+T-0169  DONE        implement  Implement movement, stacking, and zones of control (§§8–10)
+T-0170  DONE        implement  Implement combat framework, barrage, retreat, anti-armor, and close assault (§§11–15)
+T-0171  DONE        implement  Implement patrols, morale, and reserve (§§16–18)
+T-0172  DONE        implement  Implement organization and reinforcements (§§19–20)
+T-0173  DONE        implement  Implement breakdown, repair, engineers, construction, fortifications, and minefields (§§21–26)
+T-0174  DONE        implement  Implement raiders, POWs, the Mediterranean Fleet, and Rommel (§§27–31)
+T-0175  PROPOSED    implement  Implement abstract supply and air (§32)
+T-0176  PROPOSED    implement  Implement the scenario loader and structured setup data (§§59–60)
+T-0177  PROPOSED    implement  Build the Tkinter human interface (§6.10)
+T-0178  PROPOSED    implement  Implement the Logistics Game (§§48–57, §58)
+T-0179  PROPOSED    implement  Implement the Air Game (§§33–46, §47)
+T-0180  PROPOSED    implement  Complete the full campaign and save/resume (§64)
+T-0181  DONE        implement  Implement stacking and zones of control (§§9–10) as T-0169 prerequisites
+T-0182  LEASED      implement  Add a full-product release-status note
+T-0183  PROPOSED    plan       Decompose the remaining phase cards into atomic, case-cited cards
+T-0184  PROPOSED    implement  Define and test the official-data intake and validation procedure
+T-0185  PROPOSED    implement  Enforce coverage refresh in the delivery contract

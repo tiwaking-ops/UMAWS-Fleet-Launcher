@@ -1,0 +1,10 @@
+diff --git a/docs/reports/canary-53871a7.md b/docs/reports/canary-53871a7.md
+new file mode 100644
+index 0000000..4df518a
+--- /dev/null
++++ b/docs/reports/canary-53871a7.md
+@@ -0,0 +1,4 @@
++base=53871a7a13e2d000b1b6a6231568a653a9c3334f
++corpus=docs/rules/CNA-Rules.adoc present
++rule_files=69
++gate=pytest -q

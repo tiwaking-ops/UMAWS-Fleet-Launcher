@@ -5,7 +5,9 @@ from __future__ import annotations
 import pytest
 
 from pmk.api import KernelError
-from pmk.models import (BLOCKED, DONE, LEASED, PROPOSED, READY, REWORK,
+from pmk.models import (ACTIVE_STATES, BLOCKED, DONE, LEASED,
+                        NON_TERMINAL_STATES,
+                        PROPOSED, READY, REWORK,
                         SUBMITTED, VOID, scope_overlaps)
 from _pmk_fixtures import make_bundle, make_card
 
@@ -47,7 +49,7 @@ def test_task_without_scope_is_not_admitted(kernel):
 
 def test_task_ids_are_sequential_and_never_reused(kernel):
     first = make_card(kernel)
-    second = make_card(kernel)
+    second = make_card(kernel, scope={"write": ["src/other.py"], "read": []})
     assert first.id == "T-0001"
     assert second.id == "T-0002"
 
@@ -81,7 +83,8 @@ def test_claim_refuses_a_non_ready_task(kernel):
 
 def test_claim_refuses_when_dependencies_are_unmet(kernel):
     first = make_card(kernel)
-    second = make_card(kernel, depends_on=[first.id])
+    second = make_card(kernel, depends_on=[first.id],
+                       scope={"write": ["src/other.py"], "read": []})
     with pytest.raises(KernelError) as exc:
         kernel.claim(second.id, holder="p")
     assert exc.value.reason == "dependencies_unmet"
@@ -131,10 +134,27 @@ def test_scope_overlap_is_symmetric():
     assert scope_overlaps(["a/b/c.py"], ["a"]) == [("a/b/c.py", "a")]
 
 
-def test_claim_refuses_overlapping_write_scope(kernel):
-    """Two parallel agents on one repository conflict by construction."""
+def test_claim_refuses_overlapping_write_scope(kernel, monkeypatch):
+    """Claim-time overlap remains the backstop for legacy cards.
+
+    Since D-L6 landed at creation time, two overlapping non-terminal cards
+    cannot be recorded anymore — but logs written before that refusal still
+    contain them, and claim is the last gate before a worker leases one.
+    Simulate such a legacy card by bypassing the creation-time check.
+    """
     first = make_card(kernel, scope={"write": ["src/pmk/events.py"], "read": []})
+    real_conflict = type(kernel)._scope_conflict
+
+    def legacy_conflict(self, card, state, states=ACTIVE_STATES):
+        if states == NON_TERMINAL_STATES:
+            # The creation-time check did not exist when this card was logged.
+            return []
+        return real_conflict(self, card, state)
+
+    monkeypatch.setattr(type(kernel), "_scope_conflict", legacy_conflict)
     second = make_card(kernel, scope={"write": ["src/pmk"], "read": []})
+    monkeypatch.setattr(type(kernel), "_scope_conflict", real_conflict)
+
     kernel.claim(first.id, holder="p1")
     with pytest.raises(KernelError) as exc:
         kernel.claim(second.id, holder="p2")

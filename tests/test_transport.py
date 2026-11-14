@@ -19,21 +19,26 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from cna.engine import apply  # noqa: E402
-from cna.engine.loop import (StageScenario, build_decision,  # noqa: E402
-                             legal_rail_moves, play_operations_stage,
-                             stage_phases)
+from cna.engine.loop import (StageScenario, apply_off_map_move,  # noqa: E402
+                             build_decision, legal_off_map_moves,
+                             legal_rail_moves, legal_rail_stacks,
+                             play_operations_stage, stage_phases)
 from cna.rules.sec08_transport import (ALEXANDRIA_LINE, AXIS,  # noqa: E402
                                        BENGHAZI_LINE, COMMONWEALTH, GABES,
-                                       MAP_EXIT_HEX, RAIL_PHASE, TUNIS,
-                                       OffMapChart, OffMapTransit, OffMapUnit,
+                                       MAP_EXIT_HEX, RAIL_PHASE, TRIPOLI,
+                                       TUNIS, OffMapChart, OffMapTransit,
+                                       OffMapUnit,
                                        RAIL_STACK_LIMIT, RailLine,
-                                       RailNetwork, RailUsage, TransportError,
+                                       RailNetwork, RailUsage, SupplyLedger,
+                                       TransportError, TruckCargo,
                                        advance_off_map, arrival_box_locked,
                                        in_transit_label, map_exit_allowed,
                                        off_map_box_properties,
                                        off_map_entry_allowed,
                                        off_map_entry_hexes,
                                        plan_off_map_move, plan_rail_move,
+                                       plan_rail_supply_move,
+                                       supply_dump_allowed,
                                        supply_transfer_allows_movement)
 from cna.state.model import new_state  # noqa: E402
 
@@ -301,6 +306,40 @@ def rail_phase():
                 if phase.id.endswith(".B.J"))
 
 
+OFF_MAP_CHART = OffMapChart(
+    lambda origin, destination, cpa: 2
+    if {origin, destination} == {TRIPOLI, TUNIS} else 1)
+
+
+def off_map_scenario():
+    return StageScenario(
+        neighbours=lambda hex_id: (),
+        cost=lambda moving, source, destination: Fraction(1),
+        hex_limits={},
+        off_map_chart=OFF_MAP_CHART,
+        off_map_boxes=(TRIPOLI, TUNIS),
+    )
+
+
+def off_map_unit(position, **overrides):
+    record = rail_unit(position, side=AXIS)
+    record.update({"off_map_box": True, "base_cpa": 5,
+                   "stacking_points": 1,
+                   "reinforcement_or_replacement": False})
+    record.update(overrides)
+    return record
+
+
+class OffMapPlayer:
+    def choose(self, view, decision, legal, rng):
+        move = next((action for action in legal
+                     if action.id.startswith("offmap:")), None)
+        if move is not None:
+            return move
+        return next(action for action in legal
+                    if action.id == "end_segment")
+
+
 def test_the_rail_phase_offers_and_applies_one_rail_move():
     """RULE: 8.72-8.75; phase J is wired to the transport module."""
     state = rail_state(("cw-1", rail_unit("A")))
@@ -336,6 +375,57 @@ def test_rail_destination_stacking_is_checked():
     assert ("cw-1", "B") in offered
 
 
+def test_phase_j_groups_a_multi_unit_rail_stack_into_one_action():
+    """RULE: 8.72, 8.74, 8.75."""
+    state = rail_state(("cw-1", rail_unit("A", stacking_points=1)),
+                       ("cw-2", rail_unit("A", stacking_points=1)))
+    phase = rail_phase()
+    decision = build_decision(state, phase, COMMONWEALTH, rail_scenario())
+    action = next(action for action in decision.actions
+                  if action.id == "rail:cw-1+cw-2:C")
+    assert action.payload["unit_ids"] == ["cw-1", "cw-2"]
+
+    after = apply(decision, state, action)
+    assert after["units"]["cw-1"]["position"] == "C"
+    assert after["units"]["cw-2"]["position"] == "C"
+    assert after["units"]["cw-1"]["moved"] == "T1S1.III.B.J"
+    assert after["units"]["cw-2"]["moved"] == "T1S1.III.B.J"
+    assert after["rail_used"] == [[ALEXANDRIA_LINE, "east"]]
+    assert after["actions_in_segment"] == 1
+
+    again = build_decision(after, phase, COMMONWEALTH, rail_scenario())
+    assert [action.id for action in again.actions] == ["end_segment"]
+
+
+def test_phase_j_rail_stack_keeps_the_two_point_limit():
+    """RULE: 8.75."""
+    state = rail_state(("cw-1", rail_unit("A", stacking_points=1)),
+                       ("cw-2", rail_unit("A", stacking_points=1)),
+                       ("cw-3", rail_unit("A", stacking_points=1)))
+    stacks = legal_rail_stacks(state, COMMONWEALTH, rail_scenario())
+    assert all(stack.stacking_points <= RAIL_STACK_LIMIT for stack in stacks)
+    offered = {stack.unit_ids for stack in stacks}
+    assert ("cw-1", "cw-2", "cw-3") not in offered
+    assert ("cw-1", "cw-2") in offered
+
+    heavy = rail_state(("cw-1", rail_unit("A", stacking_points=2)),
+                       ("cw-2", rail_unit("A", stacking_points=1)))
+    heavy_stacks = legal_rail_stacks(heavy, COMMONWEALTH, rail_scenario())
+    assert ("cw-1", "cw-2") not in {stack.unit_ids
+                                     for stack in heavy_stacks}
+
+
+def test_grouped_rail_stack_checks_destination_stacking():
+    """RULE: 8.75, 8.77."""
+    state = rail_state(("cw-1", rail_unit("A", stacking_points=1)),
+                       ("cw-2", rail_unit("A", stacking_points=1)),
+                       ("cw-3", rail_unit("C", stacking_points=5)))
+    to_c = {stack.unit_ids for stack in legal_rail_stacks(
+        state, COMMONWEALTH, rail_scenario())
+        if stack.destination == "C"}
+    assert to_c == {("cw-1",), ("cw-2",)}
+
+
 class EndPlayer:
     def choose(self, view, decision, legal, rng):
         return next(action for action in legal
@@ -351,3 +441,193 @@ def test_rail_budget_resets_for_each_operations_stage():
         players={"axis": EndPlayer(), "commonwealth": EndPlayer()},
         stage=2)
     assert result.state["rail_used"] == []
+
+
+# ---------------------------------------------------------------------------
+# the Tripoli/Tunisia transit in the stage loop
+# ---------------------------------------------------------------------------
+
+def test_off_map_transit_advances_stage_by_stage_in_the_stage_loop():
+    """RULE: 8.81-8.84, 8.89; phase G drives one box step per Stage."""
+    state = rail_state(("ax-1", off_map_unit(TRIPOLI)))
+    first = play_operations_stage(
+        state, off_map_scenario(),
+        players={"axis": OffMapPlayer(), "commonwealth": EndPlayer()},
+        stage=1)
+    record = first.state["units"]["ax-1"]
+    assert record["position"] == in_transit_label(1)
+    assert record["off_map_transit"]["origin"] == TRIPOLI
+    assert record["off_map_transit"]["destination"] == TUNIS
+    assert record["off_map_transit"]["stages"] == 2
+    assert record["off_map_transit"]["elapsed"] == 1
+    assert record["spent"] == "5"
+    assert record["off_map_box"] is True
+    assert first.moves == 1
+    assert "breakdown_pending" not in record
+
+    second = play_operations_stage(
+        first.state, off_map_scenario(),
+        players={"axis": OffMapPlayer(), "commonwealth": EndPlayer()},
+        stage=2)
+    record = second.state["units"]["ax-1"]
+    assert record["position"] == TUNIS
+    assert record["off_map_transit"]["arrived"] is True
+    assert record["arrived_this_stage"] is True
+    assert record["off_map_box"] is True
+    assert second.moves == 1
+
+
+def test_off_map_move_spends_exact_cpa_and_skips_breakdown():
+    """RULE: 8.83."""
+    state = rail_state(("ax-1", off_map_unit(
+        TRIPOLI, base_cpa=7, motorized=True)))
+    phase = next(phase for phase in stage_phases(1)
+                 if phase.id.endswith(".A.G"))
+    decision = build_decision(state, phase, AXIS, off_map_scenario())
+    action = next(action for action in decision.actions
+                  if action.id == "offmap:ax-1:tunis")
+    after = apply(decision, state, action)
+    record = after["units"]["ax-1"]
+    assert record["spent"] == "7"
+    assert record["fuel_required"] is True
+    assert "breakdown_pending" not in record
+    assert "breakdown_roll" not in record
+
+
+def test_off_map_transit_can_turn_back():
+    """RULE: 8.84."""
+    state = rail_state(("ax-1", off_map_unit(TRIPOLI)))
+    first = apply_off_map_move(state, AXIS, "ax-1", TUNIS,
+                               off_map_scenario(), phase_key="k1")
+    options = legal_off_map_moves(first, AXIS, off_map_scenario(),
+                                  phase_key="k2")
+    assert {(option.kind, option.destination) for option in options} == {
+        ("continue", TUNIS), ("reverse", TRIPOLI)}
+    after = apply_off_map_move(first, AXIS, "ax-1", TRIPOLI,
+                               off_map_scenario(), phase_key="k2")
+    record = after["units"]["ax-1"]
+    assert record["position"] == TRIPOLI
+    assert record["off_map_move"] == "reverse"
+    assert record["off_map_transit"]["stages"] == 1
+
+
+def test_off_map_land_transit_refuses_commonwealth_land():
+    """RULE: 8.82."""
+    state = rail_state(("cw-1", off_map_unit(
+        TRIPOLI, side=COMMONWEALTH)))
+    assert legal_off_map_moves(state, COMMONWEALTH, off_map_scenario(),
+                               phase_key="k") == ()
+
+
+def test_8_86_arrived_reinforcement_cannot_leave_its_box():
+    """RULE: 8.86."""
+    state = rail_state(("ax-1", off_map_unit(
+        TUNIS, reinforcement_or_replacement=True)))
+    state["units"]["ax-1"]["arrived_this_stage"] = True
+    assert legal_off_map_moves(state, AXIS, off_map_scenario(),
+                               phase_key="k") == ()
+
+
+# ---------------------------------------------------------------------------
+# supply cargo (8.72, 8.88)
+# ---------------------------------------------------------------------------
+
+def test_8_72_rail_carries_supplies_once_in_each_direction():
+    """RULE: 8.72, 8.74."""
+    ledger = SupplyLedger({"B": 4, "D": 1})
+    east = plan_rail_supply_move(
+        LINE, side=COMMONWEALTH, phase=RAIL_PHASE, supply_points=2,
+        origin="B", destination="D")
+    assert east.direction == "east"
+    assert east.entered == ("C", "D")
+    moved = ledger.rail_deliver(east)
+    assert moved.dump_at("B") == 2
+    assert moved.dump_at("D") == 3
+
+    with pytest.raises(TransportError, match="8.74"):
+        plan_rail_supply_move(
+            LINE, side=COMMONWEALTH, phase=RAIL_PHASE, supply_points=1,
+            origin="B", destination="C", usage=east.usage)
+    west = plan_rail_supply_move(
+        LINE, side=COMMONWEALTH, phase=RAIL_PHASE, supply_points=1,
+        origin="D", destination="A", usage=east.usage)
+    assert west.direction == "west"
+    assert moved.rail_deliver(west).dump_at("A") == 1
+
+
+def test_8_72_8_75_rail_supply_restrictions_and_stock():
+    """RULE: 8.71-8.73, 8.75-8.78."""
+    kwargs = {
+        "side": COMMONWEALTH,
+        "phase": RAIL_PHASE,
+        "supply_points": 1,
+        "origin": "A",
+        "destination": "D",
+    }
+    with pytest.raises(TransportError, match="8.71"):
+        plan_rail_supply_move(LINE, **{**kwargs, "side": AXIS})
+    with pytest.raises(TransportError, match="8.72"):
+        plan_rail_supply_move(LINE, **{**kwargs, "phase": "movement"})
+    with pytest.raises(TransportError, match="8.73"):
+        plan_rail_supply_move(LINE, **kwargs, enemy_zoc=("B",))
+    with pytest.raises(TransportError, match="8.75"):
+        plan_rail_supply_move(LINE, **{**kwargs,
+                                       "supply_points": RAIL_STACK_LIMIT + 1})
+    with pytest.raises(TransportError, match="8.78"):
+        plan_rail_supply_move(LINE, **kwargs, axis_combat_hexes=("E",))
+    blocked = RailLine(ALEXANDRIA_LINE, ("A", "B", "C", "D", "E"),
+                       destroyed=frozenset({"C"}))
+    with pytest.raises(TransportError, match="8.76"):
+        plan_rail_supply_move(blocked, **kwargs)
+
+    scarce = SupplyLedger({"A": 1})
+    move = plan_rail_supply_move(
+        LINE, side=COMMONWEALTH, phase=RAIL_PHASE, supply_points=2,
+        origin="A", destination="B")
+    with pytest.raises(TransportError, match="8.72"):
+        scarce.rail_deliver(move)
+
+
+def test_8_88_truck_cargo_dumps_and_the_stage_lock():
+    """RULE: 8.87, 8.88, 8.95."""
+    assert supply_dump_allowed(TRIPOLI) is True
+    assert supply_dump_allowed(in_transit_label(1)) is False
+    assert off_map_box_properties(TRIPOLI)["supplies"] == "unlimited"
+
+    ledger = SupplyLedger(
+        {TRIPOLI: 10, TUNIS: 0},
+        {"truck-1": TruckCargo("truck-1", capacity=5)},
+    )
+    loaded = ledger.load("truck-1", TRIPOLI, 3, stage=1)
+    assert loaded.dump_at(TRIPOLI) == 7
+    assert loaded.truck("truck-1").load == 3
+    assert loaded.truck("truck-1").may_move(stage=1) is False
+    with pytest.raises(TransportError, match="8.88"):
+        loaded.truck("truck-1").require_move(stage=1)
+    assert loaded.truck("truck-1").may_move(stage=2) is True
+
+    unloaded = loaded.unload("truck-1", TUNIS, 2, stage=2)
+    assert unloaded.dump_at(TUNIS) == 2
+    assert unloaded.truck("truck-1").load == 1
+    assert unloaded.truck("truck-1").may_move(stage=2) is False
+    assert unloaded.truck("truck-1").may_move(stage=3) is True
+
+    with pytest.raises(TransportError, match="8.95"):
+        loaded.load("truck-1", TRIPOLI, 3, stage=1)
+    with pytest.raises(TransportError, match="8.72"):
+        loaded.load("truck-1", TRIPOLI, 8, stage=1)
+    with pytest.raises(TransportError, match="8.87"):
+        loaded.load("truck-1", in_transit_label(1), 1, stage=1)
+    with pytest.raises(TransportError, match="8.72"):
+        unloaded.unload("truck-1", TUNIS, 2, stage=3)
+
+    motorization = SupplyLedger(
+        {TUNIS: 2},
+        {"motorization-point-1": TruckCargo("motorization-point-1", 2)},
+    ).load("motorization-point-1", TUNIS, 2, stage=4)
+    assert motorization.truck(
+        "motorization-point-1").may_move(stage=4) is False
+    assert motorization.truck(
+        "motorization-point-1").may_move(stage=5) is True
+    with pytest.raises(TransportError, match="8.95"):
+        TruckCargo("truck-2", capacity=1, load=2)

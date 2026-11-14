@@ -1,0 +1,48 @@
+
+=================================== ERRORS ====================================
+______________ ERROR collecting tests/pmk/test_regression_i5.py _______________
+ImportError while importing test module 'C:\temp\projects\testproject1\work\H1-H4-clean-1794215552\tests\pmk\test_regression_i5.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\pmk\test_regression_i5.py:25: in <module>
+    from conftest import make_bundle, make_card
+E   ImportError: cannot import name 'make_bundle' from 'conftest' (C:\temp\projects\testproject1\work\H1-H4-clean-1794215552\tests\fleet\conftest.py)
+______________ ERROR collecting tests/pmk/test_sentinel_views.py ______________
+ImportError while importing test module 'C:\temp\projects\testproject1\work\H1-H4-clean-1794215552\tests\pmk\test_sentinel_views.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\pmk\test_sentinel_views.py:12: in <module>
+    from conftest import make_bundle, make_card
+E   ImportError: cannot import name 'make_bundle' from 'conftest' (C:\temp\projects\testproject1\work\H1-H4-clean-1794215552\tests\fleet\conftest.py)
+__________________ ERROR collecting tests/pmk/test_tasks.py ___________________
+ImportError while importing test module 'C:\temp\projects\testproject1\work\H1-H4-clean-1794215552\tests\pmk\test_tasks.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\pmk\test_tasks.py:10: in <module>
+    from conftest import make_bundle, make_card
+E   ImportError: cannot import name 'make_bundle' from 'conftest' (C:\temp\projects\testproject1\work\H1-H4-clean-1794215552\tests\fleet\conftest.py)
+____________ ERROR collecting tests/pmk/test_worktree_lifecycle.py ____________
+ImportError while importing test module 'C:\temp\projects\testproject1\work\H1-H4-clean-1794215552\tests\pmk\test_worktree_lifecycle.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Tiwa Pene\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\pmk\test_worktree_lifecycle.py:23: in <module>
+    from conftest import make_bundle, make_card
+E   ImportError: cannot import name 'make_bundle' from 'conftest' (C:\temp\projects\testproject1\work\H1-H4-clean-1794215552\tests\fleet\conftest.py)
+=========================== short test summary info ===========================
+ERROR tests/pmk/test_regression_i5.py
+ERROR tests/pmk/test_sentinel_views.py
+ERROR tests/pmk/test_tasks.py
+ERROR tests/pmk/test_worktree_lifecycle.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 4 errors during collection !!!!!!!!!!!!!!!!!!!
