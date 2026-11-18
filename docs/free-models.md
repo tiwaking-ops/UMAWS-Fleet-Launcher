@@ -486,3 +486,34 @@ Requires `GEMINI_API_KEY` env var.
 Kenari rate limit is account-wide (50 req/day), so prefer the single
 nemotron-3-ultra model there. Hermes (Nous) free models are not account-limited
 in the same way; see agents.toml for which profiles use them.
+
+/**Tue Nov 17 15:02:34 NZDT 2026*/ updated by tiwa with free cline model test below. PASS = tested and free / FAIL = tested and not free / MODEL NOT SUPPORTED = model not supported
+cline
+baidu/ernie-5.5-flash-preview:free
+liquid/lfm-3-1.7b:free
+particle-ai/particle-1:free
+
+ERNIE-5.5-Flash-Preview (FREE) 1m
+free models router 200k FAIL
+beam 1.0 (free) 1m FAIL
+Flint (free) 262k FAIL
+Gemma 4 26B A4B (free) 262k MODEL NOT SUPPORTED
+Gemma 4 31B A4B (free) 262k MODEL NOT SUPPORTED
+Inkling (free) 1m MODEL NOT SUPPORTED
+Inkling 2 Small (free) 1m MODEL NOT SUPPORTED
+Inkling Small (free) 1m MODEL NOT SUPPORTED
+Laguna S 2.1 Free (free) 256k MODEL NOT SUPPORTED
+LFM2.5-2.6B (free) 66k FAIL
+LFM3-1.7B (free) 262k PASS! Nice to meet you too! This model thinks a lot
+Ling 3.2 Flash (free) 1m MODEL NOT SUPPORTED
+Nemotron 3 Nano Omni (free) 256k FAIL
+Nemotron 3 Super (free) 262k FAIL
+Nemotron 3 Ultra (free) 1m FAIL
+Nemotron 3.5 Lightning (free) 1m FAIL
+Nemotron 3.5 Lightning Free (FREE) 1m PASS
+Nemotron 3.5 Super VL (FREE) 1.0m PASS
+Nemotron 3.5 Super VL (FREE) 1m FAIL
+North Mini Code (free) 256k FAIL
+Particle-1 (free) 1.0m PASS
+Solar Mini 4 (free) 524k PASS
+Xing4.0 29B A4B (free) 262k MODEL NOT SUPPORTED

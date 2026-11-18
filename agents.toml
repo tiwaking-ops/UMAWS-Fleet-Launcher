@@ -223,7 +223,7 @@ models = [
 id = "cline-solar-mini4"
 adapter = "cline"
 family = "upstage"
-priority = 30
+priority = 31
 max_concurrent = 1
 via_gateway = false
 roles = ["implement"]
@@ -250,7 +250,7 @@ models = [
 # argv_new = ["cline", "--provider", "cline", "--model", "cline-free/nemotron-3.5-super-vl", "{prompt}"]
 # argv_resume = ["cline", "--provider", "cline", "--model", "{model}", "{prompt}", "--id", "{session}"]
 # models = [
-#   "nvidia/nemotron-3.5-lightning-free",
+#   "cline-free/nemotron-3.5-lightning",
 #   "cline-free/nemotron-3.5-super-vl",
 #   "cline-free/solar-mini4",
   # Poolside models removed - shut down October 31, 2026
@@ -260,8 +260,8 @@ models = [
 id = "cline-nemo-lightning"
 adapter = "cline"
 family = "nvidia"
-priority = 32
-max_concurrent = 1
+priority = 30
+max_concurrent = 2
 via_gateway = false
 roles = ["implement"]
 argv_new = ["cline", "--provider", "cline", "--model", "nvidia/nemotron-3.5-lightning-free", "{prompt}"]
@@ -380,7 +380,7 @@ models = [
 id = "hermes-stepfun"
 adapter = "hermes"
 family = "stepfun"
-priority = 3
+priority = 5
 max_concurrent = 1
 via_gateway = false
 roles = ["implement", "review", "plan"]
@@ -442,7 +442,7 @@ models = [
 id = "hermes-meituan-longcat-2.5-free"
 adapter = "hermes"
 family = "upstage"
-priority = 1
+priority = 3
 max_concurrent = 1
 via_gateway = false
 roles = ["implement", "review", "plan"]
